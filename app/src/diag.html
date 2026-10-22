@@ -1,0 +1,36 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+<title>Diagnóstico táctil</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:wght@800&family=Outfit:wght@500;600;800&display=swap">
+<link rel="stylesheet" href="/css/tokens.css">
+<style>
+  html, html body { height: 100%; margin: 0; overflow: hidden; touch-action: none; user-select: none; -webkit-user-select: none; overscroll-behavior: none; background: var(--wine); color: #fff; }
+  canvas { position: fixed; inset: 0; width: 100%; height: 100%; pointer-events: none; z-index: 5; }
+  .t { position: fixed; z-index: 2; width: 64px; height: 64px; margin: -32px 0 0 -32px; border-radius: 50%; border: 4px solid var(--sun); background: rgba(255, 193, 77, .12); display: grid; place-items: center; font: 600 12px var(--font); text-align: center; line-height: 1.1; }
+  .t.hit { border-color: #3ddc84; background: rgba(61, 220, 132, .2); }
+  .t.miss { border-color: #ff5a4d; background: rgba(255, 90, 77, .25); }
+  #info { position: fixed; z-index: 3; left: 50%; top: 50%; transform: translate(-50%, -50%); width: min(560px, 80vw); padding: 18px 22px; border-radius: var(--r2); background: var(--glass); border: 1px solid var(--glass-line); font: 500 15px/1.5 var(--font); }
+  #info h1 { margin: 0 0 8px; font: 800 26px var(--font-display); }
+  #info b { color: var(--sun); }
+  #bar { position: fixed; z-index: 6; left: 50%; bottom: 12%; transform: translateX(-50%); display: flex; gap: 12px; align-items: center; }
+  #max { font: 800 22px var(--font); }
+</style>
+</head>
+<body>
+<div id="info">
+  <h1>Diagnóstico táctil</h1>
+  <div>Toca con dedos o lápiz. Se dibuja cada puntero. Toca los círculos para medir la precisión.</div>
+  <div id="env"></div>
+  <div>Máx. punteros simultáneos: <b id="maxn">0</b></div>
+  <div id="live">Sin punteros activos</div>
+</div>
+<div id="bar"><button class="btn" id="clear" type="button">Limpiar</button></div>
+<canvas id="c"></canvas>
+<script type="module" src="/js/diag.js"></script>
+</body>
+</html>

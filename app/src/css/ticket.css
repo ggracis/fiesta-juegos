@@ -1,0 +1,39 @@
+body.tk { min-height: 100svh; color: #fff; background: radial-gradient(120% 70% at 50% 100%, #FF5A4D 0%, #E4002B 40%, #8F0A24 80%, #2A0610 100%) fixed; }
+.tk main { display: grid; place-items: center; min-height: 100svh; max-width: 440px; margin: 0 auto; padding: 32px 16px 48px; text-align: center; }
+.reveal { width: 100%; display: grid; justify-items: center; }
+.reveal > .sealed, .reveal > .ticket { grid-area: 1 / 1; }
+.sealed { display: grid; justify-items: center; }
+
+/* ---------- sealed envelope ---------- */
+.envelope { position: relative; width: min(82vw, 340px); aspect-ratio: 3 / 2; margin-top: 12vh; padding: 0; border: 0; background: none; cursor: pointer; perspective: 800px; transition: transform 90ms var(--ease); }
+.envelope:active { transform: scale(.96); }
+.envelope .front { position: absolute; inset: 0; border-radius: var(--r2); background: linear-gradient(160deg, #FFC14D, #FF8A3D); box-shadow: 0 24px 48px -20px rgba(42, 6, 16, .8), inset 0 2px 0 rgba(255, 255, 255, .5); }
+.envelope .flap { position: absolute; z-index: 2; left: 0; right: 0; top: 0; height: 58%; transform-origin: top center; background: linear-gradient(180deg, #FF8A3D, #FF5A4D); clip-path: polygon(0 0, 100% 0, 50% 100%); border-radius: var(--r2) var(--r2) 0 0; }
+.envelope .seal { position: absolute; z-index: 3; left: 50%; top: 52%; display: grid; place-items: center; width: 56px; height: 56px; margin: -28px 0 0 -28px; border-radius: 50%; background: var(--red); box-shadow: var(--shadow-jelly); animation: breathe 2.4s ease-in-out infinite; }
+@keyframes breathe { 50% { transform: scale(1.1); } }
+.tap { margin: 28px 0 0; font: 800 1.35rem/1.2 var(--font-display); }
+
+/* ---------- ticket with perforated notch ---------- */
+.ticket {
+  --ny: 168px; position: relative; width: 100%; overflow: hidden; color: var(--ink); background: #fff; border-radius: var(--r3); text-align: center;
+  -webkit-mask: radial-gradient(circle 16px at 0 var(--ny), #0000 15px, #000 16px) left / 51% 100% no-repeat, radial-gradient(circle 16px at 100% var(--ny), #0000 15px, #000 16px) right / 51% 100% no-repeat;
+  mask: radial-gradient(circle 16px at 0 var(--ny), #0000 15px, #000 16px) left / 51% 100% no-repeat, radial-gradient(circle 16px at 100% var(--ny), #0000 15px, #000 16px) right / 51% 100% no-repeat;
+}
+.ticket header { height: var(--ny); padding: 28px 20px 0; background: var(--grad-btn); color: #fff; border-bottom: 3px dashed rgba(255, 255, 255, .55); }
+.ticket h1 { margin: 0 0 6px; font: 800 2.1rem/1 var(--font-display); letter-spacing: -.01em; text-shadow: 0 2px 0 rgba(143, 10, 36, .4); }
+.ticket .who { margin: 0; font: 800 1.35rem/1.15 var(--font); text-shadow: 0 1px 0 rgba(143, 10, 36, .4); }
+.ticket .when { margin: 8px 0 0; font-size: .95rem; font-weight: 600; }
+.ticket .body { padding: 22px 20px 26px; }
+.qr { width: min(100%, 250px); aspect-ratio: 1; margin: 0 auto 18px; padding: 8px; border-radius: var(--r1); background: #fff; box-shadow: inset 0 0 0 2px rgba(228, 0, 43, .18); }
+.qr svg { display: block; width: 100%; height: 100%; }
+.pin-label { margin: 0; font-weight: 600; color: var(--ink-soft); }
+.pin { display: flex; justify-content: center; gap: 6px; margin: 6px 0 0; font: 800 2.6rem/1.1 var(--font); color: var(--red); font-variant-numeric: tabular-nums; perspective: 400px; }
+.pin span { display: inline-block; min-width: .7em; }
+.sheen { position: absolute; z-index: 4; inset: 0; pointer-events: none; opacity: 0; background: linear-gradient(105deg, transparent 35%, rgba(255, 255, 255, .75) 50%, transparent 65%); }
+.dl { margin-top: 22px; }
+.note { margin: 14px 0 0; font-size: .95rem; line-height: 1.4; opacity: .9; }
+
+.nf { max-width: 360px; padding: 32px 24px; border-radius: var(--r3); color: var(--ink); background: #fff; box-shadow: var(--shadow-card); }
+.nf h1 { margin: 0 0 8px; font: 800 1.8rem/1.05 var(--font-display); }
+.nf p { margin: 0 0 20px; color: var(--ink-soft); line-height: 1.4; }
+.nf p:last-child { margin: 0; }

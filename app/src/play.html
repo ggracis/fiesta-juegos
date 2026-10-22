@@ -1,0 +1,99 @@
+<!doctype html>
+<html lang="es" class="panel">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+<meta name="theme-color" content="#2A0610">
+<title>Juegos de la fiesta</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:wght@800&family=Outfit:wght@500;600;800&display=swap">
+<link rel="stylesheet" href="/css/tokens.css">
+<link rel="stylesheet" href="/css/play.css">
+</head>
+<body>
+<div id="stage" data-screen="attract">
+
+  <section id="attract" class="screen">
+    <div class="sun"></div>
+    <div id="floaters"></div>
+    <h1>¿Encuentras<br>al distinto?</h1>
+    <div class="cta">
+      <div class="ripple"></div>
+      <div class="playpill">Toca para jugar</div>
+      <svg class="hand" viewBox="0 0 100 130" aria-hidden="true"><path d="M38 6a10 10 0 0 1 20 0v52l8-3c9-3 17 5 13 14l-12 40c-3 9-10 16-20 16H44c-10 0-18-6-24-14L6 88c-4-6 1-14 8-12l14 5V6a10 10 0 0 1 10 0z" fill="#fff" fill-opacity=".92"/></svg>
+    </div>
+    <div class="tops" id="tops"></div>
+  </section>
+
+  <section id="pin" class="screen" hidden>
+    <div class="glass pincard">
+      <h2>Escribe tu PIN</h2>
+      <div id="dots"></div>
+      <p id="pinmsg" class="msg" aria-live="polite">&nbsp;</p>
+      <div id="pad"></div>
+      <p class="hintline">Tu PIN está en tu entrada</p>
+    </div>
+  </section>
+
+  <section id="confirm" class="screen" hidden>
+    <div class="bigav" id="avatar"></div>
+    <h2 id="hola"></h2>
+    <p id="full" class="full"></p>
+    <div class="row">
+      <button class="big wide" id="yes" type="button">¡Soy yo, a jugar!</button>
+      <button class="big ghost narrow" id="no" type="button">No soy yo</button>
+    </div>
+  </section>
+
+  <section id="howto" class="screen" hidden>
+    <h2>Así se juega</h2>
+    <div class="howrow">
+      <div class="demo" id="demo">
+        <div class="halo" id="halo"></div>
+        <svg class="hand" id="dhand" viewBox="0 0 100 130" aria-hidden="true"><path d="M38 6a10 10 0 0 1 20 0v52l8-3c9-3 17 5 13 14l-12 40c-3 9-10 16-20 16H44c-10 0-18-6-24-14L6 88c-4-6 1-14 8-12l14 5V6a10 10 0 0 1 10 0z" fill="#fff"/></svg>
+        <b class="plus" id="dplus">+10</b>
+      </div>
+      <ol class="caps" id="caps">
+        <li>Mira</li><li>Encuentra</li><li>Toca</li>
+      </ol>
+    </div>
+    <div class="startwrap">
+      <svg class="ring" viewBox="0 0 520 170" aria-hidden="true"><rect id="howring" x="6" y="6" width="508" height="158" rx="79" pathLength="100"/></svg>
+      <button class="big" id="start" type="button">EMPEZAR</button>
+    </div>
+    <button class="textkey" id="skip" type="button">Saltar</button>
+  </section>
+
+  <section id="game" class="screen" hidden>
+    <div class="hud">
+      <div class="pips" id="pips"></div>
+      <div class="timer"><div class="track"><i id="timebar"></i></div><b id="timenum">8</b></div>
+      <div class="score">Puntos <b id="scorenum">0</b></div>
+    </div>
+    <div id="grid"></div>
+    <div id="banner"><b id="bantxt"></b><em id="banbadge">¡Nivel experto!</em></div>
+  </section>
+
+  <section id="result" class="screen" hidden>
+    <h2 id="rtitle"></h2>
+    <div class="medal" id="medal">
+      <b id="rscore">0</b><span>de 100 puntos</span>
+      <em class="record" id="record" hidden>¡Récord de la pantalla!</em>
+    </div>
+    <p class="thanks">¡Gracias! Pásale la pantalla al siguiente.</p>
+    <p id="rnote" class="msg">&nbsp;</p>
+    <div class="back">
+      <svg viewBox="0 0 60 60" aria-hidden="true"><circle cx="30" cy="30" r="26" class="bgc"/><circle cx="30" cy="30" r="26" pathLength="100" id="backring"/></svg>
+      <span id="backtxt">Volviendo en 5…</span>
+    </div>
+  </section>
+
+  <button id="snd" type="button" aria-pressed="false" aria-label="Activar sonido">
+    <svg viewBox="0 0 32 32" aria-hidden="true"><path d="M4 12h6l8-6v20l-8-6H4z" fill="#fff"/><g class="waves"><path d="M22 11c2.500 2.500 2.500 7.500 0 10M25 7c4.500 4.500 4.500 13.500 0 18" fill="none" stroke="#fff" stroke-width="2.500" stroke-linecap="round"/></g><path class="slash" d="M5 5l22 22" stroke="#fff" stroke-width="3" stroke-linecap="round"/></svg>
+  </button>
+  <div id="iris" hidden></div>
+</div>
+<script type="module" src="/js/play.js"></script>
+</body>
+</html>

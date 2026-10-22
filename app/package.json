@@ -1,0 +1,28 @@
+{
+  "name": "fiesta-pilot",
+  "version": "0.2.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "node scripts/dev.mjs",
+    "build": "vite build",
+    "build:pages": "vite build --mode pages",
+    "preview:pages": "vite preview --mode pages --port 4173",
+    "start": "npm run build && node server/index.ts",
+    "serve": "node server/index.ts",
+    "gen:demo": "node scripts/gen-demo-roster.mjs",
+    "test": "node --test test/*.test.js",
+    "reset": "node server/reset.ts"
+  },
+  "dependencies": {
+    "@fastify/static": "10.1.7",
+    "canvas-confetti": "1.9.4",
+    "fastify": "^5.12.7",
+    "gsap": "3.15.0",
+    "qrcode": "1.5.4",
+    "vite": "8.3.5"
+  },
+  "engines": {
+    "node": ">=24"
+  }
+}

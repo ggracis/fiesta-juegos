@@ -1,0 +1,92 @@
+body { min-height: 100svh; }
+
+/* ---------- hero: sunrise, half-risen sun, mascot trio ---------- */
+.hero {
+  position: relative; display: flex; flex-direction: column; min-height: 100svh; overflow: hidden;
+  padding: 28px 16px 0; color: #fff; background: var(--sunrise); border-radius: 0 0 var(--r3) var(--r3);
+}
+.datepill {
+  align-self: flex-start; margin: 0 0 20px; padding: 10px 20px; border-radius: 999px;
+  font: 800 1.125rem/1 var(--font); letter-spacing: .04em; color: var(--ink); background: var(--sun);
+  box-shadow: var(--shadow-jelly);
+}
+.datepill b { font-size: 1.5rem; }
+.hero h1 {
+  position: relative; z-index: 2; margin: 0 0 12px; max-width: 10em; opacity: 0; /* revealed word by word by JS */
+  font: 800 clamp(44px, 13vw, 64px)/.98 var(--font-display); letter-spacing: -.02em; text-wrap: balance;
+  text-shadow: 0 4px 24px rgba(42, 6, 16, .45);
+}
+.hero .sub { position: relative; z-index: 2; margin: 0; font-size: 1.125rem; font-weight: 600; opacity: 0; }
+
+.sunwrap { position: relative; margin-top: auto; height: min(88vw, 400px); }
+.disc {
+  position: absolute; left: 50%; bottom: -46%; width: 118vw; max-width: 760px; aspect-ratio: 1; border-radius: 50%;
+  transform: translateX(-50%); background: radial-gradient(circle, #FFF6D4 0, #FFC14D 42%, #FF8A3D 72%, rgba(255, 90, 77, 0) 74%);
+}
+.rays {
+  position: absolute; left: 50%; bottom: -46%; width: 220vw; max-width: 1500px; aspect-ratio: 1;
+  translate: -50% 0; border-radius: 50%; opacity: .5;
+  background: repeating-conic-gradient(rgba(255, 247, 243, .55) 0 7deg, transparent 7deg 24deg);
+  -webkit-mask-image: radial-gradient(circle, #000 18%, transparent 62%); mask-image: radial-gradient(circle, #000 18%, transparent 62%);
+  animation: spin 40s linear infinite;
+}
+@keyframes spin { to { transform: rotate(360deg); } }
+.trio { position: absolute; left: 0; right: 0; bottom: 92px; display: flex; justify-content: center; align-items: flex-end; gap: 4px; }
+.trio > span { display: block; width: 31vw; max-width: 150px; aspect-ratio: 1; }
+.trio > span:nth-child(2) { width: 36vw; max-width: 175px; margin-bottom: 10px; }
+
+/* ---------- body ---------- */
+main { max-width: 560px; margin: 0 auto; padding: 28px 0 120px; }
+.mine {
+  display: flex; align-items: center; justify-content: space-between; gap: 12px; margin: 0 16px 20px; padding: 16px 20px;
+  border-radius: var(--r2); background: #fff; box-shadow: var(--shadow-card); color: var(--ink); text-decoration: none; font-weight: 800;
+}
+
+.chips {
+  display: flex; gap: 12px; margin: 0 0 28px; padding: 4px 16px 20px; list-style: none;
+  overflow-x: auto; scroll-snap-type: x mandatory; scroll-padding: 0 16px; scrollbar-width: none;
+}
+.chips::-webkit-scrollbar { display: none; }
+.chip { flex: 0 0 78%; max-width: 300px; scroll-snap-align: start; padding: 20px; border-radius: var(--r2); background: #fff; box-shadow: var(--shadow-card); }
+.chip h2 { margin: 0 0 6px; font: 800 1.25rem/1.1 var(--font-display); }
+.chip p { margin: 0; line-height: 1.45; color: var(--ink-soft); font-size: 1rem; }
+.ph { display: inline-block; padding: 1px 8px; border-radius: 8px; border: 2px dashed var(--orange); background: rgba(255, 193, 77, .25); color: var(--ink); }
+a.ph { color: var(--red-deep); }
+
+.reg { margin: 0 16px; padding: 28px 20px; border-radius: var(--r3); background: #fff; box-shadow: var(--shadow-card); }
+.reg h2 { margin: 0 0 8px; font: 800 1.9rem/1.05 var(--font-display); letter-spacing: -.01em; }
+.lead { margin: 0 0 20px; font-size: 1.0625rem; line-height: 1.45; color: var(--ink-soft); }
+.pill-input { display: flex; align-items: center; gap: 12px; height: 64px; padding: 0 22px; border-radius: 999px; color: var(--red); background: var(--cream); box-shadow: inset 0 0 0 2px rgba(228, 0, 43, .18); }
+.pill-input:focus-within { box-shadow: inset 0 0 0 3px var(--red); }
+.pill-input input { flex: 1; min-width: 0; height: 100%; border: 0; background: none; font: 600 1.0625rem var(--font); color: var(--ink); }
+.pill-input input:focus { outline: none; }
+.hint { margin: 12px 4px 0; font-size: .95rem; color: var(--ink-soft); }
+
+.results { display: grid; gap: 10px; margin: 12px 0 0; padding: 0; list-style: none; }
+.row-btn {
+  display: flex; align-items: center; gap: 14px; width: 100%; min-height: 64px; padding: 6px 16px 6px 8px; text-align: left;
+  font: 600 1.0625rem var(--font); color: var(--ink); background: var(--cream); border: 0; border-radius: 999px; cursor: pointer;
+  box-shadow: inset 0 0 0 2px rgba(228, 0, 43, .12); transition: transform 90ms var(--ease);
+}
+.row-btn:active { transform: scale(.97); }
+.row-btn small { margin-left: auto; padding: 4px 10px; border-radius: 999px; font: 600 .8rem var(--font); background: #fff; color: var(--ink-soft); }
+.av { position: relative; flex: none; width: 48px; height: 48px; }
+.av b { position: absolute; right: -4px; bottom: -2px; display: grid; place-items: center; width: 24px; height: 24px; border-radius: 50%; font: 800 14px/1 var(--font-display); color: var(--red); background: #fff; box-shadow: 0 2px 4px rgba(143, 10, 36, .35); }
+
+.confirm { text-align: center; }
+.slot .row-btn { pointer-events: none; }
+.confirm h3 { margin: 18px 0; font: 800 1.6rem/1.15 var(--font-display); }
+.confirm .row { display: grid; gap: 10px; }
+.btn .spin, .btn .chk { display: none; }
+.btn.busy .lbl, .btn.done .lbl { display: none; }
+.btn.busy .spin { display: block; animation: spin 0.8s linear infinite; }
+.btn.done .chk { display: block; animation: pop 450ms var(--spring); }
+@keyframes pop { from { transform: scale(0); } }
+.err { margin: 16px 0 0; padding: 12px 16px; border-radius: var(--r1); background: #FFE0E4; color: var(--red-deep); font-weight: 600; }
+
+/* ---------- sticky CTA ---------- */
+.cta-bar { position: fixed; z-index: 10; left: 16px; right: 16px; bottom: max(16px, env(safe-area-inset-bottom)); display: flex; justify-content: center; transition: transform 320ms var(--ease), opacity 320ms; }
+.cta-bar.off { transform: translateY(140%); opacity: 0; pointer-events: none; }
+.cta { width: 100%; max-width: 420px; min-height: 64px; font-size: 1.25rem; animation: breathe 2.4s ease-in-out infinite; }
+@keyframes breathe { 50% { transform: scale(1.03); } }
+html { scroll-behavior: smooth; }

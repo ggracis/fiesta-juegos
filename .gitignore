@@ -1,0 +1,15 @@
+# Private client material: never commit
+docs/
+.claude/
+tools/
+app/.env*
+
+node_modules/
+app/dist/
+app/data/*.db*
+
+# OS junk
+.DS_Store
+Thumbs.db
+desktop.ini
+.github/

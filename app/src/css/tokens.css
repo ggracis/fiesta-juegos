@@ -1,0 +1,57 @@
+:root {
+  --red: #E4002B;
+  --red-deep: #8F0A24;
+  --wine: #2A0610;
+  --coral: #FF5A4D;
+  --orange: #FF8A3D;
+  --sun: #FFC14D;
+  --cream: #FFF7F3;
+  --ink: #2B0B12;
+  --ink-soft: #6E3A45;
+  --mint: #2BD9A0;
+  --pop: #FF2D8A;
+  --sunrise: radial-gradient(120% 90% at 50% 100%, #FFC14D 0%, #FF8A3D 25%, #FF5A4D 50%, #E4002B 75%, #2A0610 100%);
+  --grad-btn: linear-gradient(135deg, #E4002B, #FF5A4D 60%, #FF8A3D);
+  --glass: rgba(255, 255, 255, .14);
+  --glass-line: rgba(255, 255, 255, .35);
+  --r1: 20px;
+  --r2: 32px;
+  --r3: 48px;
+  --r-md: var(--r1);
+  --shadow-card: 0 24px 48px -20px rgba(143, 10, 36, .55), inset 0 2px 0 rgba(255, 255, 255, .5);
+  --shadow-jelly: 0 14px 28px -10px rgba(228, 0, 43, .6), inset 0 -4px 0 rgba(0, 0, 0, .12), inset 0 2px 0 rgba(255, 255, 255, .35);
+  --ease: cubic-bezier(.2, .8, .2, 1);
+  --spring: cubic-bezier(.34, 1.56, .64, 1);
+  --font-display: 'Bricolage Grotesque', 'Outfit', system-ui, sans-serif;
+  --font: 'Outfit', system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+}
+
+* { box-sizing: border-box; }
+html, body { margin: 0; font-family: var(--font); font-weight: 500; color: var(--ink); background: var(--cream); }
+[hidden] { display: none !important; }
+:focus-visible { outline: 3px solid var(--sun); outline-offset: 3px; }
+.sr-only { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
+
+/* Jelly button: gradient, warm shadow, press = scale only */
+.btn {
+  display: inline-flex; align-items: center; justify-content: center; gap: .5em;
+  min-height: 56px; padding: 0 32px; border: 0; border-radius: 999px;
+  font: 800 1.125rem/1 var(--font); color: #fff; text-shadow: 0 1px 0 rgba(143, 10, 36, .5);
+  background: var(--grad-btn); box-shadow: var(--shadow-jelly);
+  cursor: pointer; text-decoration: none; touch-action: manipulation;
+  transition: transform 90ms var(--ease);
+}
+.btn:active { transform: scale(.94); }
+.btn.ghost { color: var(--red); text-shadow: none; background: #fff; box-shadow: inset 0 0 0 2px rgba(228, 0, 43, .25); }
+
+/* Mascots ("los Distintos") are SVG <use> of the sprite from common.js */
+.mz { display: block; width: 100%; height: 100%; overflow: visible; }
+
+.demo-badge {
+  position: fixed; z-index: 50; top: 10px; right: 10px; padding: 6px 12px; border-radius: 999px;
+  font: 600 13px/1 var(--font); color: #fff; background: rgba(42, 6, 16, .72); pointer-events: none;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { animation: none !important; transition: none !important; scroll-behavior: auto !important; }
+}
