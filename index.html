@@ -1,0 +1,69 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="theme-color" content="#E4002B">
+<title>Fiesta de fin de año 2026</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:wght@800&family=Outfit:wght@500;600;800&display=swap">
+  <script type="module" crossorigin src="/fiesta-juegos/assets/index-DJzuuUyJ.js"></script>
+  <link rel="modulepreload" crossorigin href="/fiesta-juegos/assets/modulepreload-polyfill-P2Xu9kJm.js">
+  <link rel="modulepreload" crossorigin href="/fiesta-juegos/assets/common-Bu3dSg1T.js">
+  <link rel="modulepreload" crossorigin href="/fiesta-juegos/assets/SplitText-BOzMVKL-.js">
+  <link rel="stylesheet" crossorigin href="/fiesta-juegos/assets/index-Ahmy-bOL.css">
+  <link rel="stylesheet" crossorigin href="/fiesta-juegos/assets/tokens-t22WXq3C.css">
+</head>
+<body>
+<header class="hero">
+  <p class="datepill"><b>30</b> · NOV</p>
+  <h1 id="h1">Se acaba el año. Empieza la fiesta.</h1>
+  <p class="sub" id="sub">Reserva tu lugar en 20 segundos.</p>
+  <div class="sunwrap" aria-hidden="true">
+    <div class="rays"></div>
+    <div class="disc"></div>
+    <div class="trio" id="trio"></div>
+  </div>
+</header>
+
+<main>
+  <a id="mine" class="mine" hidden><span>Ya tienes tu entrada</span><span class="btn">Ver mi entrada</span></a>
+
+  <!-- Edit the [A confirmar] placeholders below -->
+  <ul class="chips" aria-label="Información de la fiesta">
+    <li class="chip"><h2>Lugar</h2><p><span class="ph">[A confirmar]</span> Dirección del evento.<br><a class="ph" href="#">[Enlace al mapa: A confirmar]</a></p></li>
+    <li class="chip"><h2>Programa</h2><p><span class="ph">[A confirmar]</span> Hora de llegada, cena, juegos y cierre.</p></li>
+    <li class="chip"><h2>Información útil</h2><p><span class="ph">[A confirmar]</span> Código de vestimenta, estacionamiento, transporte y contacto.</p></li>
+  </ul>
+
+  <section class="reg" id="reg" aria-labelledby="reg-title">
+    <h2 id="reg-title">Reserva tu lugar</h2>
+    <p class="lead">Busca tu nombre. Recibirás tu entrada con un código QR y un PIN para jugar en las pantallas.</p>
+    <div id="step-search">
+      <label for="q" class="sr-only">Tu nombre</label>
+      <div class="pill-input">
+        <svg viewBox="0 0 24 24" width="24" height="24" aria-hidden="true"><circle cx="10.5" cy="10.5" r="6.5" fill="none" stroke="currentColor" stroke-width="2.4"/><path d="M15.5 15.5 21 21" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"/></svg>
+        <input id="q" type="search" autocomplete="off" autocapitalize="words" spellcheck="false" enterkeyhint="search" placeholder="Escribe tu nombre o apellido">
+      </div>
+      <p class="hint" id="hint" aria-live="polite">Escribe al menos 3 letras.</p>
+      <ul class="results" id="results" aria-live="polite"></ul>
+    </div>
+    <div id="step-confirm" class="confirm" hidden>
+      <div id="slot" class="slot"></div>
+      <h3 id="who"></h3>
+      <div class="row">
+        <button class="btn" id="yes" type="button"><span class="lbl">Soy yo</span>
+          <svg class="spin" viewBox="0 0 24 24" width="26" height="26" aria-hidden="true"><circle cx="12" cy="12" r="9" fill="none" stroke="#fff" stroke-width="3.5" stroke-linecap="round" stroke-dasharray="40 60"/></svg>
+          <svg class="chk" viewBox="0 0 24 24" width="30" height="30" aria-hidden="true"><path d="m5 12.5 4.5 4.5L19 7.5" fill="none" stroke="#fff" stroke-width="3.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        </button>
+        <button class="btn ghost" id="no" type="button">No soy yo</button>
+      </div>
+    </div>
+    <p class="err" id="err" role="alert" hidden></p>
+  </section>
+</main>
+
+<div class="cta-bar" id="cta"><a class="btn cta" href="#reg">Reservar mi lugar</a></div>
+</body>
+</html>

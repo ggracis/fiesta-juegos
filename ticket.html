@@ -1,0 +1,53 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="theme-color" content="#8F0A24">
+<title>Tu entrada</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:wght@800&family=Outfit:wght@500;600;800&display=swap">
+  <script type="module" crossorigin src="/fiesta-juegos/assets/ticket-BMJbEvZL.js"></script>
+  <link rel="modulepreload" crossorigin href="/fiesta-juegos/assets/modulepreload-polyfill-P2Xu9kJm.js">
+  <link rel="modulepreload" crossorigin href="/fiesta-juegos/assets/common-Bu3dSg1T.js">
+  <link rel="modulepreload" crossorigin href="/fiesta-juegos/assets/confetti.module-CAXNRs-2.js">
+  <link rel="stylesheet" crossorigin href="/fiesta-juegos/assets/tokens-t22WXq3C.css">
+  <link rel="stylesheet" crossorigin href="/fiesta-juegos/assets/ticket-0fdEfk5m.css">
+</head>
+<body class="tk">
+<main>
+  <div class="reveal" id="reveal" hidden>
+    <div class="sealed" id="sealed">
+    <button class="envelope" id="env" type="button" aria-label="Toca para abrir tu entrada">
+      <span class="flap"></span><span class="front"></span>
+      <span class="seal"><svg viewBox="0 0 24 24" width="26" height="26" aria-hidden="true"><path d="M12 20.5s-7.5-4.6-7.5-10A4.3 4.3 0 0 1 12 8a4.3 4.3 0 0 1 7.5 2.5c0 5.4-7.5 10-7.5 10z" fill="#fff"/></svg></span>
+    </button>
+    <p class="tap" id="tap">Toca para abrir tu entrada</p>
+    </div>
+
+    <article class="ticket" id="t" hidden>
+      <div class="sheen"></div>
+      <header>
+        <h1 id="hi">¡Estás dentro!</h1>
+        <p class="who" id="name"></p>
+        <p class="when">Fiesta de fin de año · 30 de noviembre de 2026</p>
+      </header>
+      <div class="body">
+        <div class="qr" id="qr" role="img" aria-label="Código QR de tu entrada"></div>
+        <p class="pin-label">Tu PIN es tu llave en las pantallas</p>
+        <p class="pin" id="pin" aria-label="Tu PIN"></p>
+      </div>
+    </article>
+    <button class="btn dl" id="dl" type="button" hidden>Descargar entrada</button>
+    <p class="note" id="note" hidden>Guarda tu entrada: descárgala o toma una captura. Muestra el QR al llegar.</p>
+  </div>
+
+  <div class="nf" id="nf" hidden>
+    <h1>No encontramos esa entrada</h1>
+    <p>Revisa el enlace o vuelve al inicio para inscribirte.</p>
+    <a class="btn" href="./">Ir al inicio</a>
+  </div>
+</main>
+</body>
+</html>

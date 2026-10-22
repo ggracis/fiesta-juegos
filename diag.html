@@ -1,0 +1,26 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+<title>Diagnóstico táctil</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:wght@800&family=Outfit:wght@500;600;800&display=swap">
+<style>html,html body{touch-action:none;-webkit-user-select:none;user-select:none;overscroll-behavior:none;background:var(--wine);color:#fff;height:100%;margin:0;overflow:hidden}canvas{pointer-events:none;z-index:5;width:100%;height:100%;position:fixed;inset:0}.t{z-index:2;border:4px solid var(--sun);width:64px;height:64px;font:600 12px var(--font);text-align:center;background:#ffc14d1f;border-radius:50%;place-items:center;margin:-32px 0 0 -32px;line-height:1.1;display:grid;position:fixed}.t.hit{background:#3ddc8433;border-color:#3ddc84}.t.miss{background:#ff5a4d40;border-color:#ff5a4d}#info{z-index:3;border-radius:var(--r2);background:var(--glass);border:1px solid var(--glass-line);width:min(560px,80vw);font:500 15px/1.5 var(--font);padding:18px 22px;position:fixed;top:50%;left:50%;transform:translate(-50%,-50%)}#info h1{font:800 26px var(--font-display);margin:0 0 8px}#info b{color:var(--sun)}#bar{z-index:6;align-items:center;gap:12px;display:flex;position:fixed;bottom:12%;left:50%;transform:translate(-50%)}#max{font:800 22px var(--font)}</style>
+  <script type="module" crossorigin src="/fiesta-juegos/assets/diag-2AQXBuIe.js"></script>
+  <link rel="modulepreload" crossorigin href="/fiesta-juegos/assets/modulepreload-polyfill-P2Xu9kJm.js">
+  <link rel="stylesheet" crossorigin href="/fiesta-juegos/assets/tokens-t22WXq3C.css">
+</head>
+<body>
+<div id="info">
+  <h1>Diagnóstico táctil</h1>
+  <div>Toca con dedos o lápiz. Se dibuja cada puntero. Toca los círculos para medir la precisión.</div>
+  <div id="env"></div>
+  <div>Máx. punteros simultáneos: <b id="maxn">0</b></div>
+  <div id="live">Sin punteros activos</div>
+</div>
+<div id="bar"><button class="btn" id="clear" type="button">Limpiar</button></div>
+<canvas id="c"></canvas>
+</body>
+</html>
