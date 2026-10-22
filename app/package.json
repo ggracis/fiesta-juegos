@@ -12,7 +12,8 @@
     "serve": "node server/index.ts",
     "gen:demo": "node scripts/gen-demo-roster.mjs",
     "test": "node --test test/*.test.js",
-    "reset": "node server/reset.ts"
+    "reset": "node server/reset.ts",
+    "deploy:pages": "node scripts/deploy-pages.mjs"
   },
   "dependencies": {
     "@fastify/static": "10.1.7",

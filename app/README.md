@@ -2,12 +2,12 @@
 
 Registration on phones, PIN entry, one touch game ("El Distinto") and touch diagnostics for the venue panels. Design spec: `DESIGN.md`.
 
-## Two modes (chosen at build time by `VITE_DATA_MODE`)
+## Two modes (chosen at build time)
 
 | Mode | Backend | Used for |
 |---|---|---|
-| `server` (default, `.env`) | Fastify + SQLite (`/api/*`) | Real event: roster in `data/guests.csv`, DB in `data/fiesta.db` |
-| `static` (`.env.pages`) | None. Roster from `src/data/demo-roster.json`, state in `localStorage` | GitHub Pages demo (shows a "Modo demo" badge) |
+| `server` (default) | Fastify + SQLite (`/api/*`) | Real event: roster in `data/guests.csv`, DB in `data/fiesta.db` |
+| `static` (`--mode pages`, set in `vite.config.js`) | None. Roster from `src/data/demo-roster.json`, state in `localStorage` | GitHub Pages demo (shows a "Modo demo" badge) |
 
 Static mode is demo only: any roster PIN logs in (phone and panel are different browsers), the 5-failures/30 s lockout is per screen and kept locally. Regenerate the roster JSON after editing the CSV: `npm run gen:demo` (deterministic PINs and tokens).
 
@@ -42,10 +42,10 @@ Server mode also redirects `/t/<token>`, `/c/<token>`, `/play`, `/diag`. API: `G
 
 ## GitHub Pages
 
-`.github/workflows/pages.yml` (repo root) builds `app/` on every push to `main` and deploys `app/dist`.
+`npm run deploy:pages` builds the static demo and force-pushes `dist/` to the `gh-pages` branch (Pages source: branch `gh-pages`, root).
 
 - Landing: `https://ggracis.github.io/fiesta-juegos/`
 - Panel: `https://ggracis.github.io/fiesta-juegos/play.html`
 - Touch diagnostics: `https://ggracis.github.io/fiesta-juegos/diag.html`
 
-Set Settings > Pages > Source to "GitHub Actions" once.
+To deploy from CI instead, grant the token the `workflow` scope (`gh auth refresh -s workflow`), commit `.github/workflows/pages.yml` and switch Settings > Pages > Source to "GitHub Actions".
