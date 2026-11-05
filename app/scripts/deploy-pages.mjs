@@ -2,7 +2,7 @@
 // ponytail: branch deploy because the local gh token lacks the `workflow` scope;
 // switch to the Actions workflow once `gh auth refresh -s workflow` is done.
 import { execSync } from 'node:child_process';
-import { rmSync, writeFileSync } from 'node:fs';
+import { cpSync, rmSync, writeFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 
 const app = resolve(import.meta.dirname, '..');
@@ -12,6 +12,7 @@ const remote = execSync('git remote get-url origin', { cwd: app }).toString().tr
 
 run('npm run build:pages', app);
 writeFileSync(resolve(dist, '.nojekyll'), '');
+cpSync(resolve(app, 'src/email'), resolve(dist, 'email'), { recursive: true }); // email images need stable (unhashed) URLs
 rmSync(resolve(dist, '.git'), { recursive: true, force: true });
 run('git init -q -b gh-pages', dist);
 run('git add -A', dist);
