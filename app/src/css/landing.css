@@ -16,9 +16,11 @@
 @keyframes drift { from { transform: translateX(-9%); } to { transform: translateX(9%); } }
 
 .waves { position: absolute; inset: 0; width: 100%; height: 100%; opacity: .85; animation: shimmer 7s ease-in-out 4s infinite; }
-.waves path { stroke-dasharray: 1; stroke-dashoffset: 1; animation: draw 2.6s var(--ease) forwards; }
-.waves path:nth-child(2) { animation-delay: .5s; }
-.waves path:nth-child(3) { animation-delay: 1s; }
+.px { position: absolute; inset: 0; }
+.js .waves path { stroke-dasharray: 1; stroke-dashoffset: 1; }
+.go .waves path { animation: draw 2.6s var(--ease) forwards; }
+.go .waves path:nth-child(2) { animation-delay: .5s; }
+.go .waves path:nth-child(3) { animation-delay: 1s; }
 @keyframes draw { to { stroke-dashoffset: 0; } }
 @keyframes shimmer { 0%, 100% { opacity: .6; } 50% { opacity: 1; } }
 
@@ -43,9 +45,7 @@
 .t2 { font-size: calc(var(--w) * .122); line-height: 1; letter-spacing: .06em; margin-right: -.06em; color: var(--red-deep); }
 .t3 { font-size: calc(var(--w) * .082); line-height: 1.25; letter-spacing: .42em; margin-right: -.42em; color: var(--ink-soft); font-weight: 400; }
 .ch { display: inline-block; }
-.js .ch { opacity: 0; transform: translateY(.22em) scale(.97); }
-.go .ch { animation: chIn 1s var(--ease) calc(var(--i) * 80ms + 250ms) forwards; }
-@keyframes chIn { to { opacity: 1; transform: none; } }
+.title { will-change: transform, opacity; }
 
 .tag { margin: calc(var(--w) * .035) 0 0; font: 500 calc(var(--w) * .026)/1.7 var(--sans); letter-spacing: .24em; color: var(--ink-soft); }
 .knot { width: calc(var(--w) * .5); height: auto; margin: calc(var(--w) * .03) 0; }
@@ -67,11 +67,12 @@
 /* ---------- sections below the hero ---------- */
 .sec { padding: 34px 26px 6px; }
 .sec h2 { margin: 0 0 18px; font: 500 2rem/1.1 var(--serif); color: var(--red-deep); text-align: center; letter-spacing: .02em; }
-.sec h2::after { content: ''; display: block; width: 44px; height: 1px; margin: 12px auto 0; background: var(--gold); }
-.js [data-reveal] { opacity: 0; transform: translateY(18px); transition: opacity .9s var(--ease), transform .9s var(--ease); }
-.js [data-reveal].in { opacity: 1; transform: none; }
+.sec h2 { margin-bottom: 12px; }
+.rule { display: block; width: 44px; height: 1px; margin: 0 auto 22px; background: var(--gold); }
 
 .tl { position: relative; margin: 0; padding: 0; list-style: none; }
+.js .tl::before { display: none; }
+.tl-line { position: absolute; top: 16px; bottom: 16px; left: 73px; width: 1px; transform-origin: 50% 0; background: linear-gradient(var(--gold), var(--red) 50%, var(--gold)); }
 .tl::before { content: ''; position: absolute; top: 16px; bottom: 16px; left: 73px; width: 1px; background: linear-gradient(var(--gold), var(--red) 50%, var(--gold)); }
 .tl li { position: relative; display: grid; grid-template-columns: 64px 1fr; gap: 26px; align-items: center; padding: 10px 0; }
 .tl li::before { content: ''; position: absolute; left: 69px; top: 50%; width: 9px; height: 9px; margin-top: -4.5px; border-radius: 50%; background: var(--red); box-shadow: 0 0 0 3px var(--cream), 0 0 0 4px var(--gold); }
@@ -119,8 +120,19 @@
 .slogan { margin: 0; font: 500 .62rem/1.6 var(--sans); letter-spacing: .22em; color: var(--ink-soft); }
 .cjk { margin: 8px 0 0; font: 400 1.15rem/1.4 var(--cjk); letter-spacing: .28em; color: var(--red); }
 
+/* ---------- entrance curtain: cream paper, ink-wash reveal via an expanding soft mask ---------- */
+@property --r { syntax: '<percentage>'; inherits: false; initial-value: 0%; }
+.curtain {
+  position: fixed; inset: 0; z-index: 100; display: grid; place-items: center; background: var(--cream); --r: 0%;
+  -webkit-mask-image: radial-gradient(circle at 50% 36%, transparent calc(var(--r) - 22%), #000 var(--r));
+  mask-image: radial-gradient(circle at 50% 36%, transparent calc(var(--r) - 22%), #000 var(--r));
+  animation: curtainFail .01s 6s forwards; /* if JS never runs, never block the page */
+}
+.curtain svg { overflow: visible; }
+.seen .curtain { display: none; }
+@keyframes curtainFail { to { visibility: hidden; } }
+
 @media (prefers-reduced-motion: reduce) {
-  .js .ch, .js [data-reveal] { opacity: 1 !important; transform: none !important; }
-  .waves path { stroke-dashoffset: 0; }
+  .js .waves path { stroke-dashoffset: 0; }
   .petals { display: none; }
 }

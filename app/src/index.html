@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <meta name="theme-color" content="#F7F1E8">
 <title>Gala Huawei 2026</title>
-<script>document.documentElement.classList.add('js')</script>
+<script>document.documentElement.classList.add('js');try{if(sessionStorage.getItem('gala.intro'))document.documentElement.classList.add('seen')}catch(e){}</script>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@300;500;600&family=Montserrat:wght@400;500;600&display=swap">
@@ -14,18 +14,21 @@
 <link rel="stylesheet" href="/css/landing.css">
 </head>
 <body>
+<div class="curtain" id="curtain" aria-hidden="true">
+  <svg viewBox="0 0 40 56" width="64" height="90" fill="none" stroke="#C8102E" stroke-width="1.2"><circle cx="20" cy="20" r="13"/><path d="M20 7 33 20 20 33 7 20z"/><path d="M13 20a7 7 0 0 1 14 0M13 20a7 7 0 0 0 14 0" stroke-width=".9"/><path d="M20 33v10M20 43l-4 8M20 43l4 8M20 43v9" stroke="#C9A45C"/></svg>
+</div>
 <div class="page">
 <header class="hero" id="top">
   <div class="art" aria-hidden="true">
     <img src="/assets/gala/background.jpg" width="900" height="1600" alt="" fetchpriority="high">
-    <div class="sun"></div>
+    <div class="px px-sun"><div class="sun"></div></div>
     <div class="fog"></div>
-    <svg class="waves" viewBox="0 0 900 1600" preserveAspectRatio="none" fill="none" stroke="#C9A45C" stroke-width="3" stroke-linecap="round">
+    <div class="px px-waves"><svg class="waves" viewBox="0 0 900 1600" preserveAspectRatio="none" fill="none" stroke="#C9A45C" stroke-width="3" stroke-linecap="round">
       <path pathLength="1" d="M460 254C540 250 600 256 622 276S700 292 770 300"/>
       <path pathLength="1" d="M686 622C760 612 842 618 872 602S842 572 802 580S792 602 850 596L900 588"/>
       <path pathLength="1" d="M0 880C60 872 132 880 132 906S62 940 122 944S250 946 292 949"/>
-    </svg>
-    <div class="petals" id="petals"></div>
+    </svg></div>
+    <div class="px px-petals"><div class="petals" id="petals"></div></div>
   </div>
 
   <h1 class="title" id="title" aria-label="Gala Huawei 2026">
@@ -35,11 +38,11 @@
   </h1>
   <p class="tag">CONEXIONES QUE<br>INSPIRAN UN FUTURO MEJOR</p>
   <svg class="knot" viewBox="0 0 220 28" fill="none" stroke="#C8102E" stroke-width="1" aria-hidden="true">
-    <path d="M0 14h88M132 14h88" stroke-width=".8"/>
-    <circle cx="110" cy="14" r="9.5"/>
+    <path class="kl" d="M0 14h88" stroke-width=".8"/><path class="kr" d="M132 14h88" stroke-width=".8"/>
+    <g class="kc"><circle cx="110" cy="14" r="9.5"/>
     <path d="M110 5.5 118.5 14 110 22.5 101.5 14z"/>
     <path d="M104 14a6 6 0 0 1 12 0M104 14a6 6 0 0 0 12 0" stroke-width=".8"/>
-    <path d="M110 23.5v4" stroke-width="1.2"/>
+    <path d="M110 23.5v4" stroke-width="1.2"/></g>
   </svg>
   <p class="invite">Te invitamos a ser parte de una noche especial, donde la innovación, las personas y las grandes conexiones nos impulsan hacia nuevos horizontes.</p>
 
