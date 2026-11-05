@@ -1,9 +1,9 @@
 import gsap from 'gsap';
 import { SplitText } from 'gsap/SplitText';
 import confetti from 'canvas-confetti';
-import { login, startAttempt, finishAttempt, screenId } from './api.js';
+import { login, startAttempt, finishAttempt, live, screenId } from './api.js';
 import { roundScore, totalScore, ROUNDS, ROUND_TIMEOUT_MS } from '../shared/scoring.js';
-import { $, injectSprite, mascot, demoBadge, cleanName, firstName } from './common.js';
+import { $, RM, injectSprite, mascot, demoBadge, cleanName, firstName } from './common.js';
 
 gsap.registerPlugin(SplitText);
 injectSprite();
@@ -98,7 +98,7 @@ setInterval(() => {
 // ---------- screens + idle ----------
 const screens = [...document.querySelectorAll('.screen')];
 let current = 'attract', idleTimer, gid = 0, session = null, attempt = null, playerName = '';
-let cancelRound = null, howTl = null, topsTl = null, backTimer = null, holaSplit = null;
+let gameId = null, cancelRound = null, howTl = null, topsTl = null, backTimer = null, holaSplit = null;
 
 function show(name) {
   current = name;
@@ -106,6 +106,7 @@ function show(name) {
   for (const s of screens) s.hidden = !(s.id === name || (name === 'result' && s.id === 'game'));
   $('#game').classList.toggle('dim', name === 'result');
   bump();
+  applyOverlays();
 }
 function bump() {
   clearTimeout(idleTimer);
@@ -114,7 +115,9 @@ function bump() {
 addEventListener('pointerdown', bump, true);
 
 function toAttract() {
-  gid++; session = null; attempt = null; pin = ''; renderDots();
+  gid++; session = null; attempt = null; gameId = null; pin = ''; renderDots();
+  clearTimeout(howTimer); picking = false;
+  liveState?.games.forEach((g) => { delete g.attemptsLeft; });
   cancelRound?.(); cancelRound = null; howTl?.kill(); clearInterval(backTimer);
   gsap.killTweensOf('#grid, #banner, .float, .spark');
   show('attract');
@@ -145,7 +148,14 @@ function renderTops() {
   const box = $('#tops');
   topsTl?.kill();
   if (!top.length) { box.innerHTML = '<span style="opacity:1">Sé el primero en aparecer aquí</span>'; return; }
-  box.innerHTML = '<span>Mejores puntajes de esta pantalla</span><span>' + top.map((t, i) => `<i style="font-style:normal">${i + 1}. ${t.n} <b>${t.s}</b></i>`).join('') + '</span>';
+  box.replaceChildren(document.createElement('span'), document.createElement('span'));
+  box.children[0].textContent = 'Mejores puntajes de esta pantalla';
+  top.forEach((t, i) => {
+    const el = document.createElement('i'), b = document.createElement('b');
+    el.style.fontStyle = 'normal'; b.textContent = t.s;
+    el.append(`${i + 1}. ${t.n} `, b);
+    box.children[1].append(el);
+  });
   const [a, b] = box.children;
   gsap.set(b, { opacity: 0 });
   topsTl = gsap.timeline({ repeat: -1, repeatDelay: 0 })
@@ -241,7 +251,8 @@ async function submitPin() {
 // ---------- confirm ----------
 function showConfirm() {
   const fn = firstName(playerName);
-  $('#avatar').innerHTML = mascot({ h: 350, shape: 'round', acc: 'hat' }) + `<b>${fn[0].toUpperCase()}</b>`;
+  $('#avatar').innerHTML = mascot({ h: 350, shape: 'round', acc: 'hat' }) + '<b></b>';
+  $('#avatar b').textContent = (fn[0] || '?').toUpperCase();
   $('#hola').textContent = `¡Hola, ${fn}!`;
   $('#full').textContent = `¿Eres ${cleanName(playerName)}?`;
   show('confirm');
@@ -255,12 +266,100 @@ tap($('#yes'), claim);
 
 async function claim() {
   const myGid = gid;
+  await inflight; // re-poll with the session so attemptsLeft is known
+  await poll();
+  if (myGid !== gid) return;
+  menuMsg(''); renderMenu(); show('menu');
+}
+
+// ---------- menu ----------
+const tiles = $('#tiles');
+const menuMsg = (t) => { $('#menumsg').textContent = t || ' '; };
+function renderMenu() {
+  const games = liveState?.games ?? [];
+  tiles.replaceChildren();
+  if (!games.length) {
+    const d = document.createElement('div');
+    d.className = 'none'; d.textContent = liveState ? 'No hay juegos disponibles ahora' : 'Sin conexión, reintentando…';
+    tiles.append(d);
+    return;
+  }
+  games.forEach((g, i) => {
+    const b = document.createElement('button');
+    b.type = 'button'; b.dataset.id = g.id;
+    b.insertAdjacentHTML('afterbegin', mascot({ h: [350, 22, 38, 330][i % 4], shape: ['round', 'tall', 'box'][i % 3], acc: ['hat', 'bow', 'antenna'][i % 3] }));
+    b.append(g.name);
+    if (g.attemptsLeft === 0) { b.disabled = true; const s = document.createElement('small'); s.textContent = 'Ya jugaste'; b.append(s); }
+    tiles.append(b);
+  });
+}
+tap($('#menuexit'), toAttract);
+tap(tiles, (e) => { const b = e.target.closest('button'); if (b && !b.disabled) pick(b.dataset.id); });
+
+let picking = false;
+async function pick(id) {
+  if (picking) return;
+  picking = true;
+  const myGid = gid;
   try {
-    const d = await startAttempt(session);
+    const d = await startAttempt(session, id);
     if (myGid !== gid) return;
-    attempt = d;
+    attempt = d; gameId = id;
     startHowto();
-  } catch { toAttract(); }
+  } catch (e) {
+    if (myGid !== gid) return;
+    picking = false;
+    menuMsg(e.code === 'max_attempts' ? 'Ya usaste tus intentos en este juego.' : e.code === 'game_unavailable' ? 'Este juego no está disponible ahora.' : 'No hay conexión. Inténtalo de nuevo.');
+    await poll();
+    if (myGid === gid && current === 'menu') renderMenu();
+  }
+}
+
+// ---------- live state: poll + overlays ----------
+let liveState = null, inflight = null, raffleOn = false, shownRaffle = null, raffleTimer, rSplit = null;
+function poll() {
+  if (inflight) return inflight;
+  return (inflight = live({ screenId: screenId(), game: gameId || 'menu', session: session || undefined })
+    .then((s) => { liveState = s; if (current === 'menu') renderMenu(); applyOverlays(); })
+    .catch(() => {}) // keep last good state
+    .finally(() => { inflight = null; }));
+}
+setInterval(poll, 5000);
+
+const setOv = (id, on) => { $(id).hidden = !on; };
+const gone = (s) => !!gameId && !s.games.some((g) => g.id === gameId);
+const blocked = () => !!liveState && (raffleOn || liveState.transition.on || liveState.paused || gone(liveState));
+// Priority raffle > transition > pause. Nothing interrupts a running round; they show once it ends.
+function applyOverlays() {
+  const s = liveState;
+  if (!s || raffleOn) return;
+  const mid = current === 'game' || current === 'result';
+  const rf = s.raffle;
+  if (rf && rf.id !== shownRaffle && Date.now() - rf.drawnAt > (rf.showSeconds + 10) * 1000) shownRaffle = rf.id; // stale
+  if (!mid && rf && rf.id !== shownRaffle) return showRaffle(rf);
+  const trans = !mid && s.transition.on;
+  if (trans) $('#ttext').textContent = s.transition.text || 'Un momento…';
+  setOv('#ov-trans', trans);
+  setOv('#ov-pause', !mid && !trans && (s.paused || gone(s)));
+}
+
+function showRaffle(r) {
+  shownRaffle = r.id; raffleOn = true;
+  setOv('#ov-trans', false); setOv('#ov-pause', false);
+  rSplit?.revert(); rSplit = null; // revert first: it restores the previous winner's markup
+  $('#rwin').textContent = cleanName(r.name);
+  setOv('#ov-raffle', true);
+  if (!RM) {
+    rSplit = SplitText.create('#rwin', { type: 'chars' });
+    gsap.from('#rkick', { scale: 0.4, opacity: 0, duration: 0.5, ease: 'back.out(2)' });
+    gsap.from(rSplit.chars, { scale: 0, y: 80, opacity: 0, duration: 0.6, ease: 'back.out(2.2)', stagger: 0.04, delay: 0.5 });
+    gsap.from('#rcong', { opacity: 0, y: 30, duration: 0.5, delay: 1.4 });
+    const shot = (x) => confetti({ particleCount: 90, spread: 100, startVelocity: 55, origin: { x, y: 0.6 }, zIndex: 100, disableForReducedMotion: true, colors: ['#FFC14D', '#FF8A3D', '#FF5A4D', '#FF2D8A', '#FFF7F3'] });
+    setTimeout(() => { shot(0.2); shot(0.8); }, 900);
+    setTimeout(() => { shot(0.3); shot(0.7); }, 1700);
+  }
+  clearTimeout(raffleTimer);
+  raffleTimer = setTimeout(() => { raffleOn = false; setOv('#ov-raffle', false); applyOverlays(); }, Math.max(3, r.showSeconds || 15) * 1000);
 }
 
 // ---------- how to ----------
@@ -306,9 +405,17 @@ function countTo(el, from, to, dur) {
   gsap.to(o, { v: to, duration: dur, ease: 'power1.out', onUpdate: () => { el.textContent = Math.round(o.v); } });
 }
 
+async function finishWithRetry(id, score, ms) {
+  for (let i = 0; ; i++) {
+    try { return await finishAttempt(id, score, ms); }
+    catch (e) { if (e.code !== 'network' || i === 3) throw e; await wait(1000 * 2 ** i); } // 1 s, 2 s, 4 s
+  }
+}
+
 async function startGame() {
   clearTimeout(howTimer);
   if (current !== 'howto' || !attempt) return;
+  if (blocked()) { howTimer = setTimeout(startGame, 1000); return; }
   howTl?.kill();
   const myGid = ++gid;
   const { attemptId, seed } = attempt;
@@ -331,10 +438,10 @@ async function startGame() {
   }
   const score = totalScore(rounds);
   const durationMs = Math.round(performance.now() - t0);
-  let note = '';
-  try { await finishAttempt(attemptId, score, durationMs); } catch { note = 'No se pudo guardar el resultado.'; }
+  let note = '', prize = false;
+  try { prize = (await finishWithRetry(attemptId, score, durationMs)).prizeWon; } catch { note = 'No se pudo guardar el resultado.'; }
   if (myGid !== gid) return;
-  showResult(score, note);
+  showResult(score, note, prize);
 }
 
 async function playRound({ base, odd, oddIndex, cells }, lvl, idx, myGid) {
@@ -430,7 +537,7 @@ async function playRound({ base, odd, oddIndex, cells }, lvl, idx, myGid) {
 }
 
 // ---------- result ----------
-function showResult(score, note) {
+function showResult(score, note, prize) {
   const prevBest = readTop()[0]?.s;
   const record = prevBest !== undefined && score > prevBest;
   saveTop(firstName(playerName), score);
@@ -438,11 +545,13 @@ function showResult(score, note) {
   $('#rscore').textContent = '0';
   $('#rnote').textContent = note || ' ';
   $('#record').hidden = !record;
+  $('#rprize').hidden = !prize; $('#thanks').hidden = !!prize;
   show('result');
   sfx.fan();
   gsap.from('#medal', { y: -900, duration: 0.9, ease: 'bounce.out' });
   gsap.from('#rtitle', { scale: 0.5, opacity: 0, duration: 0.5, ease: 'back.out(2)', delay: 0.2 });
   countTo($('#rscore'), 0, score, 1.2);
+  if (prize && !RM) gsap.from('#rprize', { scale: 0.5, opacity: 0, duration: 0.6, ease: 'back.out(2)', delay: 1.2 });
   if (record) gsap.from('#record', { scale: 0, rotation: -20, duration: 0.5, ease: 'back.out(2.5)', delay: 1.1 });
   confetti({ particleCount: score > 70 ? 80 : 60, spread: 100, startVelocity: 45, origin: { y: 0.55 }, disableForReducedMotion: true, zIndex: 100, colors: ['#FFC14D', '#FF8A3D', '#FF5A4D', '#FF2D8A', '#FFF7F3'] });
 
@@ -463,3 +572,4 @@ function showResult(score, note) {
 
 show('attract');
 renderTops();
+poll();

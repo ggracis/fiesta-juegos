@@ -12,6 +12,23 @@ export const ticket = call('ticket');
 export const login = call('login');
 export const startAttempt = call('startAttempt');
 export const finishAttempt = call('finishAttempt');
+export const live = call('live');
+export const checkinInfo = call('checkinInfo');
+export const checkinAction = call('checkinAction');
+export const adminLogin = call('adminLogin');
+export const adminLogout = call('adminLogout');
+export const adminMe = call('adminMe');
+export const adminState = call('adminState');
+export const adminSettings = call('adminSettings');
+export const adminGame = call('adminGame');
+export const adminGuests = call('adminGuests');
+export const adminImportGuests = call('adminImportGuests');
+export const adminGuest = call('adminGuest');
+export const adminCheckinGuest = call('adminCheckinGuest');
+export const adminRanking = call('adminRanking');
+export const adminRaffle = call('adminRaffle');
+export const adminHideRaffle = call('adminHideRaffle');
+export const attemptsCsvUrl = `${import.meta.env.BASE_URL}api/admin/attempts.csv`;
 
 // Per-screen id: venue panels share one public IP, so lockouts are keyed by this instead.
 export function screenId() {

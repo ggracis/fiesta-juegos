@@ -1,0 +1,97 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="theme-color" content="#2A0610">
+<meta name="robots" content="noindex">
+<title>Panel de administración</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:wght@800&family=Outfit:wght@500;600;800&display=swap">
+<link rel="stylesheet" href="/css/tokens.css">
+<link rel="stylesheet" href="/css/admin.css">
+</head>
+<body class="ad">
+<p id="demo" class="note" hidden>El panel no está disponible en el modo demo</p>
+
+<main id="login" hidden>
+  <form class="card login" id="login-form">
+    <h1>Panel de administración</h1>
+    <label for="pw">Contraseña</label>
+    <input id="pw" type="password" autocomplete="current-password" required>
+    <button class="b primary" type="submit">Ingresar</button>
+  </form>
+</main>
+
+<div id="app" hidden>
+  <header class="top">
+    <h1>Gala · Admin</h1>
+    <button class="b" id="logout" type="button">Salir</button>
+  </header>
+  <nav class="tabs" role="tablist" id="tabs" aria-label="Secciones"></nav>
+
+  <main>
+    <section id="t-live" class="pane" role="tabpanel" hidden>
+      <div class="card">
+        <label class="sw"><input type="checkbox" id="paused"> <span>Pausar todo</span></label>
+        <label class="sw"><input type="checkbox" id="trans"> <span>Pantalla de transición</span></label>
+        <label for="trans-text">Texto de la transición</label>
+        <div class="row"><input id="trans-text" maxlength="200"><button class="b" id="trans-save" type="button">Guardar</button></div>
+      </div>
+      <div class="card"><h2>Juegos activos</h2><div id="live-games"></div></div>
+      <div class="card"><h2>Pantallas</h2>
+        <div class="scroll"><table><thead><tr><th>Pantalla</th><th>Juego</th><th>Visto</th><th>Estado</th></tr></thead><tbody id="screens"></tbody></table></div>
+        <p class="muted" id="screens-empty" hidden>Ninguna pantalla conectada todavía.</p>
+      </div>
+    </section>
+
+    <section id="t-guests" class="pane" role="tabpanel" hidden>
+      <div class="card">
+        <label for="gq">Buscar invitado</label>
+        <input id="gq" type="search" autocomplete="off" placeholder="Nombre o apellido">
+        <label for="csv" class="muted">Importar CSV (columna <code>name</code>)</label>
+        <input id="csv" type="file" accept=".csv,text/csv">
+      </div>
+      <div class="card">
+        <div class="scroll"><table><thead><tr><th>Nombre</th><th>Estado</th><th></th></tr></thead><tbody id="guests"></tbody></table></div>
+        <p class="muted" id="guests-empty" hidden>Sin resultados.</p>
+      </div>
+      <div class="card" id="detail" hidden aria-live="polite"></div>
+    </section>
+
+    <section id="t-games" class="pane" role="tabpanel" hidden>
+      <div id="game-cards"></div>
+    </section>
+
+    <section id="t-prizes" class="pane" role="tabpanel" hidden>
+      <div class="card">
+        <h2>Premios</h2>
+        <p id="counters" class="muted"></p>
+        <label for="stock">Stock de premios</label>
+        <div class="row"><input id="stock" type="number" min="0" step="1"><button class="b" id="stock-save" type="button">Guardar</button></div>
+      </div>
+      <div class="card">
+        <h2>Ranking</h2>
+        <label for="rank-game">Juego</label>
+        <select id="rank-game"></select>
+        <div class="scroll"><table><thead><tr><th>#</th><th>Nombre</th><th>Puntaje</th><th>Tiempo</th></tr></thead><tbody id="ranking"></tbody></table></div>
+        <p class="muted" id="ranking-empty" hidden>Todavía no hay resultados.</p>
+        <p><a id="csv-link" class="link">Exportar intentos (CSV)</a></p>
+      </div>
+    </section>
+
+    <section id="t-raffle" class="pane" role="tabpanel" hidden>
+      <div class="card center">
+        <button class="b primary big" id="draw" type="button">Sortear</button>
+        <p class="winner" id="winner" aria-live="polite"></p>
+        <button class="b" id="hide-raffle" type="button" hidden>Ocultar en pantallas</button>
+      </div>
+    </section>
+  </main>
+</div>
+
+<div id="toast" class="toast" role="status" aria-live="polite" hidden></div>
+<script type="module" src="/js/admin.js"></script>
+</body>
+</html>
