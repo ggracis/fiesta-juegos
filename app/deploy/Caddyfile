@@ -1,0 +1,5 @@
+# SITE_HOST e.g. 3-12-34-56.sslip.io (set in the caddy service environment, see README)
+{$SITE_HOST} {
+	encode gzip
+	reverse_proxy 127.0.0.1:3000
+}
