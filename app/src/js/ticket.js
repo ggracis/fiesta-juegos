@@ -30,7 +30,7 @@ async function ticketPng(d, qr) {
   x.textAlign = 'center';
   x.fillStyle = '#C8102E'; x.font = `300 76px ${serif}`;
   if ('letterSpacing' in x) x.letterSpacing = '12px';
-  x.fillText('GALA HUAWEI 2026', W / 2 + 6, 170, W - 160);
+  x.fillText('GALA HUAWEI DIGITAL POWER 2026', W / 2 + 6, 170, W - 160);
   if ('letterSpacing' in x) x.letterSpacing = '0px';
   x.fillStyle = '#2E2A28'; x.font = `500 56px ${serif}`; x.fillText(cleanName(d.name), W / 2, 250, W - 160);
   const img = new Image();

@@ -44,6 +44,7 @@
 .t1 { font-size: calc(var(--w) * .165); line-height: .92; letter-spacing: .1em; margin-right: -.1em; color: var(--red); }
 .t2 { font-size: calc(var(--w) * .122); line-height: 1; letter-spacing: .06em; margin-right: -.06em; color: var(--red-deep); }
 .t3 { font-size: calc(var(--w) * .082); line-height: 1.25; letter-spacing: .42em; margin-right: -.42em; color: var(--ink-soft); font-weight: 400; }
+.t4 { font-size: calc(var(--w) * .064); line-height: 1.5; letter-spacing: .26em; margin-right: -.26em; color: var(--red-deep); font-weight: 500; }
 .ch { display: inline-block; }
 .title { will-change: transform, opacity; }
 

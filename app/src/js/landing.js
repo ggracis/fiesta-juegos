@@ -15,7 +15,7 @@ try { sessionStorage.setItem('gala.intro', '1'); } catch {}
 const maskOk = CSS.supports('mask-image', 'radial-gradient(#000,#000)') || CSS.supports('-webkit-mask-image', 'radial-gradient(#000,#000)');
 
 // ---------- split text into letters ----------
-const split = (el) => { el.innerHTML = [...el.textContent].map((c) => `<span class="ch" aria-hidden="true">${c}</span>`).join(''); return $$('.ch', el); };
+const split = (el) => { el.innerHTML = [...el.textContent].map((c) => `<span class="ch" aria-hidden="true">${c === ' ' ? '&nbsp;' : c}</span>`).join(''); return $$('.ch', el); };
 $$('[data-split]').forEach(split);
 const cjkChars = split($('.cjk'));
 $('.cjk').setAttribute('aria-label', '共创更美好的未来');
