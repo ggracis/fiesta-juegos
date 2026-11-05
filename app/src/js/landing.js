@@ -1,35 +1,22 @@
-import gsap from 'gsap';
-import { SplitText } from 'gsap/SplitText';
-import { Flip } from 'gsap/Flip';
 import { search, register, ticketHref } from './api.js';
-import { $, RM, injectSprite, mascot, avatar, demoBadge, firstName, cleanName } from './common.js';
+import { $, RM, demoBadge, cleanName } from './common.js';
 
-gsap.registerPlugin(SplitText, Flip);
-injectSprite();
 demoBadge();
 
-$('#trio').innerHTML = [
-  mascot({ h: 350, shape: 'tall', acc: 'hat' }),
-  mascot({ h: 12, shape: 'round', acc: 'antenna' }),
-  mascot({ h: 330, shape: 'box', acc: 'bow' }),
-].map((m) => `<span>${m}</span>`).join('');
+// ---------- hero: split title into letters, drift petals ----------
+let n = 0;
+document.querySelectorAll('[data-split]').forEach((el) => {
+  el.innerHTML = [...el.textContent].map((c) => `<span class="ch" aria-hidden="true" style="--i:${n++}">${c}</span>`).join('');
+});
+requestAnimationFrame(() => $('#title').classList.add('go'));
 
-// ---------- hero intro: one orchestrated moment ----------
-async function intro() {
-  const h1 = $('#h1'), sub = $('#sub');
-  if (RM) { gsap.set([h1, sub], { opacity: 1 }); return; }
-  try { await document.fonts.ready; } catch {}
-  const split = SplitText.create(h1, { type: 'words', mask: 'words' });
-  gsap.set(h1, { opacity: 1 });
-  gsap.timeline()
-    .from(split.words, { yPercent: 110, duration: 0.7, ease: 'power4.out', stagger: 0.09 })
-    .from('#trio > span', { y: 160, scale: 0.6, duration: 0.8, ease: 'back.out(1.8)', stagger: 0.08 }, 0.2)
-    .to(sub, { opacity: 1, duration: 0.5 }, 0.7);
-}
-intro().catch(() => gsap.set(['#h1', '#sub'], { opacity: 1 }));
+const rnd = (a, b) => a + Math.random() * (b - a);
+$('#petals').innerHTML = Array.from({ length: 12 }, () =>
+  `<i style="--x:${rnd(2, 96).toFixed(1)}%;--s:${rnd(8, 15).toFixed(1)}px;--t:${rnd(14, 24).toFixed(1)}s;--d:${(-rnd(0, 24)).toFixed(1)}s;--dx:${rnd(-60, 70).toFixed(0)}px;--r:${rnd(120, 420).toFixed(0)}deg"></i>`).join('');
 
-// ---------- sticky CTA hides while the form is on screen ----------
-new IntersectionObserver(([e]) => $('#cta').classList.toggle('off', e.isIntersecting), { threshold: 0.2 }).observe($('#reg'));
+// ---------- sections fade up as they enter ----------
+const io = new IntersectionObserver((es) => es.forEach((e) => { if (e.isIntersecting) { e.target.classList.add('in'); io.unobserve(e.target); } }), { threshold: 0.12 });
+document.querySelectorAll('[data-reveal]').forEach((el) => io.observe(el));
 
 try {
   const t = localStorage.getItem('fiesta.ticket');
@@ -42,7 +29,8 @@ let picked = null, timer, seq = 0;
 const showErr = (m) => { errEl.textContent = m || ''; errEl.hidden = !m; };
 
 function rowHtml(g) {
-  return `<button type="button" class="row-btn">${avatar(g.name)}<span>${cleanName(g.name)}</span>${g.registered ? '<small>Ya inscrito</small>' : ''}</button>`;
+  const name = cleanName(g.name);
+  return `<button type="button" class="row-btn"><span class="av">${name[0].toUpperCase()}</span><span>${name}</span>${g.registered ? '<small>Ya inscrito</small>' : ''}</button>`;
 }
 
 async function doSearch(q) {
@@ -57,10 +45,10 @@ async function doSearch(q) {
     for (const g of rows) {
       const li = document.createElement('li');
       li.innerHTML = rowHtml(g);
+      if (!RM) li.classList.add('fade');
       li.firstChild.addEventListener('click', () => pick(g, li));
       list.append(li);
     }
-    if (!RM) gsap.from(list.children, { y: 14, opacity: 0, duration: 0.3, stagger: 0.04, ease: 'power2.out' });
   } catch (e) {
     if (mine !== seq) return;
     hint.textContent = '';
@@ -69,18 +57,16 @@ async function doSearch(q) {
 }
 $('#q').addEventListener('input', (e) => { showErr(''); clearTimeout(timer); timer = setTimeout(() => doSearch(e.target.value), 250); });
 
-// ---------- tap a row: it expands into the confirm card (Flip) ----------
 function swap(confirming) {
   $('#step-search').hidden = confirming;
   $('#step-confirm').hidden = !confirming;
+  if (confirming && !RM) $('#step-confirm').animate([{ opacity: 0, transform: 'translateY(10px)' }, { opacity: 1, transform: 'none' }], { duration: 350, easing: 'ease-out' });
 }
 function pick(g, li) {
   picked = g; showErr('');
-  const state = Flip.getState(li);
   $('#slot').replaceChildren(li);
+  $('#who').textContent = `¿Eres ${cleanName(g.name)}?`;
   swap(true);
-  $('#who').textContent = `Hola, ${firstName(g.name)}. ¿Eres tú?`;
-  if (!RM) Flip.from(state, { duration: 0.45, ease: 'power3.out', absolute: true });
 }
 $('#no').addEventListener('click', () => { picked = null; swap(false); doSearch($('#q').value); });
 

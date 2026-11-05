@@ -1,0 +1,54 @@
+/* Gala Huawei 2026: shared tokens + base for landing and ticket only (panel pages keep tokens.css). */
+:root {
+  --red: #C8102E;
+  --red-deep: #9E1B22;
+  --gold: #C9A45C;
+  --cream: #F7F1E8;
+  --ink: #2E2A28;
+  --ink-soft: #6B6460;
+  --pink: #F2A7B0;
+  --serif: 'Cormorant Garamond', 'Cormorant', Georgia, 'Times New Roman', serif;
+  --sans: 'Montserrat', system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+  --cjk: 'Noto Serif SC', 'Songti SC', serif;
+  --ease: cubic-bezier(.2, .8, .2, 1);
+}
+* { box-sizing: border-box; }
+html { scroll-behavior: smooth; }
+html, body { margin: 0; }
+body {
+  min-height: 100svh; font: 400 15px/1.55 var(--sans); color: var(--ink); background: var(--cream);
+  -webkit-text-size-adjust: 100%;
+}
+[hidden] { display: none !important; }
+:focus-visible { outline: 2px solid var(--red); outline-offset: 3px; }
+.sr-only { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
+
+/* Primary pill: red, shine sweep every few seconds (transform only), press = scale */
+.btn {
+  position: relative; overflow: hidden; display: inline-flex; align-items: center; justify-content: center; gap: .6em;
+  min-height: 50px; padding: 0 34px; border: 0; border-radius: 999px;
+  font: 600 .78rem/1 var(--sans); letter-spacing: .16em; text-transform: uppercase; text-decoration: none; color: #fff;
+  background: linear-gradient(180deg, #D3142F, var(--red-deep)); box-shadow: 0 8px 18px -8px rgba(158, 27, 34, .7);
+  cursor: pointer; touch-action: manipulation; transition: transform 120ms var(--ease);
+}
+.btn::after {
+  content: ''; position: absolute; inset: 0; pointer-events: none; transform: translateX(-130%) skewX(-20deg);
+  background: linear-gradient(90deg, transparent 30%, rgba(255, 255, 255, .38) 50%, transparent 70%);
+  animation: shine 5.5s ease-in-out 2s infinite;
+}
+@keyframes shine { 0%, 62% { transform: translateX(-130%) skewX(-20deg); } 100% { transform: translateX(130%) skewX(-20deg); } }
+.btn:active { transform: scale(.95); }
+.btn.ghost { color: var(--red-deep); background: transparent; box-shadow: inset 0 0 0 1px var(--red); }
+.btn.ghost::after { display: none; }
+.btn:disabled { cursor: default; }
+
+.demo-badge {
+  position: fixed; z-index: 50; top: 8px; right: 8px; padding: 4px 9px; border-radius: 999px;
+  font: 500 9.5px/1 var(--sans); letter-spacing: .12em; text-transform: uppercase;
+  color: var(--ink-soft); background: rgba(247, 241, 232, .8); box-shadow: inset 0 0 0 1px rgba(201, 164, 92, .5); pointer-events: none;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  html { scroll-behavior: auto; }
+  *, *::before, *::after { animation: none !important; transition: none !important; }
+}
