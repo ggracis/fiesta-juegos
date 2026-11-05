@@ -4,6 +4,8 @@ import { randomUUID, randomInt } from 'node:crypto';
 import { join } from 'node:path';
 import { existsSync } from 'node:fs';
 import { openDb } from './db.ts';
+import { makeState } from './state.ts';
+import { registerAdmin } from './admin.ts';
 import { generatePin, newToken, normalize } from './lib.ts';
 import { clampScore, MIN_TOTAL_MS } from '../src/shared/scoring.js';
 
@@ -15,10 +17,18 @@ const CSV_PATH = join(ROOT, 'data', 'guests.csv');
 const MAX_FAILS = 5;
 const LOCK_MS = 30_000;
 
-export function buildApp(dbPath = DB_PATH) {
+export function buildApp(dbPath = DB_PATH, opts: { adminPassword?: string } = {}) {
   const db = openDb(dbPath, CSV_PATH);
-  const app = Fastify({ trustProxy: true });
-  const sessions = new Map<string, number>(); // session token -> guest id
+  // removeAdditional off: unknown body keys must be rejected (400), not silently stripped
+  const app = Fastify({ trustProxy: true, ajv: { customOptions: { removeAdditional: false } } });
+  app.decorate('db', db);
+  app.addHook('onClose', () => { db.close(); });
+  const state = makeState(db);
+  const { roleOf } = registerAdmin(app, db, state, opts.adminPassword ?? process.env.ADMIN_PASSWORD ?? '');
+  const guestOf = (session: unknown) => {
+    const row = db.prepare("SELECT ref FROM session WHERE token = ? AND kind = 'guest'").get(String(session)) as { ref: string } | undefined;
+    return row ? Number(row.ref) : undefined;
+  };
   const fails = new Map<string, { n: number; until: number }>(); // screen id -> state (all venue panels share one public IP)
   const searchHits = new Map<string, number[]>(); // ip -> timestamps
 
@@ -92,19 +102,27 @@ export function buildApp(dbPath = DB_PATH) {
     }
     fails.delete(screenId);
     const session = newToken();
-    sessions.set(session, row.id);
+    db.prepare("INSERT INTO session(token, kind, ref, created_at) VALUES (?, 'guest', ?, ?)").run(session, String(row.id), now);
     return { name: row.name, session };
   });
 
   app.post('/api/attempts', {
-    schema: { body: { type: 'object', required: ['session'], additionalProperties: false, properties: { session: { type: 'string' } } } },
+    schema: { body: { type: 'object', required: ['session', 'game'], additionalProperties: false, properties: { session: { type: 'string' }, game: { type: 'string' } } } },
   }, async (req, reply) => {
-    const guestId = sessions.get((req.body as any).session);
+    const { session, game } = req.body as { session: string; game: string };
+    const guestId = guestOf(session);
     if (!guestId) return reply.code(401).send({ error: 'bad_session' });
+    const cfg = state.gameConfig(game);
+    if (!cfg) return reply.code(400).send({ error: 'unknown_game' });
+    if (!cfg.ready || !cfg.enabled || state.settings().paused) return reply.code(409).send({ error: 'game_unavailable' });
+    // no await between the count and the insert below: sync sqlite makes this race-free
+    // counts unfinished attempts too, so abandoning a game doesn't grant a retry
+    const { n } = db.prepare('SELECT COUNT(*) AS n FROM attempt WHERE guest_id = ? AND game = ?').get(guestId, game) as { n: number };
+    if (n >= cfg.maxAttempts) return reply.code(409).send({ error: 'max_attempts' });
     const id = randomUUID();
     const seed = randomInt(1, 2 ** 31);
     const serverStart = Date.now();
-    db.prepare('INSERT INTO attempt(id, guest_id, seed, started_at) VALUES (?,?,?,?)').run(id, guestId, seed, serverStart);
+    db.prepare('INSERT INTO attempt(id, guest_id, game, seed, started_at) VALUES (?,?,?,?,?)').run(id, guestId, game, seed, serverStart);
     return { attemptId: id, seed, serverStart };
   });
 
@@ -115,16 +133,52 @@ export function buildApp(dbPath = DB_PATH) {
     },
   }, async (req, reply) => {
     const id = (req.params as any).id;
-    const a = db.prepare('SELECT started_at, finished_at, score FROM attempt WHERE id = ?').get(id) as any;
+    const a = db.prepare('SELECT guest_id, game, started_at, finished_at, score FROM attempt WHERE id = ?').get(id) as any;
     if (!a) return reply.code(404).send({ error: 'unknown_attempt' });
-    if (a.finished_at) return { score: a.score, replay: true };
+    if (a.finished_at) return { score: a.score, replay: true, prizeWon: false };
     const { score, durationMs } = req.body as { score: number; durationMs: number };
     const now = Date.now();
     if (durationMs < MIN_TOTAL_MS || now - a.started_at < MIN_TOTAL_MS) return reply.code(400).send({ error: 'implausible_duration' });
     const final = clampScore(score);
-    db.prepare('UPDATE attempt SET finished_at = ?, score = ?, duration_ms = ? WHERE id = ? AND finished_at IS NULL')
-      .run(now, final, Math.round(durationMs), id);
-    return { score: final, replay: false };
+    const prizeWon = state.tx(() => {
+      let won = false;
+      db.prepare('UPDATE attempt SET finished_at = ?, score = ?, duration_ms = ? WHERE id = ? AND finished_at IS NULL')
+        .run(now, final, Math.round(durationMs), id);
+      if (final >= (state.gameConfig(a.game)?.threshold ?? Infinity)) {
+        // one statement: guest has no prize yet AND stock left, so stock can't go negative
+        won = db.prepare(
+          'UPDATE registration SET prize_won_at = ? WHERE guest_id = ? AND prize_won_at IS NULL AND (SELECT COUNT(*) FROM registration WHERE prize_won_at IS NOT NULL) < ?'
+        ).run(now, a.guest_id, state.settings().prizeStock).changes === 1;
+      }
+      return won;
+    });
+    return { score: final, replay: false, prizeWon };
+  });
+
+  app.get('/api/live', async (req) => {
+    const q = req.query as { screenId?: string; game?: string; session?: string };
+    const now = Date.now();
+    if (typeof q.screenId === 'string' && q.screenId.length >= 8 && q.screenId.length <= 64) {
+      const game = typeof q.game === 'string' && q.game ? q.game.slice(0, 32) : 'menu';
+      db.prepare('DELETE FROM screen WHERE last_seen < ?').run(now - 3600_000);
+      db.prepare('INSERT INTO screen(id, last_seen, game) VALUES (?,?,?) ON CONFLICT(id) DO UPDATE SET last_seen = excluded.last_seen, game = excluded.game').run(q.screenId, now, game);
+    }
+    const settings = state.settings();
+    const guestId = q.session ? guestOf(q.session) : undefined;
+    const count = db.prepare('SELECT COUNT(*) AS n FROM attempt WHERE guest_id = ? AND game = ?');
+    const games = state.allGames().filter((g) => g!.ready && g!.enabled).map((g) => ({
+      id: g!.id, name: g!.name, params: g!.params,
+      ...(guestId ? { attemptsLeft: Math.max(0, g!.maxAttempts - (count.get(guestId, g!.id) as { n: number }).n) } : {}),
+    }));
+    const r = db.prepare('SELECT r.id, g.name, r.drawn_at FROM raffle r JOIN guest g ON g.id = r.guest_id ORDER BY r.id DESC LIMIT 1').get() as { id: number; name: string; drawn_at: number } | undefined;
+    const raffle = r && state.getSetting('raffleHidden') !== r.id ? { id: r.id, name: r.name, drawnAt: r.drawn_at, showSeconds: settings.raffleShowSeconds } : null;
+    return { paused: settings.paused, transition: { on: settings.transition, text: settings.transitionText }, games, raffle };
+  });
+
+  app.get('/api/checkin/:token', async (req, reply) => {
+    const v = state.checkinView((req.params as any).token);
+    if (!v) return reply.code(404).send({ error: 'not_found' });
+    return roleOf(req) ? v : { name: v.name };
   });
 
   return app;
