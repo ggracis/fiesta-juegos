@@ -22,7 +22,7 @@ curl -fsSL https://deb.nodesource.com/setup_24.x | sudo -E bash -
 sudo apt-get install -y nodejs git
 
 # Caddy (official apt repo)
-sudo apt-get install -y debian-keyring debian-archive-keyring apt-transport-https curl
+sudo apt-get install -y curl gnupg
 curl -1sLf 'https://dl.cloudsmith.io/public/caddy/stable/gpg.key' | sudo gpg --dearmor -o /usr/share/keyrings/caddy-stable-archive-keyring.gpg
 curl -1sLf 'https://dl.cloudsmith.io/public/caddy/stable/debian.deb.txt' | sudo tee /etc/apt/sources.list.d/caddy-stable.list
 sudo apt-get update && sudo apt-get install -y caddy
@@ -32,8 +32,9 @@ sudo apt-get update && sudo apt-get install -y caddy
 
 ```sh
 sudo useradd --system --create-home --shell /usr/sbin/nologin fiesta
-sudo mkdir -p /opt/fiesta/backups && sudo chown -R fiesta:fiesta /opt/fiesta
-sudo -u fiesta git clone https://github.com/ggracis/fiesta-juegos.git /opt/fiesta
+sudo mkdir -p /opt/fiesta && sudo chown fiesta:fiesta /opt/fiesta
+sudo -u fiesta git clone https://github.com/ggracis/fiesta-juegos.git /opt/fiesta   # needs an empty dir
+sudo -u fiesta mkdir -p /opt/fiesta/backups
 cd /opt/fiesta/app
 sudo -u fiesta npm ci
 sudo -u fiesta npm run build
