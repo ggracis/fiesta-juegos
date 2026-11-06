@@ -228,10 +228,10 @@ test('admin guests import, list, detail, checkin', async () => {
   assert.deepEqual(r.json(), { added: 2, total: before + 2 });
   assert.equal((await post(app, '/api/admin/guests/import', 'x', { 'content-type': 'text/csv' })).statusCode, 401);
 
-  const found = (await app.inject({ url: '/api/admin/guests?q=nuevo', headers: h })).json();
+  const found = (await app.inject({ url: '/api/admin/guests?q=nuevo', headers: h })).json().guests;
   assert.deepEqual(found.map((x) => x.name), ['Nuevo Uno', 'Nuevo, Dos']);
   assert.equal(found[0].registered, false);
-  assert.equal((await app.inject({ url: '/api/admin/guests', headers: h })).json().length, before + 2);
+  assert.equal((await app.inject({ url: '/api/admin/guests', headers: h })).json().guests.length, before + 2);
 
   const id = found[0].id;
   const nr = await post(app, `/api/admin/guests/${id}/checkin`, undefined, h);
@@ -349,7 +349,7 @@ test('admin sees dietary in the guest list, detail and attempts csv', async () =
   const g = await guest(app, 1);
   await post(app, '/api/register', { ...db.prepare('SELECT name, dni, email FROM guest WHERE id = 1').get(), dietary: 'vegano, =cmd' });
   await start(app, g.session);
-  const list = (await app.inject({ url: '/api/admin/guests', headers: h })).json();
+  const list = (await app.inject({ url: '/api/admin/guests', headers: h })).json().guests;
   assert.equal(list.find((x) => x.id === 1).dietary, 'vegano, =cmd');
   assert.equal(list.find((x) => x.id === 2).dietary, null);
   assert.equal((await app.inject({ url: '/api/admin/guests/1', headers: h })).json().dietary, 'vegano, =cmd');
@@ -452,7 +452,7 @@ test('walk-ins: accredit an unconfirmed guest once, add a guest at the door, no 
   assert.equal((await post(app, '/api/admin/guests', { name: 'Solo Nombre' }, h)).statusCode, 200); // dni/email optional
 
   const list = await app.inject({ url: '/api/admin/guests?q=sorpresa', headers: h });
-  assert.deepEqual(list.json().map((x) => [x.walkIn, x.registered, !!x.checkedInAt]), [[true, true, true]]);
+  assert.deepEqual(list.json().guests.map((x) => [x.walkIn, x.registered, !!x.checkedInAt]), [[true, true, true]]);
   assert.ok(!/pin|ticket/i.test(list.body));
   assert.ok(!/pin|ticket/i.test((await app.inject({ url: '/api/admin/guests/' + g.id, headers: h })).body));
   assert.equal(db.prepare("SELECT COUNT(*) AS n FROM audit_log WHERE action = 'walk_in'").get().n, 3);
@@ -553,4 +553,47 @@ test('every game setting has an admin label, help and bounds that fit its defaul
   assert.deepEqual(r.json(), { error: 'out_of_range', param: 'timeLimitS' });
   assert.equal((await put(app, '/api/admin/games/memo', { params: { timeLimitS: 60 } }, h)).statusCode, 200);
   await app.close();
+});
+
+test('door list: search by name/DNI/email, filters with counts, pending flag', async () => {
+  const { app, db, h } = await adminApp();
+  const csv = 'name,dni,email\nJosé Núñez Zarzuelo,30.444.555,jose@empresa.com\nJosefina Paz Zarzuelo,28111222,jp@otra.com\n';
+  await post(app, '/api/admin/guests/import', csv, { ...h, 'content-type': 'text/csv' });
+  const list = async (qs) => (await app.inject({ url: '/api/admin/guests?' + qs, headers: h })).json();
+  assert.deepEqual((await list('q=jose nunez')).guests.map((g) => g.name), ['José Núñez Zarzuelo']); // accents and case
+  assert.deepEqual((await list('q=' + encodeURIComponent('30.444.5'))).guests.map((g) => g.name), ['José Núñez Zarzuelo']); // DNI with dots
+  assert.deepEqual((await list('q=444555')).guests.map((g) => g.dni), ['30444555']);
+  assert.deepEqual((await list('q=EMPRESA.COM')).guests.map((g) => g.name), ['José Núñez Zarzuelo']);
+
+  const jose = db.prepare("SELECT id FROM guest WHERE name = 'José Núñez Zarzuelo'").get().id;
+  const paz = db.prepare("SELECT id FROM guest WHERE name = 'Josefina Paz Zarzuelo'").get().id;
+  await post(app, `/api/admin/guests/${jose}/walkin`, undefined, h);
+  await post(app, '/api/register', { name: 'Josefina Paz Zarzuelo', dni: '99999999', email: 'x@x.com' }); // wrong data -> pending
+  const r = await list('q=zarzuelo');
+  assert.deepEqual(r.counts, { all: 2, unaccredited: 1, accredited: 1, unconfirmed: 1, walkIn: 0 });
+  assert.deepEqual((await list('q=zarzuelo&filter=accredited')).guests.map((g) => g.id), [jose]);
+  assert.equal(r.guests.find((g) => g.id === paz).pendingVerification, true);
+  const all = await list('');
+  assert.equal(all.summary.total, db.prepare('SELECT COUNT(*) AS n FROM guest').get().n);
+  assert.equal(all.summary.accredited, 1);
+  assert.equal((await app.inject({ url: '/api/admin/guests?filter=nope', headers: h })).statusCode, 400);
+});
+
+test('PIN reveal: admin only, audited, never in public payloads', async () => {
+  const { app, db, h } = await adminApp();
+  const g = await guest(app, 1);
+  assert.equal((await app.inject('/api/admin/guests/1/pin')).statusCode, 401);
+  const r = await app.inject({ url: '/api/admin/guests/1/pin', headers: h });
+  assert.equal(r.json().pin, g.pin);
+  assert.equal((await app.inject('/api/ticket/' + r.json().ticketToken)).json().pin, g.pin);
+  assert.equal(db.prepare("SELECT COUNT(*) AS n FROM audit_log WHERE action = 'pin_view'").get().n, 1);
+  assert.equal((await app.inject({ url: '/api/admin/guests/2/pin', headers: h })).json().error, 'not_registered');
+  assert.equal((await app.inject({ url: '/api/admin/guests/999999/pin', headers: h })).statusCode, 404);
+
+  const a = (await start(app, g.session)).json();
+  await finish(app, db, a.attemptId, 80);
+  for (const url of ['/api/live', '/api/live?session=' + g.session, '/api/checkin/' + g.checkinToken, '/api/admin/guests', '/api/admin/guests/1']) {
+    const body = (await app.inject({ url, headers: url.startsWith('/api/admin') ? h : {} })).body;
+    assert.ok(!body.includes(g.pin), url);
+  }
 });

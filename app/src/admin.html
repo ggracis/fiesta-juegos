@@ -47,18 +47,20 @@
     </section>
 
     <section id="t-guests" class="pane" role="tabpanel" hidden>
-      <div class="card">
+      <div class="door-bar">
+        <input id="gq" type="search" autocomplete="off" enterkeyhint="search" placeholder="Buscar por nombre, DNI o email" aria-label="Buscar invitado">
+        <div class="chips" id="gfilters" role="group" aria-label="Filtrar invitados"></div>
+        <p class="sum" id="gsum" aria-live="polite"></p>
+      </div>
+      <div class="card" id="verif-card" hidden>
         <h2>Verificaciones pendientes</h2>
         <p class="muted">Registros que no coincidieron con la lista. Confirma la identidad y elige el invitado.</p>
         <div id="verifs"></div>
         <p class="muted" id="verifs-empty" hidden>No hay verificaciones pendientes.</p>
       </div>
-      <div class="card">
-        <label for="gq">Buscar invitado</label>
-        <input id="gq" type="search" autocomplete="off" placeholder="Nombre o apellido">
-        <label for="csv" class="muted">Importar CSV (<code>name,dni,email</code>)</label>
-        <input id="csv" type="file" accept=".csv,text/csv">
-      </div>
+      <div class="gcards" id="guests"></div>
+      <p class="note" id="guests-empty" hidden>Sin resultados. Si no está en la lista, agrégalo abajo.</p>
+      <div class="card" id="detail" hidden aria-live="polite"></div>
       <form class="card" id="add-guest">
         <h2>Agregar invitado en la puerta</h2>
         <p class="muted">Para quien no está en la lista: queda acreditado y recibe su PIN.</p>
@@ -69,10 +71,9 @@
         <button class="b primary" type="submit">Agregar y dar entrada</button>
       </form>
       <div class="card">
-        <div class="scroll"><table><thead><tr><th>Nombre</th><th>Estado</th><th></th></tr></thead><tbody id="guests"></tbody></table></div>
-        <p class="muted" id="guests-empty" hidden>Sin resultados.</p>
+        <label for="csv">Importar lista de invitados (CSV <code>name,dni,email</code>)</label>
+        <input id="csv" type="file" accept=".csv,text/csv">
       </div>
-      <div class="card" id="detail" hidden aria-live="polite"></div>
     </section>
 
     <section id="t-games" class="pane" role="tabpanel" hidden>

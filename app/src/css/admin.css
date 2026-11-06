@@ -46,6 +46,25 @@ tr.click:hover { background: rgba(228, 0, 43, .06); }
 .tabs .badge { margin: 0 0 0 6px; color: var(--ink); }
 a.b { display: inline-flex; align-items: center; justify-self: start; text-decoration: none; }
 .card .card { border: 2px solid rgba(43, 11, 18, .1); }
+.badge.warn { background: var(--orange); color: var(--ink); }
+
+/* ---------- Invitados: door mode (phone first) ---------- */
+.door-bar { position: sticky; top: 0; z-index: 5; display: grid; gap: 8px; margin: 0 -16px; padding: 10px 16px; background: var(--wine); box-shadow: 0 8px 16px -12px #000; }
+.door-bar input { min-height: 56px; font-size: 1.15rem; border-radius: 14px; }
+.chips { display: flex; gap: 6px; overflow-x: auto; scrollbar-width: none; }
+.chip { flex: none; min-height: 40px; padding: 0 14px; border: 0; border-radius: 999px; font: 600 .85rem var(--font); color: var(--cream); background: rgba(255, 255, 255, .12); cursor: pointer; }
+.chip[aria-pressed="true"] { color: #fff; background: var(--red); }
+.sum { margin: 0; font-size: .85rem; opacity: .8; }
+.gcards { display: grid; gap: 10px; }
+.guest { gap: 6px; cursor: pointer; }
+.guest strong { font-size: 1.15rem; margin-right: 6px; }
+.gtop { display: flex; flex-wrap: wrap; align-items: center; gap: 4px; }
+.gtop .badge { margin: 0; }
+.diet { padding: 6px 10px; border-radius: 8px; font-weight: 700; background: color-mix(in srgb, var(--sun) 55%, transparent); }
+.pinrow { display: flex; align-items: center; gap: 10px; }
+.pin { font: 700 1.3rem ui-monospace, Consolas, monospace; letter-spacing: .2em; }
+.pinrow .b { min-height: 40px; }
+.guest > .b, .guest > a.b { justify-self: stretch; justify-content: center; min-height: 52px; font-size: 1.05rem; }
 .dot { display: inline-block; width: 10px; height: 10px; margin-right: 6px; border-radius: 50%; background: #999; }
 .dot.on { background: var(--mint); }
 .gcard { display: grid; gap: 8px; }

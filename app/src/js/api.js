@@ -31,6 +31,7 @@ export const adminContent = call('adminContent');
 export const adminImportContent = call('adminImportContent');
 export const adminDeleteContent = call('adminDeleteContent');
 export const adminGuests = call('adminGuests');
+export const adminGuestPin = call('adminGuestPin');
 export const adminImportGuests = call('adminImportGuests');
 export const adminGuest = call('adminGuest');
 export const adminCheckinGuest = call('adminCheckinGuest');

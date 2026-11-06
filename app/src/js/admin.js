@@ -111,42 +111,94 @@ function renderLive() {
 // ---- Invitados
 const time = (ms) => new Date(ms).toLocaleTimeString('es', { hour: '2-digit', minute: '2-digit' });
 let gTimer;
+const ticketUrl = (token) => new URL('ticket.html?t=' + encodeURIComponent(token), location.href).href;
+const ticketLink = (token) => h('a', { className: 'b primary', href: ticketUrl(token), target: '_blank', rel: 'noopener' }, 'Abrir ticket (QR y PIN)');
+
+// PIN shown masked; "Ver PIN" fetches it (audited server-side) and shows it for 10 s, so it survives list refreshes.
+const PIN_MS = 10_000;
+const revealed = new Map(); // guestId -> { pin, until }
+async function revealPin(id) {
+  const r = await run(() => api.adminGuestPin(id));
+  if (r) revealed.set(id, { pin: r.pin, until: Date.now() + PIN_MS });
+  return r;
+}
+function pinBox(id) {
+  const code = h('code', { className: 'pin' }), btn = h('button', { className: 'b', type: 'button' }, 'Ver PIN');
+  const paint = () => {
+    const r = revealed.get(id), on = !!r && r.until > Date.now();
+    code.textContent = on ? r.pin : '••••••'; btn.hidden = on;
+    if (on) setTimeout(paint, r.until - Date.now());
+  };
+  btn.onclick = async (ev) => { ev.stopPropagation(); if (await revealPin(id)) paint(); };
+  paint();
+  return h('div', { className: 'pinrow' }, h('span', { className: 'muted' }, 'PIN'), code, btn);
+}
+
+// ---- Door mode: search, filter chips, one big card per guest with the action that fits its state.
+const FILTER_LABELS = [['all', 'Todos'], ['unaccredited', 'Sin acreditar'], ['accredited', 'Acreditados'], ['unconfirmed', 'No confirmados'], ['walkIn', 'Agregados en puerta']];
+let gFilter = 'all';
+const issued = new Map(); // guestId -> ticket token issued in this session (walk-in / add), shown on the card
+const fmtDni = (d) => String(d ?? '').replace(/\B(?=(\d{3})+(?!\d))/g, '.');
 async function loadGuests() {
-  const rows = await run(() => api.adminGuests($('gq').value.trim()));
-  if (!rows) return;
-  const body = $('guests'); clear(body);
-  for (const g of rows) {
-    const btn = g.registered
-      ? h('button', { className: 'b', type: 'button', disabled: !!g.checkedInAt }, g.checkedInAt ? 'Acreditado' : 'Acreditar')
-      : h('button', { className: 'b primary', type: 'button' }, 'Acreditar y dar entrada');
-    btn.onclick = async (ev) => {
+  const res = await run(() => api.adminGuests($('gq').value.trim(), gFilter));
+  if (!res) return;
+  const { guests, counts, summary } = res;
+  const y = scrollY; // refreshes must not move the list under the staff's finger
+  $('gfilters').replaceChildren(...FILTER_LABELS.map(([k, label]) => {
+    const b = h('button', { type: 'button', className: 'chip', ariaPressed: String(k === gFilter) }, `${label} · ${counts[k]}`);
+    b.onclick = () => { gFilter = k; loadGuests(); };
+    return b;
+  }));
+  $('gsum').textContent = `${summary.total} invitados · ${summary.confirmed} confirmados · ${summary.accredited} acreditados`;
+  $('guests').replaceChildren(...guests.map(guestCard));
+  $('guests-empty').hidden = guests.length > 0;
+  scrollTo(0, y);
+}
+function guestCard(g) {
+  const chip = (text, cls = '') => h('span', { className: 'badge ' + cls }, text);
+  const token = issued.get(g.id);
+  let act;
+  if (token) act = ticketLink(token);
+  else if (g.checkedInAt) {
+    act = h('button', { className: 'b', type: 'button' }, 'Abrir ticket');
+    act.onclick = async (ev) => {
       ev.stopPropagation();
-      if (g.registered) { if (await run(() => api.adminCheckinGuest(g.id))) { toast(`${g.name} acreditado`); loadGuests(); } return; }
+      const w = open('about:blank', '_blank'); // opened inside the tap, or the browser blocks it after the await
+      const r = await revealPin(g.id);
+      if (r && w) w.location.href = ticketUrl(r.ticketToken); else w?.close();
+    };
+  } else if (g.registered) {
+    act = h('button', { className: 'b primary', type: 'button' }, 'Acreditar');
+    act.onclick = async (ev) => {
+      ev.stopPropagation();
+      if (await run(() => api.adminCheckinGuest(g.id))) { toast(`${g.name} acreditado`); loadGuests(); }
+    };
+  } else {
+    act = h('button', { className: 'b primary', type: 'button' }, 'Acreditar y dar entrada');
+    act.onclick = async (ev) => {
+      ev.stopPropagation();
       if (!confirm(`¿Acreditar a ${g.name}? No había confirmado asistencia.`)) return;
       const r = await run(() => api.adminWalkIn(g.id));
-      if (r) { await loadGuests(); showTicket(g.name, r.ticketToken); }
+      if (!r) return;
+      issued.set(g.id, r.ticketToken); await revealPin(g.id);
+      toast(`${g.name} acreditado`); loadGuests();
     };
-    const tr = h('tr', { className: 'click' },
-      h('td', {}, g.name, g.dietary && h('div', { className: 'muted' }, 'Restricción: ' + g.dietary)),
-      h('td', {},
-        h('span', { className: 'badge' + (g.registered ? ' ok' : '') }, g.registered ? 'Confirmado' : 'Sin confirmar'),
-        g.checkedInAt && h('span', { className: 'badge ok' }, 'Acreditado ' + time(g.checkedInAt)),
-        g.walkIn && h('span', { className: 'badge' }, 'Agregado en puerta'),
-        g.prizeWonAt && h('span', { className: 'badge prize' }, g.prizeDeliveredAt ? 'Premio entregado' : 'Premio ganado')),
-      h('td', {}, btn));
-    tr.onclick = () => showDetail(g.id);
-    body.append(tr);
   }
-  $('guests-empty').hidden = rows.length > 0;
+  const card = h('article', { className: 'card guest' },
+    h('div', { className: 'gtop' }, h('strong', {}, g.name),
+      g.checkedInAt ? chip('Acreditado ✓ ' + time(g.checkedInAt), 'ok') : chip(g.registered ? 'Confirmado' : 'No confirmado', g.registered ? 'ok' : ''),
+      g.walkIn && chip('Agregado en puerta'),
+      g.pendingVerification && chip('Verificación pendiente', 'warn'),
+      g.prizeWonAt && chip(g.prizeDeliveredAt ? 'Premio entregado' : 'Premio ganado', 'prize')),
+    g.dni && h('div', { className: 'muted' }, 'DNI ' + fmtDni(g.dni)),
+    g.dietary && h('div', { className: 'diet' }, 'Restricción: ' + g.dietary),
+    (g.registered || token) && pinBox(g.id),
+    act);
+  card.onclick = (ev) => { if (!ev.target.closest('a, button')) showDetail(g.id); };
+  return card;
 }
-const ticketLink = (token) =>
-  h('a', { className: 'b primary', href: 'ticket.html?t=' + encodeURIComponent(token), target: '_blank', rel: 'noopener' }, 'Abrir ticket (QR y PIN)');
-// Walk-in result: shown in the detail card so the guest can see their PIN on the staff phone.
-function showTicket(name, token) {
-  const box = $('detail'); clear(box); box.hidden = false;
-  box.append(h('h2', {}, name + ' acreditado'), h('p', { className: 'muted' }, 'Muéstrale el ticket o que le saque una foto al PIN.'), ticketLink(token));
-  box.scrollIntoView({ block: 'nearest' });
-}
+// Door refresh: every 10 s while the Invitados tab is open and visible (search text and scroll are kept).
+setInterval(() => { if (current === 'guests' && !document.hidden && !$('app').hidden) loadGuests(); }, 10_000);
 // Not reloaded on search keystrokes, so the ticket link of a just-approved request stays on screen.
 async function loadVerifs() {
   const rows = await run(api.adminVerifications);
@@ -163,7 +215,7 @@ async function loadVerifs() {
     q.oninput = () => {
       clearTimeout(qt);
       qt = setTimeout(async () => {
-        const res = q.value.trim() ? await run(() => api.adminGuests(q.value.trim())) : [];
+        const res = q.value.trim() ? (await run(() => api.adminGuests(q.value.trim())))?.guests : [];
         if (!res) return;
         found.replaceChildren(...res.slice(0, 20).map((g) => opt(g)));
         if (res.length) { sel.append(found); sel.value = String(res[0].id); } else found.remove();
@@ -181,7 +233,9 @@ async function loadVerifs() {
       const name = sel.selectedOptions[0].textContent.split(' · ')[0];
       const r = await run(() => api.adminApproveVerification(v.id, Number(sel.value)));
       if (!r) return;
-      item.replaceChildren(h('strong', {}, 'Aprobado: ' + name), ticketLink(r.ticketToken));
+      const gid = Number(sel.value);
+      await revealPin(gid);
+      item.replaceChildren(h('strong', {}, 'Aprobado: ' + name), pinBox(gid), ticketLink(r.ticketToken));
       toast(name + ' aprobado'); refresh(); loadGuests();
     };
     no.onclick = async () => {
@@ -191,6 +245,7 @@ async function loadVerifs() {
     box.append(item);
   }
   $('verifs-empty').hidden = rows.length > 0;
+  $('verif-card').hidden = !rows.length; // the door screen stays short when there is nothing to verify
 }
 async function showDetail(id) {
   const g = await run(() => api.adminGuest(id));
@@ -198,7 +253,8 @@ async function showDetail(id) {
   const box = $('detail'); clear(box); box.hidden = false;
   box.append(h('h2', {}, g.name),
     h('p', { className: 'muted' }, g.checkedInAt ? 'Acreditado a las ' + time(g.checkedInAt) : 'Sin acreditar'),
-    g.dietary && h('p', {}, 'Restricción alimentaria: ' + g.dietary),
+    g.dietary && h('p', { className: 'diet' }, 'Restricción alimentaria: ' + g.dietary),
+    g.registered && pinBox(g.id),
     g.attempts.length
       ? h('table', {}, h('thead', {}, h('tr', {}, ...['Juego', 'Puntaje', 'Tiempo'].map((t) => h('th', {}, t)))),
         h('tbody', {}, ...g.attempts.map((a) => h('tr', {}, h('td', {}, a.game),
@@ -365,8 +421,9 @@ async function boot() {
     const name = $('ag-name').value.trim();
     const r = await run(() => api.adminAddGuest({ name, dni: $('ag-dni').value.trim(), email: $('ag-email').value.trim() }));
     if (!r) return;
-    ev.target.reset(); $('gq').value = name;
-    await loadGuests(); showTicket(name, r.ticketToken);
+    ev.target.reset(); $('gq').value = name; gFilter = 'all';
+    issued.set(r.guestId, r.ticketToken); await revealPin(r.guestId);
+    await loadGuests(); $('gq').scrollIntoView({ block: 'start' });
   };
   $('gq').oninput = () => { clearTimeout(gTimer); gTimer = setTimeout(loadGuests, 300); };
   $('csv').onchange = async (ev) => {

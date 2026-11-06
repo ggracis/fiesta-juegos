@@ -19,6 +19,14 @@ const csvField = (v: unknown) => {
   return /[",\r\n]/.test(s) ? '"' + s.replace(/"/g, '""') + '"' : s;
 };
 const shuffle = <T>(a: T[]) => { for (let i = a.length - 1; i > 0; i--) { const j = randomInt(i + 1); [a[i], a[j]] = [a[j], a[i]]; } return a; };
+// Door-mode filter chips on the guest list ("Sin acreditar" = anyone not checked in yet).
+const FILTERS = {
+  all: () => true,
+  unaccredited: (r: any) => !r.checked_in_at,
+  accredited: (r: any) => !!r.checked_in_at,
+  unconfirmed: (r: any) => !r.registered,
+  walkIn: (r: any) => !!r.walk_in,
+};
 const iso = (ms: number | null) => (ms ? new Date(ms).toISOString() : '');
 
 export function registerAdmin(app: FastifyInstance, db: DatabaseSync, state: State, adminPassword: string) {
@@ -142,19 +150,42 @@ export function registerAdmin(app: FastifyInstance, db: DatabaseSync, state: Sta
 
   app.get('/api/admin/guests', {
     ...admin,
-    schema: { querystring: { type: 'object', properties: { q: { type: 'string', maxLength: 60 } } } },
+    schema: { querystring: { type: 'object', properties: {
+      q: { type: 'string', maxLength: 60 }, filter: { enum: ['all', 'unaccredited', 'accredited', 'unconfirmed', 'walkIn'] } } } },
   }, async (req) => {
-    const q = normalize(String((req.query as any).q ?? ''));
+    const { q: rawQ = '', filter = 'all' } = req.query as { q?: string; filter?: keyof typeof FILTERS };
+    const q = normalize(rawQ), digits = dniDigits(rawQ), mail = normEmail(rawQ);
     const rows = db.prepare(
-      `SELECT g.id, g.name, g.walk_in, r.guest_id IS NOT NULL AS registered, r.checked_in_at, r.prize_won_at, r.prize_delivered_at, r.dietary,
+      `SELECT g.id, g.name, g.dni, g.email, g.walk_in, r.guest_id IS NOT NULL AS registered, r.checked_in_at, r.prize_won_at, r.prize_delivered_at, r.dietary,
          (SELECT COUNT(*) FROM attempt a WHERE a.guest_id = g.id) AS attempts
-       FROM guest g LEFT JOIN registration r ON r.guest_id = g.id ORDER BY g.name`
+       FROM guest g LEFT JOIN registration r ON r.guest_id = g.id`
     ).all() as any[];
-    // ponytail: filter in JS for accent-insensitive match; fine for a few hundred guests
-    return rows.filter((r) => !q || normalize(r.name).includes(q)).slice(0, 200).map((r) => ({
-      id: r.id, name: r.name, walkIn: !!r.walk_in, registered: !!r.registered, checkedInAt: r.checked_in_at, prizeWonAt: r.prize_won_at,
-      prizeDeliveredAt: r.prize_delivered_at, dietary: r.dietary, attempts: r.attempts,
+    const pending = new Set((db.prepare("SELECT candidates FROM verification_request WHERE status = 'pending'").all() as { candidates: string }[])
+      .flatMap((v) => JSON.parse(v.candidates) as number[]));
+    // ponytail: filter in JS for accent-insensitive match; fine for a few hundred guests.
+    // Name tokens, or DNI digits (dots ignored, 3+ digits), or email substring.
+    const hit = (r: any) => !rawQ.trim() || normalize(r.name).includes(q)
+      || (digits.length >= 3 && dniDigits(r.dni).includes(digits)) || (mail.length >= 3 && normEmail(r.email).includes(mail));
+    const found = rows.filter(hit);
+    const counts = Object.fromEntries(Object.entries(FILTERS).map(([k, f]) => [k, found.filter(f).length]));
+    const guests = found.filter(FILTERS[filter]).sort((a, b) => a.name.localeCompare(b.name, 'es')).slice(0, 300).map((r) => ({
+      id: r.id, name: r.name, dni: r.dni, walkIn: !!r.walk_in, registered: !!r.registered, checkedInAt: r.checked_in_at, prizeWonAt: r.prize_won_at,
+      prizeDeliveredAt: r.prize_delivered_at, dietary: r.dietary, attempts: r.attempts, pendingVerification: pending.has(r.id),
     }));
+    const summary = { total: rows.length, confirmed: rows.filter((r) => r.registered).length, accredited: rows.filter((r) => r.checked_in_at).length };
+    return { guests, counts, summary };
+  });
+
+  // PIN (and the ticket that shows it) on demand only, never in the list payload; every reveal is audited.
+  app.get('/api/admin/guests/:id/pin', admin, async (req, reply) => {
+    const id = Number((req.params as any).id);
+    const r = db.prepare('SELECT pin, ticket_token FROM registration WHERE guest_id = ?').get(id) as { pin: string; ticket_token: string } | undefined;
+    if (!r) {
+      const exists = !!db.prepare('SELECT 1 FROM guest WHERE id = ?').get(id);
+      return reply.code(exists ? 409 : 404).send({ error: exists ? 'not_registered' : 'not_found' });
+    }
+    audit(roleIn(req), 'pin_view', { guestId: id });
+    return { pin: r.pin, ticketToken: r.ticket_token }; // the ticket page shows the PIN too
   });
 
   app.post('/api/admin/guests/import', { ...admin, bodyLimit: 1_048_576 }, async (req, reply) => {
@@ -180,7 +211,7 @@ export function registerAdmin(app: FastifyInstance, db: DatabaseSync, state: Sta
 
   app.get('/api/admin/guests/:id', admin, async (req, reply) => {
     const g = db.prepare(
-      `SELECT g.id, g.name, r.checked_in_at AS checkedInAt, r.prize_won_at AS prizeWonAt, r.prize_delivered_at AS prizeDeliveredAt, r.dietary
+      `SELECT g.id, g.name, r.guest_id IS NOT NULL AS registered, r.checked_in_at AS checkedInAt, r.prize_won_at AS prizeWonAt, r.prize_delivered_at AS prizeDeliveredAt, r.dietary
        FROM guest g LEFT JOIN registration r ON r.guest_id = g.id WHERE g.id = ?`
     ).get((req.params as any).id) as any;
     if (!g) return reply.code(404).send({ error: 'not_found' });
