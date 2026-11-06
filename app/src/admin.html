@@ -48,6 +48,12 @@
 
     <section id="t-guests" class="pane" role="tabpanel" hidden>
       <div class="card">
+        <h2>Verificaciones pendientes</h2>
+        <p class="muted">Registros que no coincidieron con la lista. Confirma la identidad y elige el invitado.</p>
+        <div id="verifs"></div>
+        <p class="muted" id="verifs-empty" hidden>No hay verificaciones pendientes.</p>
+      </div>
+      <div class="card">
         <label for="gq">Buscar invitado</label>
         <input id="gq" type="search" autocomplete="off" placeholder="Nombre o apellido">
         <label for="csv" class="muted">Importar CSV (<code>name,dni,email</code>)</label>

@@ -1,5 +1,6 @@
 import { randomBytes, randomInt } from 'node:crypto';
 import { join } from 'node:path';
+import type { DatabaseSync } from 'node:sqlite';
 
 // 6-digit PIN kept as a string so leading zeros survive.
 export function generatePin(isTaken: (pin: string) => boolean): string {
@@ -11,6 +12,15 @@ export function generatePin(isTaken: (pin: string) => boolean): string {
 }
 
 export const newToken = () => randomBytes(16).toString('base64url');
+
+// Inserts a registration with a fresh PIN and tokens; returns the ticket token. Caller checks none exists yet.
+export function createRegistration(db: DatabaseSync, guestId: number, dietary: string | null): string {
+  const taken = db.prepare('SELECT 1 FROM registration WHERE pin = ?');
+  const ticket = newToken();
+  db.prepare('INSERT INTO registration(guest_id, pin, ticket_token, checkin_token, created_at, dietary) VALUES (?,?,?,?,?,?)')
+    .run(guestId, generatePin((p) => !!taken.get(p)), ticket, newToken(), Date.now(), dietary);
+  return ticket;
+}
 
 export const PIXEL_DIR = join(import.meta.dirname, '..', 'data', 'content', 'pixel');
 

@@ -3,7 +3,7 @@ import type { DatabaseSync } from 'node:sqlite';
 import { createHash, randomInt, timingSafeEqual } from 'node:crypto';
 import { existsSync } from 'node:fs';
 import { join } from 'node:path';
-import { newToken, csvLine, PIXEL_DIR } from './lib.ts';
+import { newToken, csvLine, PIXEL_DIR, createRegistration } from './lib.ts';
 import { nameTokens, dniDigits, normEmail } from '../src/shared/identity.js';
 import { gameById } from '../src/shared/games.js';
 import type { State } from './state.ts';
@@ -85,7 +85,8 @@ export function registerAdmin(app: FastifyInstance, db: DatabaseSync, state: Sta
     const now = Date.now();
     const screens = (db.prepare('SELECT id, game, last_seen FROM screen ORDER BY last_seen DESC LIMIT 100').all() as { id: string; game: string; last_seen: number }[])
       .map((s) => ({ id: s.id, game: s.game, lastSeen: s.last_seen, online: now - s.last_seen <= ONLINE_MS }));
-    return { settings, games: state.allGames(), screens, prizes: { stock: settings.prizeStock, won, delivered: count('prize_delivered_at'), left: settings.prizeStock - won } };
+    const pendingVerifications = (db.prepare("SELECT COUNT(*) AS n FROM verification_request WHERE status = 'pending'").get() as { n: number }).n;
+    return { settings, games: state.allGames(), screens, pendingVerifications, prizes: { stock: settings.prizeStock, won, delivered: count('prize_delivered_at'), left: settings.prizeStock - won } };
   });
 
   app.put('/api/admin/settings', {
@@ -182,6 +183,62 @@ export function registerAdmin(app: FastifyInstance, db: DatabaseSync, state: Sta
       'SELECT game, score, duration_ms AS durationMs, started_at AS startedAt, finished_at AS finishedAt FROM attempt WHERE guest_id = ? ORDER BY started_at'
     ).all(g.id);
     return { ...g, attempts };
+  });
+
+  // Registrations the roster could not match on their own: staff confirm identity at the door and pick the guest.
+  app.get('/api/admin/verifications', {
+    ...admin,
+    schema: { querystring: { type: 'object', properties: { status: { type: 'string', enum: ['pending', 'approved', 'rejected'] } } } },
+  }, async (req) => {
+    const rows = db.prepare('SELECT * FROM verification_request WHERE status = ? ORDER BY created_at').all(String((req.query as any).status ?? 'pending')) as any[];
+    const cand = db.prepare('SELECT g.id, g.name, g.dni, g.email, r.guest_id IS NOT NULL AS registered FROM guest g LEFT JOIN registration r ON r.guest_id = g.id WHERE g.id = ?');
+    return rows.map((v) => ({
+      id: v.id, name: v.name, dni: v.dni, email: v.email, dietary: v.dietary, createdAt: v.created_at, status: v.status,
+      resolvedGuestId: v.resolved_guest_id, resolvedAt: v.resolved_at,
+      candidates: (JSON.parse(v.candidates) as number[]).map((id) => cand.get(id) as any).filter(Boolean)
+        .map((g) => ({ id: g.id, name: g.name, dni: g.dni, email: g.email, registered: !!g.registered })),
+    }));
+  });
+
+  const verification = (id: unknown) => db.prepare('SELECT status, resolved_guest_id, dietary FROM verification_request WHERE id = ?').get(id as number) as
+    { status: string; resolved_guest_id: number | null; dietary: string | null } | undefined;
+
+  app.post('/api/admin/verifications/:id/approve', {
+    ...admin,
+    schema: { body: { type: 'object', required: ['guestId'], additionalProperties: false, properties: { guestId: { type: 'integer', minimum: 1 } } } },
+  }, async (req, reply) => {
+    const id = Number((req.params as any).id);
+    const { guestId } = req.body as { guestId: number };
+    return state.tx(() => {
+      const v = verification(id);
+      if (!v) return reply.code(404).send({ error: 'not_found' });
+      // Approving twice with the same guest is a no-op that hands back the same ticket.
+      if (v.status !== 'pending' && !(v.status === 'approved' && v.resolved_guest_id === guestId)) return reply.code(409).send({ error: 'already_resolved' });
+      if (!db.prepare('SELECT 1 FROM guest WHERE id = ?').get(guestId)) return reply.code(404).send({ error: 'not_found' });
+      const reg = db.prepare('SELECT ticket_token FROM registration WHERE guest_id = ?').get(guestId) as { ticket_token: string } | undefined;
+      const ticketToken = reg?.ticket_token ?? createRegistration(db, guestId, v.dietary);
+      if (v.status === 'pending') {
+        if (reg && v.dietary) db.prepare('UPDATE registration SET dietary = ? WHERE guest_id = ?').run(v.dietary, guestId);
+        db.prepare("UPDATE verification_request SET status = 'approved', resolved_guest_id = ?, resolved_at = ?, resolved_by = ? WHERE id = ?")
+          .run(guestId, Date.now(), roleIn(req), id);
+        audit(roleIn(req), 'verification_approve', { id, guestId });
+      }
+      return { ticketToken };
+    });
+  });
+
+  app.post('/api/admin/verifications/:id/reject', admin, async (req, reply) => {
+    const id = Number((req.params as any).id);
+    return state.tx(() => {
+      const v = verification(id);
+      if (!v) return reply.code(404).send({ error: 'not_found' });
+      if (v.status === 'approved') return reply.code(409).send({ error: 'already_resolved' });
+      if (v.status === 'pending') {
+        db.prepare("UPDATE verification_request SET status = 'rejected', resolved_at = ?, resolved_by = ? WHERE id = ?").run(Date.now(), roleIn(req), id);
+        audit(roleIn(req), 'verification_reject', { id });
+      }
+      return { status: 'rejected' };
+    });
   });
 
   app.post('/api/admin/guests/:id/checkin', admin, async (req, reply) => {

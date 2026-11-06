@@ -43,6 +43,9 @@ tr.click:hover { background: rgba(228, 0, 43, .06); }
 .badge { display: inline-block; margin: 0 4px 2px 0; padding: 2px 8px; border-radius: 999px; font-size: .75rem; font-weight: 700; background: rgba(43, 11, 18, .1); }
 .badge.ok { background: rgba(43, 217, 160, .3); }
 .badge.prize { background: var(--sun); }
+.tabs .badge { margin: 0 0 0 6px; color: var(--ink); }
+a.b { display: inline-flex; align-items: center; justify-self: start; text-decoration: none; }
+.card .card { border: 2px solid rgba(43, 11, 18, .1); }
 .dot { display: inline-block; width: 10px; height: 10px; margin-right: 6px; border-radius: 50%; background: #999; }
 .dot.on { background: var(--mint); }
 .gcard { display: grid; gap: 8px; }

@@ -385,3 +385,45 @@ test('round games stay hidden until their bank has content', async () => {
   assert.ok((await ids()).includes('quiz'));
   await app.close();
 });
+
+test('verifications: list without PIN, approve once, dietary carries over, reject', async () => {
+  const { app, db, h } = await adminApp();
+  const g = db.prepare('SELECT id, name, dni FROM guest ORDER BY id LIMIT 2').all();
+  // Right name, wrong DNI -> pending request with that guest as candidate.
+  const ask = (name, dietary) => post(app, '/api/register', { name, dni: '11111111', email: 'nobody@example.com', dietary });
+  assert.equal((await ask(g[0].name, 'celíaco')).json().status, 'pending');
+  assert.equal((await ask(g[1].name)).json().status, 'pending');
+  assert.equal((await app.inject({ url: '/api/admin/verifications' })).statusCode, 401);
+
+  const list = await app.inject({ url: '/api/admin/verifications?status=pending', headers: h });
+  const [v1, v2] = list.json();
+  assert.equal(v1.name, g[0].name);
+  assert.equal(v1.dietary, 'celíaco');
+  assert.deepEqual(v1.candidates.map((c) => [c.id, c.registered]), [[g[0].id, false]]);
+  assert.ok(!/pin|ticket/i.test(list.body));
+  assert.equal((await app.inject({ url: '/api/admin/state', headers: h })).json().pendingVerifications, 2);
+
+  const approve = (id, guestId) => post(app, `/api/admin/verifications/${id}/approve`, { guestId }, h);
+  const a = await approve(v1.id, g[0].id);
+  assert.equal(a.statusCode, 200);
+  const t = (await app.inject('/api/ticket/' + a.json().ticketToken)).json();
+  assert.match(t.pin, /^\d{6}$/);
+  assert.equal((await approve(v1.id, g[0].id)).json().ticketToken, a.json().ticketToken); // idempotent
+  assert.equal((await approve(v1.id, g[1].id)).statusCode, 409);
+  assert.equal(db.prepare('SELECT COUNT(*) AS n FROM registration WHERE guest_id = ?').get(g[0].id).n, 1);
+  assert.equal(db.prepare('SELECT dietary FROM registration WHERE guest_id = ?').get(g[0].id).dietary, 'celíaco');
+  const row = db.prepare('SELECT status, resolved_guest_id, resolved_at, resolved_by FROM verification_request WHERE id = ?').get(v1.id);
+  assert.equal(row.status, 'approved');
+  assert.equal(row.resolved_guest_id, g[0].id);
+  assert.ok(row.resolved_at);
+  assert.equal(row.resolved_by, 'admin');
+
+  assert.equal((await post(app, `/api/admin/verifications/${v2.id}/reject`, undefined, h)).json().status, 'rejected');
+  assert.equal((await approve(v2.id, g[1].id)).statusCode, 409);
+  assert.equal((await post(app, `/api/admin/verifications/${v1.id}/reject`, undefined, h)).statusCode, 409);
+  assert.equal((await post(app, '/api/admin/verifications/999/reject', undefined, h)).statusCode, 404);
+  assert.equal((await app.inject({ url: '/api/admin/verifications', headers: h })).json().length, 0);
+  assert.equal((await app.inject({ url: '/api/admin/verifications?status=rejected', headers: h })).json()[0].id, v2.id);
+  const actions = db.prepare("SELECT action FROM audit_log WHERE action LIKE 'verification_%' ORDER BY id").all().map((r) => r.action);
+  assert.deepEqual(actions, ['verification_approve', 'verification_reject']);
+});

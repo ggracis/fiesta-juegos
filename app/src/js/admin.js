@@ -14,7 +14,7 @@ const ERRORS = {
   admin_disabled: 'El panel no está habilitado en el servidor.', network: 'Sin conexión con el servidor.',
   not_registered: 'Ese invitado todavía no confirmó su asistencia.', no_candidates: 'No quedan invitados acreditados para sortear.',
   unknown_game: 'Juego desconocido.', not_found: 'No encontrado.', csv_required: 'Selecciona un archivo CSV.',
-  http: 'Error del servidor.', already_checked_in: 'Ya estaba acreditado.', demo_unavailable: 'No disponible en el modo demo.',
+  already_resolved: 'Esa verificación ya fue resuelta.', http: 'Error del servidor.', already_checked_in: 'Ya estaba acreditado.', demo_unavailable: 'No disponible en el modo demo.',
 };
 let toastTimer;
 function toast(msg, bad) {
@@ -61,7 +61,11 @@ function enter() {
 
 async function refresh() {
   const s = await run(api.adminState);
-  if (s) S = s;
+  if (s) {
+    S = s;
+    const n = $('verif-count');
+    n.textContent = s.pendingVerifications; n.hidden = !s.pendingVerifications;
+  }
   return s;
 }
 
@@ -73,7 +77,7 @@ async function select(tab) {
   for (const [k] of TABS) $('t-' + k).hidden = k !== tab;
   clearInterval(timer);
   if (!(await refresh()) || current !== tab) return;
-  ({ live: renderLive, guests: loadGuests, games: renderGames, content: renderContent, prizes: renderPrizes, raffle: loadRaffle })[tab]();
+  ({ live: renderLive, guests: () => { loadVerifs(); loadGuests(); }, games: renderGames, content: renderContent, prizes: renderPrizes, raffle: loadRaffle })[tab]();
   if (tab === 'live') timer = setInterval(async () => { if (!document.hidden && current === 'live' && await refresh()) renderLive(); }, 5000);
 }
 
@@ -126,6 +130,52 @@ async function loadGuests() {
     body.append(tr);
   }
   $('guests-empty').hidden = rows.length > 0;
+}
+// Not reloaded on search keystrokes, so the ticket link of a just-approved request stays on screen.
+async function loadVerifs() {
+  const rows = await run(api.adminVerifications);
+  if (!rows) return;
+  const box = $('verifs'); clear(box);
+  for (const v of rows) {
+    const opt = (g, extra = '') => h('option', { value: g.id }, g.name + extra + (g.registered ? ' (ya confirmado)' : ''));
+    const sel = h('select', { ariaLabel: 'Invitado para ' + v.name },
+      h('option', { value: '' }, v.candidates.length ? 'Elige el invitado' : 'Sin coincidencias: busca abajo'),
+      v.candidates.map((c) => opt(c, ` · DNI ${c.dni || '—'} · ${c.email || '—'}`)));
+    const found = h('optgroup', { label: 'Búsqueda' });
+    const q = h('input', { type: 'search', placeholder: 'Buscar otro invitado', autocomplete: 'off', ariaLabel: 'Buscar otro invitado' });
+    let qt;
+    q.oninput = () => {
+      clearTimeout(qt);
+      qt = setTimeout(async () => {
+        const res = q.value.trim() ? await run(() => api.adminGuests(q.value.trim())) : [];
+        if (!res) return;
+        found.replaceChildren(...res.slice(0, 20).map((g) => opt(g)));
+        if (res.length) { sel.append(found); sel.value = String(res[0].id); } else found.remove();
+      }, 300);
+    };
+    const ok = h('button', { className: 'b primary', type: 'button' }, 'Aprobar');
+    const no = h('button', { className: 'b', type: 'button' }, 'Rechazar');
+    const item = h('div', { className: 'card' },
+      h('strong', {}, v.name),
+      h('div', { className: 'muted' }, `DNI ${v.dni || '—'} · ${v.email || '—'} · ${time(v.createdAt)}`),
+      v.dietary && h('div', { className: 'muted' }, 'Restricción: ' + v.dietary),
+      sel, q, h('div', { className: 'row' }, ok, no));
+    ok.onclick = async () => {
+      if (!sel.value) return toast('Elige un invitado.', true);
+      const name = sel.selectedOptions[0].textContent.split(' · ')[0];
+      const r = await run(() => api.adminApproveVerification(v.id, Number(sel.value)));
+      if (!r) return;
+      item.replaceChildren(h('strong', {}, 'Aprobado: ' + name),
+        h('a', { className: 'b primary', href: 'ticket.html?t=' + encodeURIComponent(r.ticketToken), target: '_blank', rel: 'noopener' }, 'Abrir ticket (QR y PIN)'));
+      toast(name + ' aprobado'); refresh(); loadGuests();
+    };
+    no.onclick = async () => {
+      if (!confirm('¿Rechazar el registro de ' + v.name + '?')) return;
+      if (await run(() => api.adminRejectVerification(v.id))) { item.remove(); $('verifs-empty').hidden = box.children.length > 0; refresh(); }
+    };
+    box.append(item);
+  }
+  $('verifs-empty').hidden = rows.length > 0;
 }
 async function showDetail(id) {
   const g = await run(() => api.adminGuest(id));
@@ -257,7 +307,8 @@ async function draw() {
 async function boot() {
   if (api.isDemo) { $('demo').hidden = false; return; }
   for (const [k, label] of TABS) {
-    const b = h('button', { type: 'button', role: 'tab', id: 'tab-' + k }, label);
+    const b = h('button', { type: 'button', role: 'tab', id: 'tab-' + k }, label,
+      k === 'guests' && h('span', { className: 'badge prize', id: 'verif-count', hidden: true, title: 'Verificaciones pendientes' }));
     b.dataset.tab = k; b.onclick = () => select(k);
     $('tabs').append(b);
   }

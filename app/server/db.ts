@@ -39,6 +39,7 @@ export function openDb(file: string, csvPath: string) {
   for (const t of ['registration', 'verification_request']) addColumn(db, t, 'dietary', 'TEXT'); // optional free text, NULL = none
   addColumn(db, 'verification_request', 'status', "TEXT NOT NULL DEFAULT 'pending'");
   for (const c of ['resolved_guest_id', 'resolved_at']) addColumn(db, 'verification_request', c, 'INTEGER');
+  addColumn(db, 'verification_request', 'resolved_by', 'TEXT'); // admin role that approved/rejected
   addColumn(db, 'attempt', 'game', "TEXT NOT NULL DEFAULT 'distinto'");
   addColumn(db, 'attempt', 'content', 'TEXT'); // JSON rounds incl. answers, frozen per attempt
   for (const c of ['prize_won', 'no_prize', 'offline']) addColumn(db, 'attempt', c, 'INTEGER NOT NULL DEFAULT 0'); // no_prize: over-max offline play, recorded but never wins

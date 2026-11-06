@@ -8,7 +8,7 @@ import { makeState } from './state.ts';
 import { registerAdmin } from './admin.ts';
 import { makeResults } from './results.ts';
 import { registerPanel } from './panel.ts';
-import { generatePin, newToken, PIXEL_DIR } from './lib.ts';
+import { createRegistration, newToken, PIXEL_DIR } from './lib.ts';
 import { matchesName, verify, validDni, validEmail, dniDigits, normEmail, cleanDietary } from '../src/shared/identity.js';
 import { buildRounds, publicRounds, mulberry32, ROUND_GAMES, ROUND_POINTS } from '../src/shared/rounds.js';
 
@@ -90,12 +90,7 @@ export function buildApp(dbPath = DB_PATH, csvPath = CSV_PATH, opts: { adminPass
       if (dietary) db.prepare('UPDATE registration SET dietary = ? WHERE guest_id = ?').run(dietary, r.guest.id); // empty never erases
       return { status: 'registered', ticketToken: done.ticket_token };
     }
-    const taken = db.prepare('SELECT 1 FROM registration WHERE pin = ?');
-    const pin = generatePin((p) => !!taken.get(p));
-    const ticket = newToken();
-    db.prepare('INSERT INTO registration(guest_id, pin, ticket_token, checkin_token, created_at, dietary) VALUES (?,?,?,?,?,?)')
-      .run(r.guest.id, pin, ticket, newToken(), Date.now(), dietary);
-    return { status: 'registered', ticketToken: ticket };
+    return { status: 'registered', ticketToken: createRegistration(db, r.guest.id, dietary) };
   });
 
   app.get('/api/ticket/:token', async (req, reply) => {
