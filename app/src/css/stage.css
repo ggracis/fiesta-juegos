@@ -1,0 +1,183 @@
+/* Stage screen: one LED wall, 3328x832 (4:1). Designed at native size; #wall is scaled to fit and letterboxed in black.
+   LED rules: black = pixels off (noche keeps #000), large high-contrast type, no hairlines or thin weights. */
+:root {
+  --serif: 'Cormorant Garamond', Georgia, 'Times New Roman', serif;
+  --sans: 'Montserrat', system-ui, 'Segoe UI', Roboto, sans-serif;
+  /* amanecer (invitation option A) */
+  --bg: #F7F1E8; --ink: #2E2A28; --soft: #5E5752; --red: #C8102E; --red-deep: #9E1B22; --gold: #B38A3E;
+  --title-a: var(--red); --title-b: var(--red-deep); --name: var(--ink); --win: var(--red-deep);
+  --art: url(../assets/gala/background.jpg);
+  --band: linear-gradient(90deg, transparent, rgba(201, 164, 92, .55) 35%, #FFF3D6 50%, rgba(201, 164, 92, .55) 65%, transparent);
+  --ease: cubic-bezier(.2, .8, .2, 1);
+}
+.noche {
+  /* noche (invitation option B): pure black so the wall is "off" around the content */
+  --bg: #000; --ink: #F3E8DA; --soft: #BDAFA3; --red: #E3283A; --red-deep: #C41E32; --gold: #D4AF6A;
+  --gold-text: linear-gradient(180deg, #F8E7BC 10%, #D4AF6A 55%, #A9843F);
+  --name: #F6EDE1; --art: url(../assets/gala/noche.jpg);
+  --band: linear-gradient(90deg, transparent, rgba(212, 175, 106, .3) 28%, #F1C66E 46%, #FFF6DD 50%, #F1C66E 54%, rgba(212, 175, 106, .3) 72%, transparent);
+}
+* { box-sizing: border-box; }
+html, body { margin: 0; height: 100%; overflow: hidden; background: #000; cursor: none; }
+[hidden] { display: none !important; }
+
+#wall {
+  position: absolute; left: 50%; top: 50%; width: 3328px; height: 832px; overflow: hidden;
+  background: var(--bg); color: var(--ink); font-family: var(--sans);
+  transition: background-color .9s var(--ease);
+}
+#wall.off { background: #000; }
+
+/* ---------- side art: crops of the invitation painting, fading into the centre ---------- */
+.art { position: absolute; inset: 0; transition: opacity .9s var(--ease); }
+#wall.off .art { opacity: 0; }
+.side { position: absolute; top: 0; width: 832px; height: 832px; }
+.side .img {
+  position: absolute; left: 0; top: 0; width: 832px; height: 832px;
+  background: var(--art) no-repeat; background-size: 1664px auto; /* the 900x1600 painting at 1.85x: a 450 px square fills the height */
+}
+.side.l { left: 0; -webkit-mask: linear-gradient(90deg, #000 40%, transparent 84%); mask: linear-gradient(90deg, #000 40%, transparent 84%); }
+.side.r { right: 0; -webkit-mask: linear-gradient(270deg, #000 40%, transparent 84%); mask: linear-gradient(270deg, #000 40%, transparent 84%); }
+.side.l .img { background-position: 0 0; }
+.side.r .img { background-position: -832px 0; }
+.noche .side.r .img { background-position: -832px -222px; } /* the dragon's head, looking at the centre */
+.side::after { content: ''; position: absolute; inset: 0; background: linear-gradient(180deg, transparent 70%, var(--bg)); } /* soft floor */
+
+/* The blossom tree sways in a slow breeze (pivot at the trunk, top-left; scaled a touch so no edge shows). */
+.side.l .img { transform-origin: 0 0; animation: sway 7s ease-in-out infinite alternate; }
+@keyframes sway { from { transform: scale(1.03) rotate(-.7deg); } to { transform: scale(1.03) rotate(.8deg); } }
+
+/* The dragon comes alive (noche): a pulse of light climbs its body to the head, then the eye flares. One 9 s loop, all in step.
+   The glint is a moving window over a brightened copy of the same crop (window and copy move in opposite directions). */
+.glint, .eye, .embers { display: none; }
+.noche .glint { display: block; position: absolute; left: 0; top: 0; width: 832px; height: 320px; overflow: hidden;
+  -webkit-mask: linear-gradient(transparent, #000 45%, #000 55%, transparent); mask: linear-gradient(transparent, #000 45%, #000 55%, transparent);
+  animation: glint 9s linear infinite; }
+.glint .img { filter: brightness(2.4) saturate(1.3); animation: glint-img 9s linear infinite; }
+@keyframes glint { 0% { transform: translateY(832px); } 38%, 100% { transform: translateY(-320px); } }
+@keyframes glint-img { 0% { transform: translateY(-832px); } 38%, 100% { transform: translateY(320px); } }
+.noche .eye { display: block; position: absolute; left: 430px; top: 165px; width: 90px; height: 90px; border-radius: 50%; opacity: 0;
+  background: radial-gradient(circle, #FFF6E0 0, #FF5A3C 22%, rgba(227, 40, 58, .5) 45%, transparent 70%); animation: eye 9s ease-out infinite; }
+@keyframes eye { 0%, 34% { opacity: 0; transform: scale(.6); } 41% { opacity: 1; transform: scale(1.25); } 60% { opacity: .55; transform: scale(1); } 100% { opacity: 0; transform: scale(.8); } }
+.noche .embers { display: block; position: absolute; inset: 0; }
+.embers i { position: absolute; left: var(--x); bottom: 40px; width: 9px; height: 9px; border-radius: 50%; opacity: 0;
+  background: #FFB070; box-shadow: 0 0 14px 5px rgba(255, 90, 50, .6); animation: ember var(--t) ease-out var(--d) infinite; }
+@keyframes ember { 0% { opacity: 0; transform: translate3d(0, 0, 0); } 15% { opacity: 1; } 100% { opacity: 0; transform: translate3d(var(--dx), -520px, 0); } }
+
+.petals i {
+  position: absolute; left: var(--x); top: -60px; width: var(--s); height: calc(var(--s) * .72); opacity: 0;
+  border-radius: 80% 10% 80% 10%; background: linear-gradient(135deg, #F8C3C9, #F2A7B0);
+  animation: fall var(--t) linear var(--d) infinite;
+}
+.noche .petals i { background: linear-gradient(135deg, #FF6B6B, #B3122B); }
+.noche .petals i:nth-child(3n) { background: linear-gradient(135deg, #FFFFFF, #F4C9CE); }
+@keyframes fall {
+  0% { transform: translate3d(0, 0, 0) rotate(0); opacity: 0; }
+  8% { opacity: .9; }
+  88% { opacity: .8; }
+  100% { transform: translate3d(var(--dx), 960px, 0) rotate(var(--r)); opacity: 0; }
+}
+
+/* ---------- plates (one per view, crossfaded) ---------- */
+.plate {
+  position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center;
+  padding: 0 760px; text-align: center; opacity: 0; visibility: hidden;
+  transition: opacity .9s var(--ease), visibility 0s linear .9s;
+}
+.plate.on { opacity: 1; visibility: visible; transition: opacity .9s var(--ease); }
+.plate > * { margin: 0; white-space: nowrap; }
+
+/* Logo: cut from the painting with a margin, edges feathered so the crop never shows as a box. */
+.logo { width: 280px; height: 256px; margin-bottom: 8px; background: var(--art) no-repeat; background-size: 1800px auto; background-position: -760px -196px;
+  -webkit-mask: linear-gradient(90deg, transparent, #000 12%, #000 88%, transparent), linear-gradient(transparent, #000 10%, #000 90%, transparent);
+  -webkit-mask-composite: source-in; mask: linear-gradient(90deg, transparent, #000 12%, #000 88%, transparent), linear-gradient(transparent, #000 10%, #000 90%, transparent); mask-composite: intersect; }
+:root:not(.noche) .logo { mix-blend-mode: multiply; } /* the painted paper around the logo melts into the cream */
+.noche .logo { width: 316px; height: 310px; margin-bottom: 0; background-size: 1620px auto; background-position: -652px -248px; }
+.t-main, .year, .name { font-variant-numeric: lining-nums; }
+.t-main { font: 700 250px/.95 var(--serif); letter-spacing: .07em; margin-right: -.07em; }
+.t-main span:first-child { color: var(--title-a); }
+.t-main span:last-child { color: var(--title-b); }
+.noche .t-main span:first-child, .noche .gold { color: transparent; background: var(--gold-text); -webkit-background-clip: text; background-clip: text; }
+.noche .t-main span:last-child { color: var(--red); }
+.t-sub { font: 600 66px/1 var(--sans); letter-spacing: .42em; margin-right: -.42em; color: var(--ink); }
+.knot { width: 440px; height: 56px; margin: 26px 0; stroke: var(--red); stroke-width: 3; }
+
+.role { font: 600 64px/1.1 var(--sans); letter-spacing: .14em; margin-right: -.14em; color: var(--red-deep); }
+.noche .role { color: var(--gold); }
+.name { font: 700 270px/1 var(--serif); letter-spacing: .02em; color: var(--name); padding-top: 8px; }
+.foot { font: 500 50px/1.2 var(--sans); letter-spacing: .08em; color: var(--soft); }
+[data-view="raffle"] .name { color: var(--red); }
+[data-view="winner"] .name, [data-view="suspense"] .name { color: var(--win); }
+.noche [data-view="raffle"] .name, .noche [data-view="winner"] .name { color: transparent; background: var(--gold-text); -webkit-background-clip: text; background-clip: text; padding-bottom: 14px; }
+.noche [data-view="suspense"] .name { color: var(--name); }
+.reel { opacity: .9; }
+[data-view="winner"] .role { font-size: 76px; }
+
+/* ---------- ambient: one moment at a time, crossfaded (.on); .run restarts its animations each time it comes back ---------- */
+.amb { position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; opacity: 0; transition: opacity 2s var(--ease); }
+.amb.on { opacity: 1; }
+.amb > p { margin: 0; white-space: nowrap; }
+.sky { position: absolute; inset: 0; }
+
+.lema { font: 600 150px/1.15 var(--serif); color: var(--name); }
+.lema + .lema { color: var(--gold); }
+.lema span { display: inline-block; opacity: 0; }
+.amb.run .lema span { animation: word 1.6s var(--ease) calc(var(--i) * .45s + .8s) forwards; }
+@keyframes word { from { opacity: 0; transform: translateY(40px); } to { opacity: 1; transform: none; } }
+
+.welcome { position: relative; font: 600 160px/1 var(--serif); color: var(--name); }
+.lantern {
+  position: absolute; left: var(--x); bottom: -160px; width: 72px; height: 94px; border-radius: 42% / 46%; opacity: 0;
+  background: radial-gradient(circle at 50% 58%, #FFE3A1, #F2683C 38%, #C41E32 70%, #6E0A16);
+  box-shadow: 0 0 70px 22px rgba(255, 96, 60, .32);
+  transform: scale(var(--k));
+}
+.lantern::before, .lantern::after { content: ''; position: absolute; left: 26%; width: 48%; height: 9px; border-radius: 3px; background: var(--gold); }
+.lantern::before { top: -5px; }
+.lantern::after { bottom: -5px; }
+.amb.run .lantern { animation: rise var(--t) linear var(--d) infinite; }
+@keyframes rise {
+  0% { transform: translate3d(0, 0, 0) scale(var(--k)); opacity: 0; }
+  10% { opacity: .95; }
+  50% { transform: translate3d(var(--dx), -560px, 0) scale(var(--k)); }
+  85% { opacity: .9; }
+  100% { transform: translate3d(0, -1100px, 0) scale(var(--k)); opacity: 0; }
+}
+
+.year { font: 700 400px/.9 var(--serif); letter-spacing: .04em; color: var(--red-deep); padding-bottom: 20px; }
+.noche .year { color: transparent; background: var(--gold-text); -webkit-background-clip: text; background-clip: text; }
+#wall.m-dragon .side { transform: scale(1.14); transition: transform 24s linear; }
+.side { transition: transform 3s var(--ease); }
+.side.l { transform-origin: 0 30%; }
+.side.r { transform-origin: 100% 30%; }
+
+.spark { position: absolute; left: var(--x); top: var(--y); width: 12px; height: 12px; border-radius: 50%; opacity: 0; background: #FFE9B8; box-shadow: 0 0 18px 6px rgba(212, 175, 106, .55); }
+.amb.run .spark { animation: twinkle var(--t) ease-in-out var(--d) infinite; }
+@keyframes twinkle { 0%, 100% { opacity: 0; transform: scale(.4); } 50% { opacity: 1; transform: scale(1.2); } }
+[data-m="oro"] .knot { width: 660px; height: 84px; margin: 0 0 30px; }
+
+/* ---------- video: 16:9 sits centred (1479x832) between the art; a 4:1 file fills the wall ---------- */
+#vi { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: contain; }
+.frame { display: none; width: 1479px; height: 832px; align-items: center; justify-content: center; box-shadow: inset 0 0 0 8px var(--gold); }
+.frame p { font: 600 90px var(--serif); color: var(--soft); }
+[data-view="video"].empty .frame { display: flex; }
+[data-view="video"].empty #vi { display: none; }
+
+/* ---------- WOW cue: a gold band crossing the wall (transform only) ---------- */
+#sweep { position: absolute; inset: 0; pointer-events: none; overflow: hidden; }
+#sweep i { position: absolute; top: -20%; left: 0; width: 560px; height: 140%; background: var(--band); opacity: 0; transform: translateX(-1000px) skewX(-18deg); }
+.ch { display: inline-block; }
+
+/* ---------- operator chips (outside the design, bottom-right corner) ---------- */
+#sound, #status {
+  position: fixed; right: 12px; bottom: 12px; z-index: 5; margin: 0; padding: 10px 16px; border: 0; border-radius: 999px;
+  font: 600 15px/1 var(--sans); color: #fff; background: rgba(60, 60, 60, .85); cursor: pointer;
+}
+#status { bottom: 60px; pointer-events: none; }
+
+@media (prefers-reduced-motion: reduce) {
+  .petals, .sky, .noche .glint, .noche .embers { display: none; }
+  .side.l .img, .noche .eye { animation: none; }
+  .lema span { opacity: 1; }
+  .plate, .plate.on, .art, #wall { transition-duration: .01s; }
+}

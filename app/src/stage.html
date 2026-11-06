@@ -1,0 +1,83 @@
+<!doctype html>
+<html lang="es" class="stage-page">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="theme-color" content="#000000">
+<meta name="robots" content="noindex">
+<title>Pantalla de escenario</title>
+<script>/* theme: ?theme=amanecer|noche is remembered (same switch as the panels); default noche */try{var q=new URLSearchParams(location.search).get('theme');if(q==='amanecer'||q==='noche')localStorage.setItem('fiesta.theme',q);if(localStorage.getItem('fiesta.theme')!=='amanecer')document.documentElement.classList.add('noche')}catch(e){document.documentElement.classList.add('noche')}</script>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@600;700&family=Montserrat:wght@500;600;700&display=swap">
+<link rel="stylesheet" href="/css/stage.css">
+</head>
+<body>
+<!-- Fixed 3328x832 canvas (LED wall 10 m x 2.5 m, pitch 2.9 mm), scaled to fit and letterboxed in black. -->
+<div id="wall" aria-live="polite">
+  <div class="art" aria-hidden="true">
+    <div class="side l"><b class="img"></b></div>
+    <div class="side r"><b class="img"></b><i class="glint"><b class="img"></b></i><i class="eye"></i><i class="embers"></i></div>
+    <div class="petals"><i style="--x:120px;--s:34px;--t:17s;--d:-2s;--dx:90px;--r:320deg"></i><i style="--x:420px;--s:26px;--t:21s;--d:-11s;--dx:-60px;--r:220deg"></i><i style="--x:690px;--s:40px;--t:19s;--d:-6s;--dx:70px;--r:400deg"></i><i style="--x:2700px;--s:30px;--t:20s;--d:-14s;--dx:-80px;--r:260deg"></i><i style="--x:2980px;--s:38px;--t:16s;--d:-4s;--dx:60px;--r:360deg"></i><i style="--x:3220px;--s:24px;--t:23s;--d:-9s;--dx:-50px;--r:180deg"></i></div>
+  </div>
+
+  <section class="plate" data-view="title">
+    <div class="logo" aria-hidden="true"></div>
+    <h1 class="t-main"><span>GALA</span> <span>HUAWEI</span></h1>
+    <svg class="knot" viewBox="0 0 220 28" fill="none" aria-hidden="true"><path d="M0 14h88M132 14h88"/><circle cx="110" cy="14" r="9.5"/><path d="M110 5.5 118.5 14 110 22.5 101.5 14z"/></svg>
+    <p class="t-sub">DIGITAL POWER 2026</p>
+  </section>
+
+  <section class="plate" data-view="speaker">
+    <p class="role" id="sp-role"></p>
+    <h1 class="name" id="sp-name"></h1>
+    <svg class="knot" viewBox="0 0 220 28" fill="none" aria-hidden="true"><path d="M0 14h88M132 14h88"/><circle cx="110" cy="14" r="9.5"/><path d="M110 5.5 118.5 14 110 22.5 101.5 14z"/></svg>
+    <p class="foot">Gala Huawei Digital Power 2026</p>
+  </section>
+
+  <section class="plate" data-view="raffle">
+    <p class="role">Gala Huawei Digital Power 2026</p>
+    <h1 class="name">Premios y sorteos</h1>
+    <svg class="knot" viewBox="0 0 220 28" fill="none" aria-hidden="true"><path d="M0 14h88M132 14h88"/><circle cx="110" cy="14" r="9.5"/><path d="M110 5.5 118.5 14 110 22.5 101.5 14z"/></svg>
+    <p class="foot" id="rf-count">Atentos: en instantes conocemos a los ganadores</p>
+  </section>
+
+  <section class="plate" data-view="suspense">
+    <p class="role" id="su-prize"></p>
+    <h1 class="name reel" id="su-name"></h1>
+    <p class="foot">Sorteando…</p>
+  </section>
+
+  <section class="plate" data-view="winner">
+    <p class="role" id="wi-prize"></p>
+    <h1 class="name" id="wi-name"></h1>
+    <svg class="knot" viewBox="0 0 220 28" fill="none" aria-hidden="true"><path d="M0 14h88M132 14h88"/><circle cx="110" cy="14" r="9.5"/><path d="M110 5.5 118.5 14 110 22.5 101.5 14z"/></svg>
+    <p class="foot">¡Felicitaciones!</p>
+  </section>
+
+  <!-- Ambient: soft moments that take turns while nothing else is happening on stage (tuned for noche). -->
+  <section class="plate" data-view="ambient">
+    <div class="amb" data-m="lema">
+      <p class="lema"><span style="--i:0">Celebremos</span> <span style="--i:1">lo</span> <span style="--i:2">logrado.</span></p>
+      <p class="lema"><span style="--i:4">Imaginemos</span> <span style="--i:5">lo</span> <span style="--i:6">que</span> <span style="--i:7">viene.</span></p>
+    </div>
+    <div class="amb" data-m="faroles"><div class="sky" id="lanterns"></div><p class="welcome">Bienvenidos a la gala</p></div>
+    <div class="amb" data-m="dragon"><p class="year">2026</p><p class="t-sub">GALA HUAWEI DIGITAL POWER</p></div>
+    <div class="amb" data-m="oro"><div class="sky" id="sparks"></div>
+      <svg class="knot" viewBox="0 0 220 28" fill="none" aria-hidden="true"><path d="M0 14h88M132 14h88"/><circle cx="110" cy="14" r="9.5"/><path d="M110 5.5 118.5 14 110 22.5 101.5 14z"/></svg>
+      <p class="t-sub">DIGITAL POWER 2026</p></div>
+  </section>
+
+  <section class="plate empty" data-view="video">
+    <div class="frame" id="vi-frame"><p>Video</p></div>
+    <video id="vi" playsinline preload="auto"></video>
+  </section>
+
+  <div id="sweep" aria-hidden="true"><i></i></div>
+</div>
+
+<button id="sound" type="button" hidden>Activar sonido</button>
+<p id="status" hidden></p>
+<script type="module" src="/js/stage.js"></script>
+</body>
+</html>
