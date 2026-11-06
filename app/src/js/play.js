@@ -5,6 +5,7 @@ import { login, startAttempt, finishAttempt, live, screenId, panelRoster, panelS
 import { createQueue, createFlusher, createPinCheck, startLocalAttempt, attemptsLeft, bumpCount } from './offline.js';
 import { ROUND_GAMES } from '../shared/rounds.js';
 import { rafflePhase, scramble, SCRAMBLE_MS } from '../shared/raffle.js';
+import { PANELS, CUE_SWEEP_MS, cueMs } from '../shared/stage.js';
 import { $, RM, injectSprite, mascot, demoBadge, cleanName, firstName, wait, mulberry32 } from './common.js';
 import { GAME_MODULES } from './games/index.js';
 
@@ -387,7 +388,7 @@ function poll() {
   if (inflight) return inflight;
   const t0 = Date.now();
   return (inflight = live({ screenId: screenId(), game: gameId || 'menu', session: session || undefined })
-    .then((s) => { if (s.serverNow) clockOffset = s.serverNow - (t0 + Date.now()) / 2; liveState = s; netOk = true; showNet(); if (queue.items().length) flusher.kick(); if (current === 'menu') renderMenu(); applyOverlays(); },
+    .then((s) => { if (s.serverNow) clockOffset = s.serverNow - (t0 + Date.now()) / 2; liveState = s; netOk = true; showNet(); if (queue.items().length) flusher.kick(); if (current === 'menu') renderMenu(); applyOverlays(); scheduleCue(s); },
       () => { if (netOk) { netOk = false; if (current === 'menu') renderMenu(); } showNet(); }) // keep last good state
     .finally(() => { inflight = null; }));
 }
@@ -578,6 +579,28 @@ function showResult(score, answer) {
     if (left <= 0) { clearInterval(backTimer); iris(toAttract); return; }
     $('#backtxt').textContent = `Volviendo en ${left}…`;
   }, 1000);
+}
+
+// ---------- WOW cue: this panel's part of one gold sweep that travels panel 1 -> 4 and lands on the stage screen ----------
+// ?panel=1..4 (remembered) is this panel's place in the row; unset panels sweep with panel 1. Overlay only: never interrupts a game.
+const panelSlot = (() => {
+  const p = Number(new URLSearchParams(location.search).get('panel'));
+  try { if (p >= 1 && p <= PANELS) localStorage.setItem('fiesta.panel', String(p)); return Number(localStorage.getItem('fiesta.panel')) || 1; } catch { return p || 1; }
+})();
+let cueSeen = 0;
+function scheduleCue(s) {
+  const at = s.stage?.cueAt;
+  if (!at || at === cueSeen) return;
+  cueSeen = at;
+  const ms = cueMs(Date.now(), clockOffset, at, panelSlot);
+  if (ms < 0) setTimeout(playCue, -ms); // missed it (late poll): skip
+}
+function playCue() {
+  const ov = $('#ov-cue'), total = CUE_SWEEP_MS + 500;
+  ov.hidden = false;
+  ov.animate([{ opacity: 0 }, { opacity: 1, offset: 0.2 }, { opacity: 1, offset: 0.7 }, { opacity: 0 }], { duration: total });
+  if (!RM) ov.firstElementChild.animate([{ transform: 'translateX(-800px) skewX(-18deg)' }, { transform: 'translateX(2100px) skewX(-18deg)' }], { duration: CUE_SWEEP_MS, easing: 'cubic-bezier(.45,.05,.4,1)', fill: 'both' });
+  setTimeout(() => { ov.hidden = true; }, total);
 }
 
 show('attract');

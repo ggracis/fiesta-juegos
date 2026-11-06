@@ -260,3 +260,9 @@ button.press, button.big:active { transform: scale(.94); }
 #setup { position: absolute; z-index: 30; left: 40px; top: 40px; display: flex; gap: 24px; align-items: center; padding: 16px 24px; border-radius: 24px; background: var(--glass); font-size: 30px; font-weight: 600; }
 #setup button { font: inherit; padding: 14px 28px; border: 0; border-radius: 16px; background: var(--sun); color: #2A0610; }
 #offline[hidden], #setup[hidden] { display: none; }
+
+/* WOW cue from the admin: a gold band crosses this panel on its turn (panel 1 -> 4 -> stage). Transform/opacity only. */
+#ov-cue { position: absolute; z-index: 60; inset: 0; overflow: hidden; pointer-events: none; background: rgba(0, 0, 0, .45); }
+#ov-cue[hidden] { display: none; }
+#ov-cue i { position: absolute; top: -20%; left: 0; width: 700px; height: 140%; transform: translateX(-800px) skewX(-18deg);
+  background: linear-gradient(90deg, transparent, rgba(212, 175, 106, .55) 35%, #FFF1CF 50%, rgba(212, 175, 106, .55) 65%, transparent); }
