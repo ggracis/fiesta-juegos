@@ -34,13 +34,18 @@ Requires Node 24 (runs TypeScript directly, uses built-in `node:sqlite`). `VITE_
 |---|---|
 | `index.html` | Landing + registration |
 | `ticket.html?t=<ticketToken>` | Ticket: envelope reveal, QR, PIN, download |
-| `checkin.html?c=<checkinToken>` | Check-in placeholder (never shows the PIN); the QR encodes this absolute URL |
-| `play.html` | Panel app (1920x1080 stage scaled to fit) |
+| `checkin.html?c=<checkinToken>` | Check-in: name only for the public; with a staff session, check in and deliver prize (never shows the PIN). The QR encodes this absolute URL |
+| `play.html` | Panel app (1920x1080 stage scaled to fit): PIN, game menu, live overlays (pause, transition, raffle) |
 | `diag.html` | Touch diagnostics |
+| `admin.html` | Admin (server mode only): live control, guests + CSV import, games, prizes/ranking, raffle |
 
-Server mode also redirects `/t/<token>`, `/c/<token>`, `/play`, `/diag`. API: `POST /api/lookup` (`{name}` -> `{found}`, no roster data), `POST /api/register` (`{name, dni, email}` -> `{status:'registered', ticketToken}` or `{status:'pending'}`), `GET /api/ticket/:token`, `POST /api/login` (`{pin, screenId}`), `POST /api/attempts`, `POST /api/attempts/:id/result`.
+Server mode also redirects `/t/<token>`, `/c/<token>`, `/play`, `/diag`. API: `POST /api/lookup` (`{name}` -> `{found}`, no roster data), `POST /api/register` (`{name, dni, email}` -> `{status:'registered', ticketToken}` or `{status:'pending'}`), `GET /api/ticket/:token`, `POST /api/login` (`{pin, screenId}`), `POST /api/attempts` (`{session, game}`), `POST /api/attempts/:id/result`, `GET /api/live`, `GET /api/checkin/:token`, and `/api/admin/*` (see `server/admin.ts`).
 
 Registration validates identity: the guest types their full name (normalized; the full name or any 2+ tokens of it match), then DNI and email, checked against `data/guests.csv` (`name,dni,email`, fictitious demo data). A mismatch is stored in `verification_request` (static mode: `localStorage`) and the UI sends the guest to the accreditation desk; re-submitting matching data returns the existing ticket. The mode is one constant, `VALIDATION_MODE` in `src/shared/identity.js` (`name_dni_email` default, or `name_only`).
+
+## Admin
+
+Set `ADMIN_PASSWORD` (env or `.env` via the systemd unit) to enable `/api/admin/*`; without it admin login returns 503. Staff log in on their phone with the same password and then scan ticket QRs. Every business rule (enabled games, order, prize threshold, max attempts per game, prize stock, transition text, raffle display time) is editable from the admin, with defaults in `src/shared/games.js`. Deploy: `deploy/README.md`.
 
 ## GitHub Pages
 

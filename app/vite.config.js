@@ -1,7 +1,7 @@
 import { defineConfig, loadEnv } from 'vite';
 import { resolve } from 'node:path';
 
-const pages = ['index', 'noche', 'ticket', 'checkin', 'play', 'diag'];
+const pages = ['index', 'noche', 'ticket', 'checkin', 'play', 'diag', 'admin'];
 
 export default defineConfig(({ mode }) => {
   const env = loadEnv(mode, import.meta.dirname, 'VITE_');

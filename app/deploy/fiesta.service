@@ -1,0 +1,16 @@
+[Unit]
+Description=Fiesta games server
+After=network.target
+
+[Service]
+User=fiesta
+WorkingDirectory=/opt/fiesta/app
+Environment=NODE_ENV=production PORT=3000
+# EnvironmentFile holds ADMIN_PASSWORD (chmod 600, owned by fiesta)
+EnvironmentFile=/opt/fiesta/app/.env
+ExecStart=/usr/bin/node server/index.ts
+Restart=always
+RestartSec=2
+
+[Install]
+WantedBy=multi-user.target

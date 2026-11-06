@@ -1,9 +1,9 @@
 import gsap from 'gsap';
 import { SplitText } from 'gsap/SplitText';
 import confetti from 'canvas-confetti';
-import { login, startAttempt, finishAttempt, screenId } from './api.js';
-import { roundScore, totalScore, ROUNDS, ROUND_TIMEOUT_MS } from '../shared/scoring.js';
-import { $, injectSprite, mascot, demoBadge, cleanName, firstName } from './common.js';
+import { login, startAttempt, finishAttempt, live, screenId } from './api.js';
+import { $, RM, injectSprite, mascot, demoBadge, cleanName, firstName, wait, mulberry32 } from './common.js';
+import { GAME_MODULES } from './games/index.js';
 
 gsap.registerPlugin(SplitText);
 injectSprite();
@@ -63,28 +63,6 @@ tap($('#snd'), () => {
 });
 
 // ---------- characters ----------
-function mulberry32(a) {
-  return () => { a |= 0; a = (a + 0x6D2B79F5) | 0; let t = Math.imul(a ^ (a >>> 15), 1 | a); t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t; return ((t ^ (t >>> 14)) >>> 0) / 4294967296; };
-}
-const ACCS = ['none', 'hat', 'bow', 'antenna'];
-const SHAPES = ['round', 'tall', 'box'];
-const LEVELS = [
-  { n: 3, k: 'hue', d: 70 }, { n: 3, k: 'acc' }, { n: 4, k: 'hue', d: 45 }, { n: 4, k: 'acc' }, { n: 4, k: 'eye', d: 5 },
-  { n: 5, k: 'hue', d: 20 }, { n: 5, k: 'eye', d: 3.5 }, { n: 6, k: 'hue', d: 12 }, { n: 6, k: 'eye', d: 3 }, { n: 6, k: 'hue', d: 8 },
-];
-
-function makeRound(rng, lvl) {
-  const h0 = Math.floor(rng() * 360);
-  const base = { h: h0 > 135 && h0 < 185 ? h0 + 60 : h0, // mint is reserved for "correct"
-    ex: 0, acc: lvl.k === 'acc' ? 'none' : ACCS[Math.floor(rng() * ACCS.length)], shape: SHAPES[Math.floor(rng() * 3)] };
-  const odd = { ...base };
-  const sign = rng() < 0.5 ? -1 : 1;
-  if (lvl.k === 'hue') { odd.h = (base.h + sign * lvl.d + 360) % 360; odd.cue = lvl.d <= 20; } // small hue gaps also get a shape cue (colour-blind players)
-  else if (lvl.k === 'eye') odd.ex = sign * lvl.d;
-  else odd.acc = ACCS[1 + Math.floor(rng() * 3)];
-  return { base, odd, oddIndex: Math.floor(rng() * lvl.n * lvl.n), cells: lvl.n * lvl.n };
-}
-
 // Blink scheduler: toggles a class on a couple of random visible characters (cheap, no per-node timers).
 setInterval(() => {
   const all = [...document.querySelectorAll('.screen:not([hidden]) .mz')];
@@ -98,7 +76,7 @@ setInterval(() => {
 // ---------- screens + idle ----------
 const screens = [...document.querySelectorAll('.screen')];
 let current = 'attract', idleTimer, gid = 0, session = null, attempt = null, playerName = '';
-let cancelRound = null, howTl = null, topsTl = null, backTimer = null, holaSplit = null;
+let gameId = null, howStop = null, gameAbort = null, curIdle = null, topsTl = null, backTimer = null, holaSplit = null;
 
 function show(name) {
   current = name;
@@ -106,6 +84,7 @@ function show(name) {
   for (const s of screens) s.hidden = !(s.id === name || (name === 'result' && s.id === 'game'));
   $('#game').classList.toggle('dim', name === 'result');
   bump();
+  applyOverlays();
 }
 function bump() {
   clearTimeout(idleTimer);
@@ -114,8 +93,10 @@ function bump() {
 addEventListener('pointerdown', bump, true);
 
 function toAttract() {
-  gid++; session = null; attempt = null; pin = ''; renderDots();
-  cancelRound?.(); cancelRound = null; howTl?.kill(); clearInterval(backTimer);
+  gid++; session = null; attempt = null; gameId = null; pin = ''; renderDots();
+  clearTimeout(howTimer); picking = false;
+  liveState?.games.forEach((g) => { delete g.attemptsLeft; });
+  gameAbort?.abort(); gameAbort = null; curIdle?.stop(); curIdle = null; howStop?.(); howStop = null; clearInterval(backTimer);
   gsap.killTweensOf('#grid, #banner, .float, .spark');
   show('attract');
   renderTops();
@@ -145,7 +126,14 @@ function renderTops() {
   const box = $('#tops');
   topsTl?.kill();
   if (!top.length) { box.innerHTML = '<span style="opacity:1">Sé el primero en aparecer aquí</span>'; return; }
-  box.innerHTML = '<span>Mejores puntajes de esta pantalla</span><span>' + top.map((t, i) => `<i style="font-style:normal">${i + 1}. ${t.n} <b>${t.s}</b></i>`).join('') + '</span>';
+  box.replaceChildren(document.createElement('span'), document.createElement('span'));
+  box.children[0].textContent = 'Mejores puntajes de esta pantalla';
+  top.forEach((t, i) => {
+    const el = document.createElement('i'), b = document.createElement('b');
+    el.style.fontStyle = 'normal'; b.textContent = t.s;
+    el.append(`${i + 1}. ${t.n} `, b);
+    box.children[1].append(el);
+  });
   const [a, b] = box.children;
   gsap.set(b, { opacity: 0 });
   topsTl = gsap.timeline({ repeat: -1, repeatDelay: 0 })
@@ -241,7 +229,8 @@ async function submitPin() {
 // ---------- confirm ----------
 function showConfirm() {
   const fn = firstName(playerName);
-  $('#avatar').innerHTML = mascot({ h: 350, shape: 'round', acc: 'hat' }) + `<b>${fn[0].toUpperCase()}</b>`;
+  $('#avatar').innerHTML = mascot({ h: 350, shape: 'round', acc: 'hat' }) + '<b></b>';
+  $('#avatar b').textContent = (fn[0] || '?').toUpperCase();
   $('#hola').textContent = `¡Hola, ${fn}!`;
   $('#full').textContent = `¿Eres ${cleanName(playerName)}?`;
   show('confirm');
@@ -255,42 +244,117 @@ tap($('#yes'), claim);
 
 async function claim() {
   const myGid = gid;
+  await inflight; // re-poll with the session so attemptsLeft is known
+  await poll();
+  if (myGid !== gid) return;
+  menuMsg(''); renderMenu(); show('menu');
+}
+
+// ---------- menu ----------
+const tiles = $('#tiles');
+const menuMsg = (t) => { $('#menumsg').textContent = t || ' '; };
+function renderMenu() {
+  const games = liveState?.games ?? [];
+  tiles.replaceChildren();
+  if (!games.length) {
+    const d = document.createElement('div');
+    d.className = 'none'; d.textContent = liveState ? 'No hay juegos disponibles ahora' : 'Sin conexión, reintentando…';
+    tiles.append(d);
+    return;
+  }
+  games.forEach((g, i) => {
+    const b = document.createElement('button');
+    b.type = 'button'; b.dataset.id = g.id;
+    b.insertAdjacentHTML('afterbegin', mascot({ h: [350, 22, 38, 330][i % 4], shape: ['round', 'tall', 'box'][i % 3], acc: ['hat', 'bow', 'antenna'][i % 3] }));
+    b.append(g.name);
+    if (g.attemptsLeft === 0) { b.disabled = true; const s = document.createElement('small'); s.textContent = 'Ya jugaste'; b.append(s); }
+    tiles.append(b);
+  });
+}
+tap($('#menuexit'), toAttract);
+tap(tiles, (e) => { const b = e.target.closest('button'); if (b && !b.disabled) pick(b.dataset.id); });
+
+let picking = false;
+async function pick(id) {
+  if (picking) return;
+  if (!GAME_MODULES[id]) return menuMsg('Este juego no está disponible ahora.');
+  picking = true;
+  const myGid = gid;
   try {
-    const d = await startAttempt(session);
+    const d = await startAttempt(session, id);
     if (myGid !== gid) return;
-    attempt = d;
+    attempt = d; gameId = id;
     startHowto();
-  } catch { toAttract(); }
+  } catch (e) {
+    if (myGid !== gid) return;
+    picking = false;
+    menuMsg(e.code === 'max_attempts' ? 'Ya usaste tus intentos en este juego.' : e.code === 'game_unavailable' ? 'Este juego no está disponible ahora.' : 'No hay conexión. Inténtalo de nuevo.');
+    await poll();
+    if (myGid === gid && current === 'menu') renderMenu();
+  }
+}
+
+// ---------- live state: poll + overlays ----------
+let liveState = null, inflight = null, raffleOn = false, shownRaffle = null, raffleTimer, rSplit = null;
+function poll() {
+  if (inflight) return inflight;
+  return (inflight = live({ screenId: screenId(), game: gameId || 'menu', session: session || undefined })
+    .then((s) => { liveState = s; if (current === 'menu') renderMenu(); applyOverlays(); })
+    .catch(() => {}) // keep last good state
+    .finally(() => { inflight = null; }));
+}
+setInterval(poll, 5000);
+
+const setOv = (id, on) => { $(id).hidden = !on; };
+const gone = (s) => !!gameId && !s.games.some((g) => g.id === gameId);
+const blocked = () => !!liveState && (raffleOn || liveState.transition.on || liveState.paused || gone(liveState));
+// Priority raffle > transition > pause. Nothing interrupts a running round; they show once it ends.
+function applyOverlays() {
+  const s = liveState;
+  if (!s || raffleOn) return;
+  const mid = current === 'game' || current === 'result';
+  const rf = s.raffle;
+  if (rf && rf.id !== shownRaffle && Date.now() - rf.drawnAt > (rf.showSeconds + 10) * 1000) shownRaffle = rf.id; // stale
+  if (!mid && rf && rf.id !== shownRaffle) return showRaffle(rf);
+  const trans = !mid && s.transition.on;
+  if (trans) $('#ttext').textContent = s.transition.text || 'Un momento…';
+  setOv('#ov-trans', trans);
+  setOv('#ov-pause', !mid && !trans && (s.paused || gone(s)));
+}
+
+function showRaffle(r) {
+  shownRaffle = r.id; raffleOn = true;
+  setOv('#ov-trans', false); setOv('#ov-pause', false);
+  rSplit?.revert(); rSplit = null; // revert first: it restores the previous winner's markup
+  $('#rwin').textContent = cleanName(r.name);
+  setOv('#ov-raffle', true);
+  if (!RM) {
+    rSplit = SplitText.create('#rwin', { type: 'chars' });
+    gsap.from('#rkick', { scale: 0.4, opacity: 0, duration: 0.5, ease: 'back.out(2)' });
+    gsap.from(rSplit.chars, { scale: 0, y: 80, opacity: 0, duration: 0.6, ease: 'back.out(2.2)', stagger: 0.04, delay: 0.5 });
+    gsap.from('#rcong', { opacity: 0, y: 30, duration: 0.5, delay: 1.4 });
+    const shot = (x) => confetti({ particleCount: 90, spread: 100, startVelocity: 55, origin: { x, y: 0.6 }, zIndex: 100, disableForReducedMotion: true, colors: ['#FFC14D', '#FF8A3D', '#FF5A4D', '#FF2D8A', '#FFF7F3'] });
+    setTimeout(() => { shot(0.2); shot(0.8); }, 900);
+    setTimeout(() => { shot(0.3); shot(0.7); }, 1700);
+  }
+  clearTimeout(raffleTimer);
+  raffleTimer = setTimeout(() => { raffleOn = false; setOv('#ov-raffle', false); applyOverlays(); }, Math.max(3, r.showSeconds || 15) * 1000);
 }
 
 // ---------- how to ----------
 function startHowto() {
-  const r = makeRound(mulberry32(7), { n: 3, k: 'hue', d: 70 });
-  const demo = $('#demo');
-  demo.querySelectorAll(':scope > span').forEach((s) => s.remove());
-  demo.insertAdjacentHTML('afterbegin', Array.from({ length: 9 }, (_, i) => `<span>${mascot(i === 4 ? r.odd : r.base)}</span>`).join(''));
+  const { title, steps, art } = GAME_MODULES[gameId].howTo;
+  $('#howtitle').textContent = title;
+  $('#caps').replaceChildren(...steps.map((t) => Object.assign(document.createElement('li'), { textContent: t })));
+  const artEl = $('#howart');
+  artEl.replaceChildren(); artEl.hidden = !art;
   const ring = $('#howring');
   ring.style.animation = 'none'; void ring.getBoundingClientRect(); ring.style.animation = '';
   show('howto');
 
   const caps = [...document.querySelectorAll('#caps li')];
-  const on = (i) => caps.forEach((c, j) => c.classList.toggle('on', j === i));
-  const cell = demo.children[4]; // odd one
-  const dx = cell.offsetLeft, dy = cell.offsetTop;
-  gsap.set('#halo', { x: dx - 24, y: dy - 24, opacity: 0 });
-  gsap.set('#dplus', { x: dx + 50, y: dy - 10, opacity: 0 });
-  gsap.set('#dhand', { x: dx + 400, y: dy + 300, opacity: 0 });
-  howTl?.kill();
-  howTl = gsap.timeline({ repeat: -1, repeatDelay: 0.8 })
-    .call(on, [0], 0)
-    .call(on, [1], 1.2)
-    .fromTo('#halo', { opacity: 0, scale: 1 }, { opacity: 1, scale: 1.12, duration: 0.5, yoyo: true, repeat: 3, ease: 'sine.inOut' }, 1.2)
-    .call(on, [2], 2.4)
-    .to('#dhand', { opacity: 1, x: dx + 50, y: dy + 60, duration: 0.5, ease: 'power2.out' }, 2.4)
-    .to('#dhand', { scale: 0.88, duration: 0.1, yoyo: true, repeat: 1 }, 3.0)
-    .fromTo('#dplus', { opacity: 1, y: dy - 10 }, { opacity: 0, y: dy - 110, duration: 0.8, ease: 'power1.out' }, 3.05)
-    .to('#dhand', { opacity: 0, duration: 0.3 }, 3.5)
-    .to('#halo', { opacity: 0, duration: 0.2 }, 3.5);
+  howStop?.();
+  howStop = art?.(artEl, (i) => caps.forEach((c, j) => c.classList.toggle('on', j === i))) ?? null;
 
   clearTimeout(howTimer);
   howTimer = setTimeout(startGame, HOWTO_MS);
@@ -299,138 +363,68 @@ let howTimer;
 tap($('#start'), () => startGame());
 tap($('#skip'), () => startGame());
 
+// ---------- idle notice (ctx.idle for game modules) ----------
+function makeIdle(params) {
+  const idleMs = (params.idleSeconds ?? 20) * 1000, warnMs = (params.idleWarnSeconds ?? 5) * 1000;
+  const ov = $('#ov-idle'), gameEl = $('#game');
+  let timer, onTimeout = null;
+  const arm = () => {
+    clearTimeout(timer); ov.hidden = true;
+    if (!onTimeout) return;
+    timer = setTimeout(() => {
+      ov.hidden = false;
+      timer = setTimeout(() => { ov.hidden = true; const cb = onTimeout; onTimeout = null; cb(); }, warnMs);
+    }, idleMs);
+  };
+  const idle = {
+    start(cb) { onTimeout = cb; gameEl.addEventListener('pointerdown', arm, true); arm(); },
+    bump: arm,
+    stop() { clearTimeout(timer); onTimeout = null; ov.hidden = true; gameEl.removeEventListener('pointerdown', arm, true); },
+  };
+  return idle;
+}
+
 // ---------- game ----------
-const wait = (ms) => new Promise((r) => setTimeout(r, ms));
 function countTo(el, from, to, dur) {
   const o = { v: from };
   gsap.to(o, { v: to, duration: dur, ease: 'power1.out', onUpdate: () => { el.textContent = Math.round(o.v); } });
 }
 
+async function finishWithRetry(id, score, ms) {
+  for (let i = 0; ; i++) {
+    try { return await finishAttempt(id, score, ms); }
+    catch (e) { if (e.code !== 'network' || i === 3) throw e; await wait(1000 * 2 ** i); } // 1 s, 2 s, 4 s
+  }
+}
+
 async function startGame() {
   clearTimeout(howTimer);
   if (current !== 'howto' || !attempt) return;
-  howTl?.kill();
+  if (blocked()) { howTimer = setTimeout(startGame, 1000); return; }
+  howStop?.(); howStop = null;
   const myGid = ++gid;
   const { attemptId, seed } = attempt;
-  const rng = mulberry32(seed);
-  const rounds = [];
-  const t0 = performance.now();
-  const pips = $('#pips');
-  pips.innerHTML = '<i></i>'.repeat(ROUNDS);
-  $('#scorenum').textContent = '0';
+  const params = liveState?.games.find((g) => g.id === gameId)?.params ?? {};
+  const ac = gameAbort = new AbortController();
+  const idle = curIdle = makeIdle(params);
   show('game');
-  let shown = 0;
-  for (let i = 0; i < ROUNDS; i++) {
-    pips.children[i].classList.add('cur');
-    const res = await playRound(makeRound(rng, LEVELS[i]), LEVELS[i], i, myGid);
-    if (myGid !== gid) return;
-    rounds.push(res);
-    pips.children[i].className = res.found ? 'ok' : 'miss';
-    const total = totalScore(rounds);
-    countTo($('#scorenum'), shown, total, 0.5); shown = total;
-  }
-  const score = totalScore(rounds);
-  const durationMs = Math.round(performance.now() - t0);
-  let note = '';
-  try { await finishAttempt(attemptId, score, durationMs); } catch { note = 'No se pudo guardar el resultado.'; }
+  let res;
+  try {
+    res = await GAME_MODULES[gameId].play($('#game'), { attemptId, session, params, sfx, tap, rng: mulberry32(seed), idle, signal: ac.signal });
+  } catch {
+    if (!ac.signal.aborted) toAttract(); // module failure: back to the start
+    return;
+  } finally { idle.stop(); }
   if (myGid !== gid) return;
-  showResult(score, note);
-}
-
-async function playRound({ base, odd, oddIndex, cells }, lvl, idx, myGid) {
-  const n = lvl.n, grid = $('#grid');
-  grid.style.gridTemplateColumns = `repeat(${n}, 1fr)`;
-  grid.style.gridTemplateRows = `repeat(${n}, 1fr)`;
-  const tilt = mulberry32(oddIndex * 31 + n);
-  grid.innerHTML = Array.from({ length: cells }, (_, i) =>
-    `<div class="cell" data-i="${i}">${mascot({ ...(i === oddIndex ? odd : base), tilt: Math.round((tilt() - 0.5) * 10) })}</div>`).join('');
-  const cellEls = [...grid.children];
-  gsap.fromTo(cellEls, { scale: 0, opacity: 0 }, { scale: 1, opacity: 1, duration: 0.3, ease: 'back.out(1.7)', stagger: { each: 0.015, from: 'center', grid: [n, n] } });
-
-  // round banner wipes across; the timer starts when it has passed
-  $('#bantxt').textContent = `Ronda ${idx + 1}`;
-  $('#banbadge').hidden = idx < 6;
-  gsap.timeline().set('#banner', { visibility: 'visible', xPercent: -100 })
-    .to('#banner', { xPercent: 0, duration: 0.22, ease: 'power3.out' })
-    .to('#banner', { xPercent: 100, duration: 0.22, ease: 'power3.in' }, '+=0.16')
-    .set('#banner', { visibility: 'hidden' });
-  await wait(600);
-  if (myGid !== gid) return new Promise(() => {});
-
-  return new Promise((resolve) => {
-    const bar = $('#timebar'), num = $('#timenum');
-    const secs = ROUND_TIMEOUT_MS / 1000;
-    bar.classList.remove('hurry'); num.classList.remove('hurry'); num.textContent = secs;
-    gsap.set(bar, { scaleX: 1, backgroundColor: '#FFC14D' });
-    const start = performance.now();
-    let wrong = 0, done = false;
-
-    const tl = gsap.timeline({ onComplete: () => finish(false) });
-    tl.to(bar, { scaleX: 0, duration: secs, ease: 'none', onUpdate: () => { num.textContent = Math.max(0, Math.ceil(secs - tl.time())); } }, 0)
-      .to(bar, { backgroundColor: '#FF8A3D', duration: 0.3 }, secs - 3)
-      .to(bar, { backgroundColor: '#E4002B', duration: 0.3 }, secs - 1.5)
-      .call(() => { bar.classList.add('hurry'); num.classList.add('hurry'); }, [], secs - 3);
-
-    cancelRound = () => { done = true; tl.kill(); grid.onpointerdown = null; };
-    const center = (el) => ({ x: el.offsetLeft + el.offsetWidth / 2, y: el.offsetTop + el.offsetHeight / 2 });
-    const floatAt = (el, text, bad) => {
-      const { x, y } = center(el);
-      const f = document.createElement('div');
-      f.className = 'float' + (bad ? ' bad' : '');
-      f.textContent = text;
-      f.style.left = x + 'px'; f.style.top = y + 'px';
-      grid.append(f);
-      gsap.to(f, { y: -110, opacity: 0, duration: 0.9, ease: 'power1.out', onComplete: () => f.remove() });
-    };
-
-    function finish(found) {
-      if (done) return;
-      done = true; tl.kill(); grid.onpointerdown = null; cancelRound = null;
-      const ms = performance.now() - start;
-      const odds = cellEls[oddIndex];
-      bar.classList.remove('hurry'); num.classList.remove('hurry');
-      if (found) {
-        const sc = roundScore({ found, ms, wrong });
-        sfx.good();
-        odds.insertAdjacentHTML('beforeend', '<div class="ok"><svg viewBox="0 0 52 52"><circle cx="26" cy="26" r="26" fill="#2BD9A0"/><path d="m14 27 8 8 16-17" fill="none" stroke="#2B0B12" stroke-width="6" stroke-linecap="round" stroke-linejoin="round"/></svg></div>');
-        gsap.timeline().to(odds, { scale: 1.25, zIndex: 3, duration: 0.3, ease: 'back.out(3)' });
-        gsap.from(odds.lastElementChild, { scale: 0.6, opacity: 0, duration: 0.35, ease: 'back.out(2)' });
-        floatAt(odds, `+${sc}`);
-        const { x, y } = center(odds);
-        for (let k = 0; k < 12; k++) {
-          const s = document.createElement('i');
-          s.className = 'spark'; s.style.left = x + 'px'; s.style.top = y + 'px';
-          grid.append(s);
-          const a = (k / 12) * Math.PI * 2;
-          gsap.to(s, { x: Math.cos(a) * 130, y: Math.sin(a) * 130, scale: 0, duration: 0.6, ease: 'power2.out', onComplete: () => s.remove() });
-        }
-        gsap.to(cellEls.filter((_, i) => i !== oddIndex), { scale: 0, opacity: 0, duration: 0.25, ease: 'power2.in', stagger: { each: 0.03, from: oddIndex, grid: [n, n] } });
-      } else {
-        sfx.bad();
-        gsap.fromTo(odds, { scale: 1 }, { scale: 1.2, duration: 0.3, yoyo: true, repeat: 3, ease: 'sine.inOut', zIndex: 3 });
-        odds.insertAdjacentHTML('beforeend', '<div class="ok"></div>');
-        floatAt(odds, 'Se acabó el tiempo', true);
-      }
-      wait(found ? 500 : 1000).then(() => resolve({ found, ms, wrong }));
-    }
-
-    grid.onpointerdown = (e) => {
-      if (!e.isPrimary || done || myGid !== gid) return;
-      e.preventDefault();
-      const c = e.target.closest('.cell');
-      if (!c) return;
-      if (+c.dataset.i === oddIndex) return finish(true);
-      wrong++; sfx.bad();
-      c.classList.remove('wrong'); void c.offsetWidth; c.classList.add('wrong');
-      setTimeout(() => c.classList.remove('wrong'), 600);
-      floatAt(c, '−2', true);
-      gsap.fromTo('#game', { x: 6 }, { x: 0, duration: 0.4, ease: 'elastic.out(1, 0.3)' });
-    };
-  });
+  const { score, durationMs } = res;
+  let note = '', prize = false;
+  try { prize = (await finishWithRetry(attemptId, score, durationMs)).prizeWon; } catch { note = 'No se pudo guardar el resultado.'; }
+  if (myGid !== gid) return;
+  showResult(score, note, prize);
 }
 
 // ---------- result ----------
-function showResult(score, note) {
+function showResult(score, note, prize) {
   const prevBest = readTop()[0]?.s;
   const record = prevBest !== undefined && score > prevBest;
   saveTop(firstName(playerName), score);
@@ -438,11 +432,13 @@ function showResult(score, note) {
   $('#rscore').textContent = '0';
   $('#rnote').textContent = note || ' ';
   $('#record').hidden = !record;
+  $('#rprize').hidden = !prize; $('#thanks').hidden = !!prize;
   show('result');
   sfx.fan();
   gsap.from('#medal', { y: -900, duration: 0.9, ease: 'bounce.out' });
   gsap.from('#rtitle', { scale: 0.5, opacity: 0, duration: 0.5, ease: 'back.out(2)', delay: 0.2 });
   countTo($('#rscore'), 0, score, 1.2);
+  if (prize && !RM) gsap.from('#rprize', { scale: 0.5, opacity: 0, duration: 0.6, ease: 'back.out(2)', delay: 1.2 });
   if (record) gsap.from('#record', { scale: 0, rotation: -20, duration: 0.5, ease: 'back.out(2.5)', delay: 1.1 });
   confetti({ particleCount: score > 70 ? 80 : 60, spread: 100, startVelocity: 45, origin: { y: 0.55 }, disableForReducedMotion: true, zIndex: 100, colors: ['#FFC14D', '#FF8A3D', '#FF5A4D', '#FF2D8A', '#FFF7F3'] });
 
@@ -463,3 +459,4 @@ function showResult(score, note) {
 
 show('attract');
 renderTops();
+poll();

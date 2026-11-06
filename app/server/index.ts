@@ -2,11 +2,14 @@ import Fastify from 'fastify';
 import fastifyStatic from '@fastify/static';
 import { randomUUID, randomInt } from 'node:crypto';
 import { join } from 'node:path';
-import { existsSync } from 'node:fs';
+import { existsSync, mkdirSync } from 'node:fs';
 import { openDb } from './db.ts';
-import { generatePin, newToken } from './lib.ts';
+import { makeState } from './state.ts';
+import { registerAdmin } from './admin.ts';
+import { generatePin, newToken, PIXEL_DIR } from './lib.ts';
 import { matchesName, verify, validDni, validEmail, dniDigits, normEmail } from '../src/shared/identity.js';
 import { clampScore, MIN_TOTAL_MS } from '../src/shared/scoring.js';
+import { buildRounds, publicRounds, mulberry32, ROUND_GAMES, ROUND_POINTS } from '../src/shared/rounds.js';
 
 const ROOT = join(import.meta.dirname, '..');
 const DB_PATH = join(ROOT, 'data', 'fiesta.db');
@@ -16,10 +19,18 @@ const CSV_PATH = join(ROOT, 'data', 'guests.csv');
 const MAX_FAILS = 5;
 const LOCK_MS = 30_000;
 
-export function buildApp(dbPath = DB_PATH, csvPath = CSV_PATH) {
+export function buildApp(dbPath = DB_PATH, csvPath = CSV_PATH, opts: { adminPassword?: string } = {}) {
   const db = openDb(dbPath, csvPath);
-  const app = Fastify({ trustProxy: true });
-  const sessions = new Map<string, number>(); // session token -> guest id
+  // removeAdditional off: unknown body keys must be rejected (400), not silently stripped
+  const app = Fastify({ trustProxy: true, ajv: { customOptions: { removeAdditional: false } } });
+  app.decorate('db', db);
+  app.addHook('onClose', () => { db.close(); });
+  const state = makeState(db);
+  const { roleOf } = registerAdmin(app, db, state, opts.adminPassword ?? process.env.ADMIN_PASSWORD ?? '');
+  const guestOf = (session: unknown) => {
+    const row = db.prepare("SELECT ref FROM session WHERE token = ? AND kind = 'guest'").get(String(session)) as { ref: string } | undefined;
+    return row ? Number(row.ref) : undefined;
+  };
   const fails = new Map<string, { n: number; until: number }>(); // screen id -> state (all venue panels share one public IP)
   const hits = new Map<string, number[]>(); // route+ip -> timestamps
   const limited = (route: string, ip: string, max: number) => { // more than `max` requests in 10 s from one IP
@@ -40,6 +51,9 @@ export function buildApp(dbPath = DB_PATH, csvPath = CSV_PATH) {
     app.get('/c/:token', (req, reply) => reply.redirect('/checkin.html?c=' + encodeURIComponent((req.params as any).token)));
   }
 
+  mkdirSync(PIXEL_DIR, { recursive: true });
+  app.register(fastifyStatic, { root: PIXEL_DIR, prefix: '/content/pixel/', decorateReply: false }); // fastify-static rejects path traversal
+
   // Found / not found only: never echo roster data.
   app.post('/api/lookup', {
     schema: { body: { type: 'object', required: ['name'], additionalProperties: false, properties: { name: { type: 'string', minLength: 3, maxLength: 100 } } } },
@@ -54,8 +68,9 @@ export function buildApp(dbPath = DB_PATH, csvPath = CSV_PATH) {
   }, async (req, reply) => {
     if (limited('register', req.ip, 10)) return reply.code(429).send({ error: 'rate_limited' });
     const { name, dni, email } = req.body as { name: string; dni: string; email: string };
-    if (!validDni(dni) || !validEmail(email)) return reply.code(400).send({ error: 'invalid_input' });
-    const r = verify(roster().filter((g) => matchesName(g.name, name)), { dni, email });
+    const mode = state.getSetting('registrationValidation') as 'name_only' | 'name_dni_email';
+    if (mode !== 'name_only' && (!validDni(dni) || !validEmail(email))) return reply.code(400).send({ error: 'invalid_input' });
+    const r = verify(roster().filter((g) => matchesName(g.name, name)), { dni, email }, mode);
     if (!r.guest) {
       db.prepare('INSERT INTO verification_request(name, dni, email, candidates, created_at) VALUES (?,?,?,?,?)')
         .run(name.trim(), dniDigits(dni), normEmail(email), JSON.stringify(r.pending), Date.now());
@@ -99,19 +114,27 @@ export function buildApp(dbPath = DB_PATH, csvPath = CSV_PATH) {
     }
     fails.delete(screenId);
     const session = newToken();
-    sessions.set(session, row.id);
+    db.prepare("INSERT INTO session(token, kind, ref, created_at) VALUES (?, 'guest', ?, ?)").run(session, String(row.id), now);
     return { name: row.name, session };
   });
 
   app.post('/api/attempts', {
-    schema: { body: { type: 'object', required: ['session'], additionalProperties: false, properties: { session: { type: 'string' } } } },
+    schema: { body: { type: 'object', required: ['session', 'game'], additionalProperties: false, properties: { session: { type: 'string' }, game: { type: 'string' } } } },
   }, async (req, reply) => {
-    const guestId = sessions.get((req.body as any).session);
+    const { session, game } = req.body as { session: string; game: string };
+    const guestId = guestOf(session);
     if (!guestId) return reply.code(401).send({ error: 'bad_session' });
+    const cfg = state.gameConfig(game);
+    if (!cfg) return reply.code(400).send({ error: 'unknown_game' });
+    if (!cfg.ready || !cfg.enabled || state.settings().paused) return reply.code(409).send({ error: 'game_unavailable' });
+    // no await between the count and the insert below: sync sqlite makes this race-free
+    // counts unfinished attempts too, so abandoning a game doesn't grant a retry
+    const { n } = db.prepare('SELECT COUNT(*) AS n FROM attempt WHERE guest_id = ? AND game = ?').get(guestId, game) as { n: number };
+    if (n >= cfg.maxAttempts) return reply.code(409).send({ error: 'max_attempts' });
     const id = randomUUID();
     const seed = randomInt(1, 2 ** 31);
     const serverStart = Date.now();
-    db.prepare('INSERT INTO attempt(id, guest_id, seed, started_at) VALUES (?,?,?,?)').run(id, guestId, seed, serverStart);
+    db.prepare('INSERT INTO attempt(id, guest_id, game, seed, started_at) VALUES (?,?,?,?,?)').run(id, guestId, game, seed, serverStart);
     return { attemptId: id, seed, serverStart };
   });
 
@@ -122,16 +145,114 @@ export function buildApp(dbPath = DB_PATH, csvPath = CSV_PATH) {
     },
   }, async (req, reply) => {
     const id = (req.params as any).id;
-    const a = db.prepare('SELECT started_at, finished_at, score FROM attempt WHERE id = ?').get(id) as any;
+    const a = db.prepare('SELECT guest_id, game, started_at, finished_at, score FROM attempt WHERE id = ?').get(id) as any;
     if (!a) return reply.code(404).send({ error: 'unknown_attempt' });
-    if (a.finished_at) return { score: a.score, replay: true };
+    if (a.finished_at) return { score: a.score, replay: true, prizeWon: false };
     const { score, durationMs } = req.body as { score: number; durationMs: number };
     const now = Date.now();
     if (durationMs < MIN_TOTAL_MS || now - a.started_at < MIN_TOTAL_MS) return reply.code(400).send({ error: 'implausible_duration' });
-    const final = clampScore(score);
-    db.prepare('UPDATE attempt SET finished_at = ?, score = ?, duration_ms = ? WHERE id = ? AND finished_at IS NULL')
-      .run(now, final, Math.round(durationMs), id);
-    return { score: final, replay: false };
+    // round games: the score is the sum of server-computed answer points, never the client's
+    const final = ROUND_GAMES.includes(a.game)
+      ? clampScore((db.prepare('SELECT COALESCE(SUM(points), 0) AS s FROM answer WHERE attempt_id = ?').get(id) as { s: number }).s)
+      : clampScore(score);
+    const prizeWon = state.tx(() => {
+      let won = false;
+      db.prepare('UPDATE attempt SET finished_at = ?, score = ?, duration_ms = ? WHERE id = ? AND finished_at IS NULL')
+        .run(now, final, Math.round(durationMs), id);
+      if (final >= (state.gameConfig(a.game)?.threshold ?? Infinity)) {
+        // one statement: guest has no prize yet AND stock left, so stock can't go negative
+        won = db.prepare(
+          'UPDATE registration SET prize_won_at = ? WHERE guest_id = ? AND prize_won_at IS NULL AND (SELECT COUNT(*) FROM registration WHERE prize_won_at IS NOT NULL) < ?'
+        ).run(now, a.guest_id, state.settings().prizeStock).changes === 1;
+      }
+      return won;
+    });
+    return { score: final, replay: false, prizeWon };
+  });
+
+  // Own attempt of the session's guest, or the error reply to send.
+  const ownAttempt = (id: string, session: unknown) => {
+    const guestId = guestOf(session);
+    if (!guestId) return { code: 401, error: 'bad_session' };
+    const a = db.prepare('SELECT guest_id, game, seed, content, finished_at FROM attempt WHERE id = ?').get(id) as any;
+    if (!a) return { code: 404, error: 'unknown_attempt' };
+    if (a.guest_id !== guestId) return { code: 401, error: 'bad_session' };
+    return { a };
+  };
+  const roundSeconds = (params: Record<string, any>) => Number(params.secondsPerQuestion ?? params.revealSeconds ?? 12);
+
+  app.get('/api/attempts/:id/rounds', {
+    schema: { params: { type: 'object', properties: { id: { type: 'string' } } }, querystring: { type: 'object', properties: { session: { type: 'string' } } } },
+  }, async (req, reply) => {
+    const r = ownAttempt((req.params as any).id, (req.query as any).session);
+    if (!r.a) return reply.code(r.code!).send({ error: r.error });
+    const a = r.a;
+    if (!ROUND_GAMES.includes(a.game)) return reply.code(400).send({ error: 'not_a_round_game' });
+    let rounds = a.content ? JSON.parse(a.content) : null;
+    if (!rounds) {
+      const params = state.gameConfig(a.game)!.params;
+      const bank = a.game === 'quiz'
+        ? (db.prepare('SELECT question, correct, wrong1, wrong2, wrong3 FROM quiz_question ORDER BY id').all() as any[])
+          .map((q) => ({ question: q.question, correct: q.correct, wrong: [q.wrong1, q.wrong2, q.wrong3] }))
+        : (db.prepare('SELECT file, label, grp AS "group" FROM pixel_image ORDER BY id').all());
+      try { rounds = buildRounds(a.game, bank, Number(a.game === 'quiz' ? params.questions : params.images) || (a.game === 'quiz' ? 10 : 8), mulberry32(a.seed)); }
+      catch { return reply.code(409).send({ error: 'not_enough_content' }); }
+      db.prepare('UPDATE attempt SET content = ? WHERE id = ?').run(JSON.stringify(rounds), (req.params as any).id);
+    }
+    return { rounds: publicRounds(rounds).map((x: any) => (x.image ? { ...x, image: 'content/pixel/' + x.image } : x)) };
+  });
+
+  app.post('/api/attempts/:id/answer', {
+    schema: {
+      params: { type: 'object', properties: { id: { type: 'string' } } },
+      body: { type: 'object', required: ['session', 'index', 'choice', 'ms'], additionalProperties: false, properties: {
+        session: { type: 'string' }, index: { type: 'integer' }, choice: { type: ['integer', 'null'], minimum: 0, maximum: 3 }, ms: { type: 'number' } } },
+    },
+  }, async (req, reply) => {
+    const id = (req.params as any).id as string;
+    const { session, index, choice, ms } = req.body as { session: string; index: number; choice: number | null; ms: number };
+    const r = ownAttempt(id, session);
+    if (!r.a) return reply.code(r.code!).send({ error: r.error });
+    const a = r.a;
+    if (!ROUND_GAMES.includes(a.game)) return reply.code(400).send({ error: 'not_a_round_game' });
+    if (a.finished_at) return reply.code(409).send({ error: 'finished' });
+    const rounds = a.content ? JSON.parse(a.content) : [];
+    if (index < 0 || index >= rounds.length) return reply.code(400).send({ error: 'bad_index' });
+    // sync sqlite: no await between this check and the insert
+    if (db.prepare('SELECT 1 FROM answer WHERE attempt_id = ? AND idx = ?').get(id, index)) return reply.code(409).send({ error: 'already_answered' });
+    const params = state.gameConfig(a.game)!.params;
+    const clamped = Math.max(0, Math.min(roundSeconds(params) * 1000, Math.round(ms)));
+    const correctChoice = rounds[index].answer as number;
+    const correct = choice === correctChoice;
+    const points = correct ? (ROUND_POINTS[a.game]?.(true, clamped, params) ?? 0) : 0; // no formula registered yet: 0
+    db.prepare('INSERT INTO answer(attempt_id, idx, choice, ms, points) VALUES (?,?,?,?,?)').run(id, index, choice, clamped, points);
+    return { correct, correctChoice, points };
+  });
+
+  app.get('/api/live', async (req) => {
+    const q = req.query as { screenId?: string; game?: string; session?: string };
+    const now = Date.now();
+    if (typeof q.screenId === 'string' && q.screenId.length >= 8 && q.screenId.length <= 64) {
+      const game = typeof q.game === 'string' && q.game ? q.game.slice(0, 32) : 'menu';
+      db.prepare('DELETE FROM screen WHERE last_seen < ?').run(now - 3600_000);
+      db.prepare('INSERT INTO screen(id, last_seen, game) VALUES (?,?,?) ON CONFLICT(id) DO UPDATE SET last_seen = excluded.last_seen, game = excluded.game').run(q.screenId, now, game);
+    }
+    const settings = state.settings();
+    const guestId = q.session ? guestOf(q.session) : undefined;
+    const count = db.prepare('SELECT COUNT(*) AS n FROM attempt WHERE guest_id = ? AND game = ?');
+    const games = state.allGames().filter((g) => g!.ready && g!.enabled).map((g) => ({
+      id: g!.id, name: g!.name, params: g!.params,
+      ...(guestId ? { attemptsLeft: Math.max(0, g!.maxAttempts - (count.get(guestId, g!.id) as { n: number }).n) } : {}),
+    }));
+    const r = db.prepare('SELECT r.id, g.name, r.drawn_at FROM raffle r JOIN guest g ON g.id = r.guest_id ORDER BY r.id DESC LIMIT 1').get() as { id: number; name: string; drawn_at: number } | undefined;
+    const raffle = r && state.getSetting('raffleHidden') !== r.id ? { id: r.id, name: r.name, drawnAt: r.drawn_at, showSeconds: settings.raffleShowSeconds } : null;
+    return { paused: settings.paused, transition: { on: settings.transition, text: settings.transitionText }, games, raffle };
+  });
+
+  app.get('/api/checkin/:token', async (req, reply) => {
+    const v = state.checkinView((req.params as any).token);
+    if (!v) return reply.code(404).send({ error: 'not_found' });
+    return roleOf(req) ? v : { name: v.name };
   });
 
   return app;

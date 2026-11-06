@@ -168,3 +168,35 @@ button.press, button.big:active { transform: scale(.94); }
 #snd[aria-pressed="true"] .slash { display: none; }
 #snd[aria-pressed="false"] .waves { display: none; }
 #iris { position: absolute; z-index: 30; inset: 0; background: var(--wine); pointer-events: none; }
+
+/* ---------- menu ---------- */
+#menu h2 { font-size: 110px; margin-bottom: 48px; }
+#tiles { display: flex; flex-wrap: wrap; justify-content: center; gap: 48px; max-width: 1700px; }
+#tiles button, #tiles .none {
+  display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 16px; width: 520px; height: 520px; padding: 24px; border: 0; border-radius: var(--r3);
+  font: 800 64px/1.05 var(--font-display); color: #fff; text-shadow: 0 2px 0 rgba(143, 10, 36, .5); background: var(--grad-btn); box-shadow: var(--shadow-jelly); transition: transform 90ms var(--ease);
+}
+#tiles button .mz { width: 260px; height: 260px; flex: none; }
+#tiles button small { font: 600 40px var(--font); text-shadow: none; opacity: .9; }
+#tiles button:disabled { background: var(--glass); box-shadow: inset 0 0 0 3px var(--glass-line); text-shadow: none; opacity: .6; }
+#tiles .none { width: auto; height: auto; padding: 40px 80px; font: 600 52px var(--font); background: var(--glass); box-shadow: inset 0 0 0 3px var(--glass-line); text-shadow: none; }
+#menumsg { margin-top: 32px; }
+
+/* ---------- result prize ---------- */
+.prize { padding: 18px 48px; border-radius: 999px; font: 800 52px var(--font); color: var(--ink); background: var(--sun); box-shadow: var(--shadow-jelly); }
+
+/* ---------- overlays (above everything, block touches) ---------- */
+.overlay {
+  position: absolute; z-index: 40; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 24px; padding: 0 160px; text-align: center;
+  background: radial-gradient(90% 60% at 50% 125%, rgba(255, 90, 77, .55), transparent 70%), var(--wine);
+}
+.overlay[hidden] { display: none; }
+.overlay p { font-size: 52px; font-weight: 600; }
+.overlay .kick { font: 800 96px var(--font-display); color: var(--sun); text-transform: uppercase; }
+#rwin { font-size: 200px; line-height: 1; }
+#rwin div { display: inline-block; }
+#ov-trans h2 { font-size: 150px; line-height: 1.05; }
+
+/* ---------- idle notice (ctx.idle) ---------- */
+#ov-idle { position: absolute; z-index: 35; left: 50%; bottom: 56px; transform: translateX(-50%); padding: 18px 56px; border-radius: 999px; font: 800 52px var(--font); white-space: nowrap; color: var(--ink); background: var(--sun); box-shadow: var(--shadow-jelly); pointer-events: none; }
+#ov-idle[hidden] { display: none; }

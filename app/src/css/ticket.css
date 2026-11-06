@@ -41,3 +41,9 @@ body.tk { min-height: 100svh; background: radial-gradient(120% 80% at 50% 0, #FB
 .nf { max-width: 360px; padding: 32px 24px; border-radius: 12px; background: #FBF7EF; box-shadow: 0 0 0 1px rgba(201, 164, 92, .8); }
 .nf h1 { margin: 0 0 8px; font: 500 1.8rem/1.1 var(--serif); color: var(--red-deep); }
 .nf p { margin: 0 0 20px; color: var(--ink-soft); line-height: 1.5; font-size: .9rem; }
+
+/* ---------- check-in (staff) ---------- */
+.nf .ok { color: #0E7A57; font-weight: 800; }
+.nf .acts { display: grid; gap: 12px; margin-top: 16px; }
+.nf .msg { min-height: 1.4em; margin: 14px 0 0; color: var(--red-deep); font-weight: 600; }
+.nf .stafflink { display: inline-block; margin-top: 8px; font-size: .8rem; color: var(--ink-soft); }
