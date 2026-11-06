@@ -18,7 +18,6 @@ const csvField = (v: unknown) => {
   if (typeof v === 'string' && /^[=+\-@\t\r]/.test(s)) return csvField("'" + s);
   return /[",\r\n]/.test(s) ? '"' + s.replace(/"/g, '""') + '"' : s;
 };
-const shuffle = <T>(a: T[]) => { for (let i = a.length - 1; i > 0; i--) { const j = randomInt(i + 1); [a[i], a[j]] = [a[j], a[i]]; } return a; };
 // Door-mode filter chips on the guest list ("Sin acreditar" = anyone not checked in yet).
 const FILTERS = {
   all: () => true,
@@ -422,12 +421,8 @@ export function registerAdmin(app: FastifyInstance, db: DatabaseSync, state: Sta
     if (!pool.length) return reply.code(409).send({ error: 'no_candidates' });
     const pick = pool[randomInt(pool.length)].guest_id;
     const drawnAt = Date.now();
-    // Up to 40 names for the panels' reel: the winner plus a random slice of the other candidates, shuffled.
-    const nameOf = db.prepare('SELECT name FROM guest WHERE id = ?');
-    const others = shuffle(pool.map((p) => p.guest_id).filter((g) => g !== pick)).slice(0, 39);
-    const sample = shuffle([pick, ...others]).map((g) => (nameOf.get(g) as { name: string }).name);
     const id = state.tx(() => {
-      const id = Number(db.prepare('INSERT INTO raffle(guest_id, drawn_at, sample) VALUES (?,?,?)').run(pick, drawnAt, JSON.stringify(sample)).lastInsertRowid);
+      const id = Number(db.prepare('INSERT INTO raffle(guest_id, drawn_at) VALUES (?,?)').run(pick, drawnAt).lastInsertRowid);
       state.setSetting('raffleHidden', 0);
       audit(roleIn(req), 'raffle', { id, guestId: pick });
       return id;

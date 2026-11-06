@@ -7,7 +7,7 @@ import { DatabaseSync } from 'node:sqlite';
 import { openDb } from '../server/db.ts';
 import { buildApp } from '../server/index.ts';
 import { GAMES, PARAM_INFO } from '../src/shared/games.js';
-import { rafflePhase, reelIndex, LEAD_MS, SUSPENSE_MS, REEL_STEPS } from '../src/shared/raffle.js';
+import { rafflePhase, scramble, LEAD_MS, SUSPENSE_MS } from '../src/shared/raffle.js';
 import { leaderboards, shortName } from '../src/shared/leaderboard.js';
 
 const CSV = join(import.meta.dirname, '..', 'data', 'guests.csv');
@@ -459,7 +459,7 @@ test('walk-ins: accredit an unconfirmed guest once, add a guest at the door, no 
   assert.equal(db.prepare("SELECT COUNT(*) AS n FROM audit_log WHERE action = 'walk_in'").get().n, 3);
 });
 
-test('raffle mode: live carries mode, clock and a sample without past winners or PINs', async () => {
+test('raffle mode: live carries mode, clock and the winner without PINs', async () => {
   const { app, h } = await adminApp();
   let live = (await app.inject('/api/live')).json();
   assert.equal(live.raffleMode, false);
@@ -479,9 +479,8 @@ test('raffle mode: live carries mode, clock and a sample without past winners or
   live = res.json();
   assert.equal(live.raffle.id, second.id);
   assert.equal(live.raffle.drawnAt, second.drawnAt);
-  assert.ok(live.raffle.sample.includes(second.name));
-  assert.ok(!live.raffle.sample.includes(first.name)); // past winners never come back
-  assert.equal(live.raffle.sample.length, 3);
+  assert.equal(live.raffle.name, second.name);
+  assert.ok(!res.body.includes(first.name)); // only the latest winner; no other guests' names
   for (const p of pins) assert.ok(!res.body.includes(p));
   assert.ok(!/pin|ticket|checkin/i.test(JSON.stringify(live.raffle)));
   const winners = (await app.inject({ url: '/api/admin/raffle', headers: h })).json();
@@ -500,11 +499,17 @@ test('raffle timeline: phase from offset and drawnAt, reel lands on the winner',
   // Two panels with different clocks, same server instant -> same frame.
   assert.deepEqual(rafflePhase(5000 - 400, 400, 0, show), rafflePhase(5000 + 900, -900, 0, show));
 
-  for (const n of [1, 7, 40]) for (const w of [0, n - 1]) assert.equal(reelIndex(SUSPENSE_MS, n, w), w);
-  // Decelerates: more names change in the first second than in the last one.
-  const changes = (a, b) => { let c = 0, prev = reelIndex(a, 40, 3); for (let t = a; t <= b; t += 10) { const i = reelIndex(t, 40, 3); if (i !== prev) c++; prev = i; } return c; };
-  assert.ok(changes(0, 1000) > 3 * changes(SUSPENSE_MS - 1000, SUSPENSE_MS));
-  assert.ok(changes(0, SUSPENSE_MS) <= REEL_STEPS);
+  const name = 'Ana María Fernández-Paz';
+  assert.equal(scramble(SUSPENSE_MS, name, 7), name); // lands exactly on the winner
+  const early = scramble(500, name, 7);
+  assert.notEqual(early, name);
+  assert.equal(early.length, name.length);
+  assert.equal(early.replace(/\p{L}/gu, '_'), name.replace(/\p{L}/gu, '_')); // spaces and hyphens kept, only letters scramble
+  assert.equal(scramble(500, name, 7), early); // same instant, same seed -> same letters on every panel
+  // Letters lock left to right: the instant each letter settles for good never goes backwards along the name.
+  const frames = Array.from({ length: SUSPENSE_MS / 70 + 1 }, (_, k) => scramble(k * 70, name, 7));
+  const settle = [...name].map((c, i) => { let k = frames.length; while (k > 0 && frames[k - 1][i] === c) k--; return k; });
+  assert.ok(settle[0] > 0 && settle.every((k, i) => i === 0 || k >= settle[i - 1] || !/\p{L}/u.test(name[i])));
 });
 
 test('leaderboards: best attempt per guest, short names, ties to the earliest', () => {

@@ -57,7 +57,7 @@ export function openDb(file: string, csvPath: string) {
     CREATE TABLE IF NOT EXISTS audit_log(id INTEGER PRIMARY KEY, at INTEGER NOT NULL, role TEXT NOT NULL, action TEXT NOT NULL, detail TEXT);
     CREATE INDEX IF NOT EXISTS attempt_guest_game ON attempt(guest_id, game);
   `);
-  addColumn(db, 'raffle', 'sample', 'TEXT'); // JSON names cycled on the panels before the reveal (includes the winner)
+  addColumn(db, 'raffle', 'sample', 'TEXT'); // legacy: names the old reel cycled; no longer written (panels now scramble letters)
   const seedGame = db.prepare('INSERT OR IGNORE INTO game_config(game, enabled, sort, threshold, max_attempts, params) VALUES (?,?,?,?,?,?)');
   for (const g of GAMES) seedGame.run(g.id, g.ready ? 1 : 0, g.defaults.sort, g.defaults.threshold, g.defaults.maxAttempts, JSON.stringify(g.defaults.params));
   // New default param keys reach existing DBs; edited values are never overwritten.

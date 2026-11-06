@@ -4,7 +4,7 @@ import confetti from 'canvas-confetti';
 import { login, startAttempt, finishAttempt, live, screenId, panelRoster, panelSync, isDemo } from './api.js';
 import { createQueue, createFlusher, createPinCheck, startLocalAttempt, attemptsLeft, bumpCount } from './offline.js';
 import { ROUND_GAMES } from '../shared/rounds.js';
-import { rafflePhase, reelIndex } from '../shared/raffle.js';
+import { rafflePhase, scramble, SCRAMBLE_MS } from '../shared/raffle.js';
 import { $, RM, injectSprite, mascot, demoBadge, cleanName, firstName, wait, mulberry32 } from './common.js';
 import { GAME_MODULES } from './games/index.js';
 
@@ -56,7 +56,7 @@ const sfx = {
   good: () => { blip(880, 0.1); blip(1320, 0.16, 'sine', 0.07, 0.09); },
   bad: () => blip(150, 0.22, 'sawtooth', 0.05),
   fan: () => [523, 659, 784, 1047].forEach((f, i) => blip(f, 0.2, 'triangle', 0.07, i * 0.12)),
-  drum: () => { blip(95, 0.06, 'triangle', 0.09); blip(190, 0.03, 'square', 0.02); }, // one hit per reel step: a slowing drumroll
+  drum: () => { blip(95, 0.06, 'triangle', 0.09); blip(190, 0.03, 'square', 0.02); }, // every other scramble step: a steady drumroll
 };
 tap($('#snd'), () => {
   ac ??= new (window.AudioContext || window.webkitAudioContext)();
@@ -415,17 +415,16 @@ function applyOverlays() {
   setOv('#ov-pause', !mid && !plate && !trans && (s.paused || gone(s)));
 }
 
-// Every panel runs the same timeline off the server clock (shared/raffle.js): wait -> ~8 s reel -> winner -> back.
+// Every panel runs the same timeline off the server clock (shared/raffle.js): wait -> ~8 s letter scramble -> winner -> back.
 let raffleRaf;
 function showRaffle(r) {
   shownRaffle = r.id; raffleOn = true;
   setOv('#ov-trans', false); setOv('#ov-pause', false); setOv('#ov-plate', false);
   rSplit?.revert(); rSplit = null; // revert first: it restores the previous winner's markup
-  const names = r.sample?.length ? r.sample : [r.name];
-  const wi = Math.max(0, names.indexOf(r.name)), showMs = showMsOf(r), win = $('#rwin');
+  const name = cleanName(r.name), showMs = showMsOf(r), win = $('#rwin');
   $('#ov-raffle').className = 'overlay suspense';
   $('#rkick').textContent = 'Sorteando…'; $('#rcong').hidden = true;
-  win.textContent = RM ? '' : cleanName(names[(wi + 1) % names.length]);
+  win.textContent = RM ? '' : scramble(0, name, r.id);
   setOv('#ov-raffle', true);
   cancelAnimationFrame(raffleRaf); clearTimeout(raffleTimer);
   let last = -1;
@@ -434,8 +433,8 @@ function showRaffle(r) {
     if (phase === 'done') return endRaffle();
     if (phase === 'reveal') { revealRaffle(r.name); raffleTimer = setTimeout(endRaffle, showMs - ms); return; }
     if (phase === 'suspense' && !RM) {
-      const i = reelIndex(ms, names.length, wi);
-      if (i !== last) { last = i; win.textContent = cleanName(names[i]); sfx.drum(); }
+      const step = Math.floor(ms / SCRAMBLE_MS);
+      if (step !== last) { last = step; win.textContent = scramble(ms, name, r.id); if (step % 2 === 0) sfx.drum(); }
     }
     raffleRaf = requestAnimationFrame(frame);
   };
