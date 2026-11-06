@@ -12,6 +12,7 @@ const $$ = (s, r = document) => [...r.querySelectorAll(s)];
 const hero = $('.hero'), curtain = $('#curtain');
 const seen = document.documentElement.classList.contains('seen');
 try { sessionStorage.setItem('gala.intro', '1'); } catch {}
+try { localStorage.setItem('gala.theme', document.documentElement.classList.contains('noche') ? 'noche' : ''); } catch {} // ticket follows the invitation's theme
 const maskOk = CSS.supports('mask-image', 'radial-gradient(#000,#000)') || CSS.supports('-webkit-mask-image', 'radial-gradient(#000,#000)');
 
 // ---------- split text into letters ----------
@@ -44,7 +45,8 @@ function intro() {
     .from('.art img', { opacity: 0, scale: 1.08, transformOrigin: '50% 0', duration: 1.6, ease: 'power2.out', ...CP }, t)
     .from('.px-sun', { opacity: 0, duration: 1.4, ...CP }, t + 0.2)
     .from('.px-petals', { opacity: 0, duration: 1.6, ...CP }, t + 0.6)
-    .from($$('.title .ch'), { y: 40, opacity: 0, duration: 1, stagger: 0.07, ...CP }, t + 0.35)
+    .from($$('.eyebrow'), { y: 12, opacity: 0, duration: 0.8, ...CP }, t + 0.2)
+    .from($$('.title .ch'),{ y: 40, opacity: 0, duration: 1, stagger: 0.07, ...CP }, t + 0.35)
     .from('.tag', { y: 18, opacity: 0, duration: 0.9, ...CP }, t + 1.0)
     .from('.knot .kl', { scaleX: 0, transformOrigin: '100% 50%', duration: 0.8, ease: 'power2.out', ...CP }, t + 1.15)
     .from('.knot .kr', { scaleX: 0, transformOrigin: '0% 50%', duration: 0.8, ease: 'power2.out', ...CP }, t + 1.15)

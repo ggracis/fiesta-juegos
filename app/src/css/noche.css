@@ -1,0 +1,42 @@
+/* Option B "noche": dark gala theme with the dragon art. Loaded by noche.html and ticket.html, active under html.noche. */
+.noche {
+  --cream: #0E0909;            /* surfaces: page, inputs, curtain */
+  --ink: #F3E8DA;
+  --ink-soft: #BDAFA3;
+  --red-deep: #C41E32;
+  --gold: #D4AF6A;
+  --gold-text: linear-gradient(180deg, #F8E7BC 10%, #D4AF6A 55%, #9C7A3C);
+}
+.noche body { background: #050303; }
+
+/* ---------- hero ---------- */
+.noche .px-sun, .noche .fog, .noche .px-waves { display: none; }
+.noche .hero { padding-top: calc(var(--w) * .37); }
+.noche .eyebrow { margin: 0 0 calc(var(--w) * .05); font: 500 calc(var(--w) * .028)/1 var(--sans); letter-spacing: .32em; margin-right: -.32em; color: var(--ink); }
+.noche .eyebrow::after { content: ''; display: block; width: calc(var(--w) * .1); height: 1px; margin: calc(var(--w) * .035) auto 0; background: var(--red); }
+.noche .title { font-weight: 500; }
+.noche .t1 .ch, .noche .t3 .ch { color: transparent; background: var(--gold-text); -webkit-background-clip: text; background-clip: text; }
+.noche .t2 { color: #E3283A; }
+.noche .t4 { color: var(--ink); font-weight: 400; }
+.noche .t3 { letter-spacing: .2em; margin-right: -.2em; font-size: calc(var(--w) * .11); line-height: 1.1; }
+.noche .tag { font: 400 calc(var(--w) * .036)/1.45 var(--sans); letter-spacing: .04em; color: var(--ink); }
+.noche .knot { stroke: #E3283A; }
+.noche .invite { padding: 6px 4px; color: var(--ink); text-shadow: 0 1px 2px #000, 0 0 12px #000; background: radial-gradient(ellipse 60% 62% at 50% 50%, rgba(10, 6, 6, .7) 50%, rgba(10, 6, 6, 0) 100%); }
+.noche .info { background: radial-gradient(ellipse 62% 58% at 50% 50%, rgba(10, 6, 6, .85) 55%, rgba(10, 6, 6, 0) 100%); }
+.noche .info svg { stroke: #E3283A; }
+.noche .btn { box-shadow: 0 0 0 1px rgba(212, 175, 106, .7), 0 10px 26px -8px rgba(227, 40, 58, .65); }
+.noche .btn.ghost, .noche .mine { color: var(--gold); box-shadow: inset 0 0 0 1px var(--gold); }
+.noche .mine { box-shadow: none; }
+.noche .petals i { background: linear-gradient(135deg, #FF6B6B, #B3122B); }
+.noche .petals i:nth-child(3n) { background: linear-gradient(135deg, #FFFFFF, #F4C9CE); }
+
+/* ---------- sections ---------- */
+.noche .sec h2 { color: var(--gold); }
+.noche .card { background: rgba(255, 255, 255, .04); box-shadow: inset 0 0 0 1px rgba(212, 175, 106, .45), 0 20px 40px -24px rgba(200, 16, 46, .5); }
+.noche .av { background: #1A1112; }
+.noche .cjk { color: #E3283A; }
+
+/* ---------- ticket: dark room, the cream ticket keeps its light palette ---------- */
+.noche body.tk { background: radial-gradient(120% 80% at 50% 0, #2A1013, #0B0708 60%); }
+.noche .tap { color: var(--gold); }
+.noche .ticket { --cream: #F7F1E8; --ink: #2E2A28; --ink-soft: #6B6460; --red-deep: #9E1B22; --gold: #C9A45C; }
