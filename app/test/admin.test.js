@@ -40,7 +40,7 @@ test('openDb twice keeps one game_config row per game', () => {
   const db = openDb(f, CSV);
   assert.equal(db.prepare('SELECT COUNT(*) AS n FROM game_config').get().n, GAMES.length);
   assert.equal(db.prepare("SELECT enabled FROM game_config WHERE game = 'distinto'").get().enabled, 1);
-  assert.equal(db.prepare("SELECT enabled FROM game_config WHERE game = 'memo'").get().enabled, 0);
+  assert.equal(db.prepare("SELECT enabled FROM game_config WHERE game = 'quiz'").get().enabled, 0);
   db.close();
 });
 
@@ -82,7 +82,7 @@ test('attempts: validation, max attempts, availability', async () => {
   assert.equal((await start(app, g.session, 'nope')).statusCode, 400);
   assert.equal((await start(app, g.session, 'nope')).json().error, 'unknown_game');
   assert.equal((await post(app, '/api/attempts', { session: g.session })).statusCode, 400); // game required
-  assert.equal((await start(app, g.session, 'memo')).json().error, 'game_unavailable'); // not ready
+  assert.equal((await start(app, g.session, 'quiz')).json().error, 'game_unavailable'); // not ready
   assert.equal((await start(app, g.session)).statusCode, 200);
   const second = await start(app, g.session);
   assert.equal(second.statusCode, 409);
@@ -121,6 +121,7 @@ test('prize: respects stock, threshold and one per guest', async () => {
 test('live: heartbeat, games, paused, attemptsLeft, raffle', async () => {
   const app = buildApp(':memory:');
   const sid = 'screen-live-1';
+  app.db.prepare("UPDATE game_config SET enabled = 0 WHERE game = 'memo'").run(); // this test is about distinto only
   let live = (await app.inject(`/api/live?screenId=${sid}&game=menu`)).json();
   assert.equal(live.paused, false);
   assert.deepEqual(live.transition, { on: false, text: '' });
