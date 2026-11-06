@@ -5,7 +5,7 @@ import { existsSync } from 'node:fs';
 import { join } from 'node:path';
 import { newToken, csvLine, PIXEL_DIR, createRegistration } from './lib.ts';
 import { nameTokens, dniDigits, normEmail } from '../src/shared/identity.js';
-import { gameById } from '../src/shared/games.js';
+import { gameById, PARAM_INFO } from '../src/shared/games.js';
 import type { State } from './state.ts';
 
 const normalize = (s: string) => nameTokens(s).join(' ');
@@ -129,6 +129,9 @@ export function registerAdmin(app: FastifyInstance, db: DatabaseSync, state: Sta
     const cur = state.gameConfig(id);
     if (!cur) return reply.code(404).send({ error: 'unknown_game' });
     const p = req.body as Record<string, any>;
+    // Known keys must stay inside the bounds the admin UI shows (PARAM_INFO); unknown keys pass through as before.
+    const out = Object.entries(p.params ?? {}).find(([k, v]) => { const i = (PARAM_INFO as any)[k]; return i && ((v as number) < i.min || (v as number) > i.max); });
+    if (out) return reply.code(400).send({ error: 'out_of_range', param: out[0] });
     // ponytail: params replaces the stored overrides wholesale (no deep merge)
     db.prepare('UPDATE game_config SET enabled = ?, sort = ?, threshold = ?, max_attempts = ?, params = ? WHERE game = ?').run(
       (p.enabled ?? cur.enabled) ? 1 : 0, p.sort ?? cur.sort, p.threshold ?? cur.threshold, p.maxAttempts ?? cur.maxAttempts,

@@ -49,7 +49,11 @@ a.b { display: inline-flex; align-items: center; justify-self: start; text-decor
 .dot { display: inline-block; width: 10px; height: 10px; margin-right: 6px; border-radius: 50%; background: #999; }
 .dot.on { background: var(--mint); }
 .gcard { display: grid; gap: 8px; }
+.gcard h3 { margin: 12px 0 0; font-size: .8rem; letter-spacing: .08em; text-transform: uppercase; opacity: .7; }
 .grid2 { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
+.gcard .grid2 { grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); gap: 16px; align-items: start; }
+.field { display: grid; gap: 4px; }
+.hint { margin: 0; font-size: .8rem; line-height: 1.35; opacity: .7; }
 .winner { font: 800 2rem var(--font-display); margin: 0; min-height: 1.2em; overflow-wrap: anywhere; }
 
 .toast { position: fixed; left: 50%; bottom: 20px; transform: translateX(-50%); max-width: calc(100vw - 32px); padding: 12px 18px; border-radius: 12px; font-weight: 600; color: #fff; background: var(--ink); box-shadow: 0 8px 24px rgba(0, 0, 0, .4); z-index: 10; }

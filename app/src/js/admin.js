@@ -1,4 +1,5 @@
 import * as api from './api.js';
+import { gameById, PARAM_INFO } from '../shared/games.js';
 
 const $ = (id) => document.getElementById(id);
 // DOM builder: strings become text nodes, so server data is never parsed as HTML.
@@ -210,13 +211,17 @@ async function showDetail(id) {
 function renderGames() {
   const box = $('game-cards'); clear(box);
   for (const g of S.games) {
+    const defs = gameById(g.id)?.defaults ?? { params: {} };
+    // Number input bounded by PARAM_INFO; unknown keys still get a plain input.
+    const num = (k, v) => {
+      const i = PARAM_INFO[k] ?? {};
+      return h('input', { type: 'number', step: 1, min: i.min ?? '', max: i.max ?? '', value: v, id: `p-${g.id}-${k}` });
+    };
     const f = {
       enabled: h('input', { type: 'checkbox', checked: g.enabled, id: `e-${g.id}` }),
-      sort: h('input', { type: 'number', min: 0, step: 1, value: g.sort, id: `s-${g.id}` }),
-      threshold: h('input', { type: 'number', min: 0, max: 100, step: 1, value: g.threshold, id: `t-${g.id}` }),
-      maxAttempts: h('input', { type: 'number', min: 1, step: 1, value: g.maxAttempts, id: `m-${g.id}` }),
+      sort: num('sort', g.sort), threshold: num('threshold', g.threshold), maxAttempts: num('maxAttempts', g.maxAttempts),
     };
-    const pf = Object.entries(g.params).map(([k, v]) => [k, h('input', { type: 'number', step: 'any', value: v, id: `p-${g.id}-${k}` })]);
+    const pf = Object.entries(g.params).map(([k, v]) => [k, num(k, v)]);
     const err = h('p', { className: 'err', role: 'alert', hidden: true });
     const save = h('button', { className: 'b primary', type: 'button' }, 'Guardar');
     save.onclick = async () => {
@@ -224,13 +229,24 @@ function renderGames() {
       err.hidden = true;
       const patch = { enabled: f.enabled.checked, sort: f.sort.valueAsNumber, threshold: f.threshold.valueAsNumber, maxAttempts: f.maxAttempts.valueAsNumber, params };
       if ([patch.sort, patch.threshold, patch.maxAttempts, ...Object.values(params)].some(Number.isNaN)) { err.textContent = 'Completa todos los números.'; err.hidden = false; return; }
+      const bad = [...Object.values(f).slice(1), ...pf.map(([, i]) => i)].find((i) => !i.checkValidity());
+      if (bad) { err.textContent = `«${bad.closest('.field').querySelector('label').textContent}»: ${bad.validationMessage}`; err.hidden = false; bad.focus(); return; }
       if (await saveGame(g.id, patch)) toast(`${g.name} guardado`);
     };
-    const field = (label, ctl) => h('div', {}, h('label', { htmlFor: ctl.id }, label), ctl);
+    // Label (with unit), the input, then one muted line: what it does and its default.
+    const field = (k, ctl) => {
+      const i = PARAM_INFO[k] ?? { label: k, help: '' };
+      const d = k in defs ? defs[k] : defs.params[k];
+      const unit = i.unit ? ` ${i.unit}` : '';
+      return h('div', { className: 'field' }, h('label', { htmlFor: ctl.id }, i.label + (i.unit ? ` (${i.unit})` : '')), ctl,
+        h('p', { className: 'hint' }, [i.help, d !== undefined && `Por defecto: ${d}${unit}.`].filter(Boolean).join(' ')));
+    };
     box.append(h('div', { className: 'card gcard' },
       h('h2', {}, g.name, !g.ready && h('span', { className: 'badge' }, 'Próximamente')),
       h('label', { className: 'sw' }, f.enabled, h('span', {}, 'Habilitado')),
-      h('div', { className: 'grid2' }, field('Orden', f.sort), field('Umbral de premio (%)', f.threshold), field('Intentos máx.', f.maxAttempts)),
+      h('h3', {}, 'Premio y acceso'),
+      h('div', { className: 'grid2' }, field('threshold', f.threshold), field('maxAttempts', f.maxAttempts), field('sort', f.sort)),
+      pf.length > 0 && h('h3', {}, 'Cómo se juega'),
       pf.length > 0 && h('div', { className: 'grid2' }, ...pf.map(([k, i]) => field(k, i))), err, save));
   }
 }

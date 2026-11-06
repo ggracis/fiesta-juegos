@@ -6,7 +6,7 @@ import { join } from 'node:path';
 import { DatabaseSync } from 'node:sqlite';
 import { openDb } from '../server/db.ts';
 import { buildApp } from '../server/index.ts';
-import { GAMES } from '../src/shared/games.js';
+import { GAMES, PARAM_INFO } from '../src/shared/games.js';
 import { rafflePhase, reelIndex, LEAD_MS, SUSPENSE_MS, REEL_STEPS } from '../src/shared/raffle.js';
 import { leaderboards, shortName } from '../src/shared/leaderboard.js';
 
@@ -536,4 +536,21 @@ test('live leaderboard: no private data, cached, skips no_prize plays', async ()
   for (const secret of [g.pin, g.session, g.checkinToken, full.dni, full.email, full.name]) assert.ok(!body.includes(secret), secret);
   db.prepare('UPDATE attempt SET score = 99, no_prize = 1').run();
   assert.equal((await app.inject('/api/live')).json().leaderboard.all[0].score, 77); // still cached
+});
+
+test('every game setting has an admin label, help and bounds that fit its default', async () => {
+  for (const g of GAMES) {
+    const { params, ...top } = g.defaults;
+    for (const [k, v] of Object.entries({ ...top, ...params })) {
+      const i = PARAM_INFO[k];
+      assert.ok(i?.label && i.help, `${g.id}.${k} has no label`);
+      assert.ok(v >= i.min && v <= i.max, `${g.id}.${k} default ${v} outside ${i.min}-${i.max}`);
+    }
+  }
+  const { app, h } = await adminApp();
+  const r = await put(app, '/api/admin/games/memo', { params: { timeLimitS: 5 } }, h);
+  assert.equal(r.statusCode, 400);
+  assert.deepEqual(r.json(), { error: 'out_of_range', param: 'timeLimitS' });
+  assert.equal((await put(app, '/api/admin/games/memo', { params: { timeLimitS: 60 } }, h)).statusCode, 200);
+  await app.close();
 });
