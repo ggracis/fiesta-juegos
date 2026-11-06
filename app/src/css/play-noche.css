@@ -1,0 +1,162 @@
+/* Panel theme "noche": dark gala look from the invitation (noche.html). Active under html.noche, set by the inline script in play.html
+   (?theme=amanecer|noche, remembered; default noche). Remove the class and play.css/tokens.css look is untouched.
+   Same token model as noche.css: --cream = dark surface, --ink = light text, so the games (memo/quiz/pixel) follow without edits.
+   Weak panels: only transform and opacity animate; no blur, no animated shadows. */
+.gala-art, .gala-petals, .gala { display: none; }
+
+html.noche {
+  --cream: #0E0909;
+  --ink: #F3E8DA;
+  --ink-soft: #BDAFA3;
+  --wine: #0B0708;
+  --sun: #D4AF6A;
+  --gold: #D4AF6A;
+  --gold-text: linear-gradient(180deg, #F8E7BC 10%, #D4AF6A 55%, #9C7A3C);
+  --nx-red: #E3283A;
+  --on-gold: #1A0E0C;
+  --glass: rgba(212, 175, 106, .07);
+  --glass-line: rgba(212, 175, 106, .42);
+  --grad-btn: linear-gradient(180deg, #E3283A, #B3122B);
+  --shadow-jelly: 0 0 0 1px rgba(212, 175, 106, .7), 0 10px 26px -10px rgba(227, 40, 58, .7);
+  --shadow-card: 0 30px 80px -40px rgba(200, 16, 46, .55);
+  --font-display: 'Cormorant Garamond', Georgia, 'Times New Roman', serif;
+  --nx-sans: 'Montserrat', system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+}
+html.noche.panel, html.noche.panel body { color: var(--ink); background: #050303; }
+html.noche #stage { background: radial-gradient(90% 60% at 50% 125%, rgba(200, 16, 46, .22), transparent 70%), var(--wine); }
+html.noche #stage[data-screen="attract"] { background: radial-gradient(60% 80% at 28% 55%, rgba(200, 16, 46, .16), transparent 70%), #080505; }
+html.noche h1, html.noche h2 { font-weight: 600; letter-spacing: 0; }
+html.noche .msg { font: 500 34px var(--nx-sans); color: var(--gold); }
+
+/* ---------- buttons (shared by confirm, how-to, menu exit) ---------- */
+html.noche button.big { font: 600 44px var(--nx-sans); letter-spacing: .06em; text-shadow: none; }
+html.noche button.big.ghost { color: var(--gold); background: none; box-shadow: inset 0 0 0 2px var(--gold); }
+html.noche .textkey { font: 500 32px var(--nx-sans); letter-spacing: .08em; color: var(--ink-soft); }
+
+/* ---------- attract ---------- */
+html.noche #attract h1, html.noche .sun, html.noche #floaters { display: none; }
+html.noche .gala-art {
+  display: block; position: absolute; z-index: 0; right: 0; top: 0; width: 860px; height: 1080px; pointer-events: none;
+  background: url(../assets/gala/noche.jpg) 50% 6% / cover no-repeat;
+  --nx-feather: linear-gradient(90deg, transparent 0, rgba(0, 0, 0, .55) 24%, #000 50%);
+  -webkit-mask-image: var(--nx-feather); mask-image: var(--nx-feather);
+}
+html.noche .gala {
+  display: flex; flex-direction: column; align-items: center; position: absolute; z-index: 2; left: 0; top: 64px; width: 1100px; text-align: center;
+  font-family: var(--font-display); font-variant-numeric: lining-nums;
+}
+html.noche .gala p { margin: 0; white-space: nowrap; }
+html.noche .g1, html.noche .g4 { color: transparent; background: var(--gold-text); -webkit-background-clip: text; background-clip: text; }
+html.noche .g1 { font-weight: 500; font-size: 220px; line-height: .9; letter-spacing: .1em; margin-right: -.1em; }
+html.noche .g2 { font-weight: 500; font-size: 138px; line-height: 1; letter-spacing: .06em; margin-right: -.06em; color: var(--nx-red); }
+html.noche .g3 { margin-top: 10px; font-weight: 500; font-size: 60px; line-height: 1.2; letter-spacing: .24em; margin-right: -.24em; color: var(--ink); }
+html.noche .g4 { margin-top: 6px; font-weight: 500; font-size: 112px; line-height: 1.1; letter-spacing: .36em; margin-right: -.36em; }
+html.noche .gtag { margin-top: 34px; padding-top: 26px; font: italic 500 50px/1 var(--font-display); letter-spacing: .04em; color: var(--ink-soft); position: relative; }
+html.noche .gtag::before { content: ""; position: absolute; left: 50%; top: 0; width: 120px; height: 2px; margin-left: -60px; background: var(--nx-red); }
+
+html.noche .gala-petals { display: block; position: absolute; z-index: 1; inset: 0; overflow: hidden; pointer-events: none; }
+html.noche .gala-petals i {
+  position: absolute; left: var(--x); top: -50px; width: var(--s); height: calc(var(--s) * .72); border-radius: 80% 10% 80% 10%; opacity: 0;
+  background: linear-gradient(135deg, #FF6B6B, #B3122B); will-change: transform, opacity; animation: nx-fall var(--t) linear var(--d) infinite;
+}
+html.noche .gala-petals i:nth-child(3n) { background: linear-gradient(135deg, #FFFFFF, #F4C9CE); }
+@keyframes nx-fall {
+  0% { transform: translate3d(0, 0, 0) rotate(0); opacity: 0; }
+  8% { opacity: .85; }
+  90% { opacity: .75; }
+  100% { transform: translate3d(var(--dx), 1160px, 0) rotate(var(--r)); opacity: 0; }
+}
+
+html.noche .cta { right: auto; width: 1100px; top: 812px; }
+html.noche .playpill {
+  min-width: 820px; padding: 0 64px; line-height: 144px; font: 600 46px/144px var(--nx-sans); letter-spacing: .2em; text-indent: .2em; text-transform: uppercase; text-shadow: none;
+  background: var(--grad-btn); box-shadow: 0 0 0 2px rgba(212, 175, 106, .85), 0 14px 34px -12px rgba(227, 40, 58, .8);
+}
+/* soft red/gold glow breathing behind the pill (opacity + scale only) */
+html.noche .playpill::before {
+  content: ""; position: absolute; z-index: -1; inset: -70px -150px; border-radius: 50%; pointer-events: none; opacity: .55;
+  background: radial-gradient(closest-side, rgba(227, 40, 58, .55), rgba(212, 175, 106, .18) 60%, transparent); animation: nx-breathe 3.6s ease-in-out infinite alternate;
+}
+@keyframes nx-breathe { from { opacity: .3; transform: scale(.92); } to { opacity: .95; transform: scale(1.06); } }
+html.noche .ripple { width: 820px; height: 144px; margin: -72px 0 0 -410px; border: 2px solid rgba(212, 175, 106, .8); }
+html.noche .cta .hand { right: 220px; top: 78px; }
+
+/* the invitation and the boards take turns; the pill slides under the board and stays reachable */
+html.noche .gala, html.noche .gala-art { transition: opacity .7s var(--ease), transform .7s var(--ease); }
+html.noche #attract.show-board .gala { opacity: 0; transform: translateY(-40px); }
+html.noche #attract.show-board .gala-art { opacity: .2; }
+html.noche #attract.show-board .cta { transform: translate(410px, 50px) scale(.8); }
+@media (prefers-reduced-motion: reduce) {
+  html.noche .gala, html.noche .gala-art { transition: opacity .4s; }
+  html.noche #attract.show-board .gala, html.noche #attract.show-board .cta { transform: none; }
+  html.noche #attract.show-board .cta { opacity: 0; }
+}
+
+/* ---------- leaderboards ---------- */
+html.noche .board {
+  left: 200px; right: 200px; top: 56px; padding: 34px 72px 30px; border-radius: 28px; color: var(--ink);
+  background: color-mix(in srgb, var(--wine) 90%, transparent); box-shadow: inset 0 0 0 1px rgba(212, 175, 106, .55), 0 30px 80px -30px #000;
+}
+html.noche .board h2 { position: relative; margin: 0 0 30px; padding-bottom: 22px; font: 600 76px/1.1 var(--font-display); letter-spacing: .02em; text-transform: none; color: var(--gold); }
+html.noche .board h2::after { content: ""; position: absolute; left: 0; right: 0; bottom: 0; height: 1px; background: linear-gradient(90deg, var(--gold), rgba(212, 175, 106, 0)); }
+html.noche .board ol { gap: 0; }
+html.noche .board li { height: 104px; gap: 28px; padding: 0 8px; border-radius: 0; background: none; box-shadow: inset 0 -1px 0 rgba(212, 175, 106, .28); font: 500 56px var(--nx-sans); color: var(--ink); }
+html.noche .board li:last-child { box-shadow: none; }
+html.noche .board li .rk { width: 76px; height: 76px; font: 600 46px/1 var(--font-display); font-variant-numeric: lining-nums; color: var(--gold); background: none; box-shadow: inset 0 0 0 1.5px rgba(212, 175, 106, .6); }
+html.noche .board li:nth-child(1) .rk { color: var(--on-gold); background: linear-gradient(160deg, #F8E7BC, #D4AF6A 55%, #9C7A3C); box-shadow: none; }
+html.noche .board li:nth-child(2) .rk { color: var(--on-gold); background: linear-gradient(160deg, #F1EDE6, #BDB6AB 55%, #858077); box-shadow: none; }
+html.noche .board li:nth-child(3) .rk { color: var(--on-gold); background: linear-gradient(160deg, #E8B48A, #B5764A 55%, #7A4527); box-shadow: none; }
+html.noche .board li .sc { font: 600 80px/1 var(--font-display); font-variant-numeric: lining-nums; color: var(--gold); }
+html.noche .board li .chip, html.noche .chip[data-game] { padding: 6px 24px; font: 500 28px var(--nx-sans); letter-spacing: .04em; color: var(--ink-soft); background: none; box-shadow: inset 0 0 0 1px rgba(212, 175, 106, .55); }
+html.noche .board li.empty { font: italic 500 56px/1.25 var(--font-display); color: var(--ink-soft); box-shadow: none; }
+html.noche #attract.show-board .board li.new { background: rgba(212, 175, 106, .1); box-shadow: inset 0 0 0 2px var(--gold); }
+
+/* ---------- PIN ---------- */
+html.noche .pincard { padding: 40px 0 34px; border: 0; border-radius: 28px; background: rgba(255, 255, 255, .025); box-shadow: inset 0 0 0 1px rgba(212, 175, 106, .5), var(--shadow-card); }
+html.noche .pincard h2 { font-size: 88px; color: transparent; background: var(--gold-text); -webkit-background-clip: text; background-clip: text; }
+html.noche #dots { gap: 22px; margin-top: 18px; }
+html.noche #dots i { width: 68px; height: 76px; border-radius: 0; background: none; box-shadow: inset 0 -3px 0 rgba(212, 175, 106, .55); }
+html.noche #dots i.on { border-radius: 0; box-shadow: inset 0 -3px 0 var(--gold); background: radial-gradient(circle 20px at 50% 50%, #F8E7BC, #D4AF6A 70%, rgba(212, 175, 106, 0) 72%); }
+html.noche #dots.ok i.on { box-shadow: inset 0 -3px 0 #F8E7BC; background: radial-gradient(circle 20px at 50% 50%, #FFFFFF, #F8E7BC 70%, rgba(248, 231, 188, 0) 72%); }
+html.noche #dots.wrong i.on { box-shadow: inset 0 -3px 0 var(--nx-red); background: radial-gradient(circle 20px at 50% 50%, #FF6B6B, #E3283A 70%, rgba(227, 40, 58, 0) 72%); }
+html.noche #pad { grid-template-columns: repeat(3, 128px); gap: 20px; margin-top: 6px; }
+html.noche #pad button {
+  isolation: isolate; height: 128px; border-radius: 50%; font: 600 80px/1 var(--font-display); font-variant-numeric: lining-nums; color: var(--ink); text-shadow: none;
+  background: rgba(255, 255, 255, .03); box-shadow: inset 0 0 0 2px rgba(212, 175, 106, .7);
+}
+/* pressed = red fill, painted behind the digit (opacity only) */
+html.noche #pad button::after { z-index: -1; background: var(--nx-red); opacity: 0; transition: opacity 260ms; }
+html.noche #pad button.press::after, html.noche #pad button:active::after { opacity: 1; transition: none; }
+html.noche #pad button.fn { font: 500 30px var(--nx-sans); letter-spacing: .08em; color: var(--ink-soft); background: none; box-shadow: none; }
+html.noche #pad button.fn::after { display: none; }
+html.noche .hintline { font: 400 32px var(--nx-sans); letter-spacing: .06em; color: var(--ink-soft); opacity: 1; }
+
+/* ---------- confirm ---------- */
+html.noche .bigav { width: 300px; height: 300px; border-radius: 50%; background: radial-gradient(circle at 50% 30%, #2A1417, #120B0C 70%); box-shadow: inset 0 0 0 2px var(--gold), 0 0 0 14px rgba(212, 175, 106, .1); }
+html.noche .bigav .mz { display: none; }
+html.noche .bigav b { inset: 0; width: auto; height: auto; font: 500 190px/1 var(--font-display); color: transparent; background: var(--gold-text); -webkit-background-clip: text; background-clip: text; box-shadow: none; }
+html.noche #hola { margin-top: 36px; font-size: 150px; font-weight: 600; color: var(--ink); }
+html.noche .full { margin: 12px 0 56px; font: 400 44px var(--nx-sans); letter-spacing: .03em; color: var(--ink-soft); opacity: 1; }
+
+/* ---------- menu (mascots give way to the names) ---------- */
+html.noche #menu h2 { margin-bottom: 44px; font-size: 100px; color: var(--ink); }
+html.noche #tiles button, html.noche #tiles .none { border-radius: 28px; }
+html.noche #tiles button {
+  position: relative; height: 300px; gap: 22px; font: 600 76px/1.05 var(--font-display); color: var(--ink); text-shadow: none;
+  background: rgba(255, 255, 255, .03); box-shadow: inset 0 0 0 1px rgba(212, 175, 106, .6), 0 24px 50px -30px rgba(200, 16, 46, .6);
+}
+html.noche #tiles button .mz { display: none; }
+html.noche #tiles button::after { content: ""; order: 2; width: 90px; height: 2px; background: var(--nx-red); }
+html.noche #tiles button small { order: 3; font: 400 32px var(--nx-sans); letter-spacing: .06em; color: var(--ink-soft); opacity: 1; }
+html.noche #tiles button:disabled { opacity: .5; box-shadow: inset 0 0 0 1px rgba(212, 175, 106, .3); }
+html.noche #tiles .none { font: 400 48px var(--nx-sans); color: var(--ink-soft); }
+
+/* ---------- dark text on gold surfaces (--ink is light under noche) ---------- */
+html.noche .medal { color: var(--on-gold); background: radial-gradient(circle at 35% 28%, #F8E7BC, #D4AF6A 50%, #9C7A3C); box-shadow: 0 0 0 10px rgba(212, 175, 106, .25), 0 40px 60px -20px rgba(0, 0, 0, .8), inset 0 -14px 0 rgba(0, 0, 0, .12); }
+html.noche .prize, html.noche #ov-idle, html.noche #banner em { color: var(--on-gold); background: var(--gold-text); }
+html.noche #setup button { background: var(--gold); }
+html.noche #banner { background: var(--grad-btn); }
+
+/* ---------- overlays inherit the tokens; only the glow turns red/gold ---------- */
+html.noche .overlay { background: radial-gradient(90% 60% at 50% 125%, rgba(200, 16, 46, .35), transparent 70%), var(--wine); }
+html.noche #ov-plate h2 { color: var(--ink); }
