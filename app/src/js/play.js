@@ -425,6 +425,7 @@ function showRaffle(r) {
   const name = cleanName(r.name), showMs = showMsOf(r), win = $('#rwin');
   $('#ov-raffle').className = 'overlay suspense';
   $('#rkick').textContent = 'Sorteando…'; $('#rcong').hidden = true;
+  $('#rfprize').textContent = r.prize ? 'Premio: ' + r.prize : ''; $('#rfprize').hidden = !r.prize;
   win.textContent = RM ? '' : scramble(0, name, r.id);
   setOv('#ov-raffle', true);
   cancelAnimationFrame(raffleRaf); clearTimeout(raffleTimer);

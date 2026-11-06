@@ -160,3 +160,5 @@ html.noche #banner { background: var(--grad-btn); }
 /* ---------- overlays inherit the tokens; only the glow turns red/gold ---------- */
 html.noche .overlay { background: radial-gradient(90% 60% at 50% 125%, rgba(200, 16, 46, .35), transparent 70%), var(--wine); }
 html.noche #ov-plate h2 { color: var(--ink); }
+/* raffle suspense: --cream is the dark surface here, so the scrambled name and the prize use the light ink */
+html.noche #ov-raffle.suspense #rwin, html.noche #ov-raffle.suspense #rfprize { color: var(--ink); }

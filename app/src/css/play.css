@@ -241,6 +241,8 @@ button.press, button.big:active { transform: scale(.94); }
 #ov-raffle.reveal #rwin { color: var(--sun); }
 #ov-raffle.fade #rwin, #ov-raffle.fade #rcong { animation: fade-in .8s ease-out both; }
 #rwin { max-width: 1600px; overflow-wrap: anywhere; }
+#rfprize { max-width: 1600px; font-size: 64px; font-weight: 800; color: var(--cream); overflow-wrap: anywhere; } /* prize name from the admin draw */
+#ov-raffle.reveal #rfprize { color: var(--sun); }
 @keyframes float { from { transform: translateY(-10px); } to { transform: translateY(10px); } }
 @keyframes breathe { from { opacity: .25; transform: scale(.95); } to { opacity: .6; transform: scale(1.05); } }
 @keyframes pulse { from { opacity: .2; transform: scale(.9); } to { opacity: .85; transform: scale(1.1); } }
