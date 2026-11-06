@@ -59,7 +59,6 @@ export const adminContent = (kind) => call('api/admin/content/' + e(kind));
 export const adminImportContent = (kind, csvText) => call(`api/admin/content/${e(kind)}/import`, csvText);
 export const adminDeleteContent = (kind, id) => call(`api/admin/content/${e(kind)}/${e(id)}`, undefined, 'DELETE');
 export const adminGuests = (q = '', filter = 'all') => call('api/admin/guests?q=' + e(q) + '&filter=' + e(filter));
-export const adminGuestPin = (id) => call('api/admin/guests/' + e(id) + '/pin');
 export const adminImportGuests = (csvText) => call('api/admin/guests/import', csvText);
 export const adminGuest = (id) => call('api/admin/guests/' + e(id));
 export const adminCheckinGuest = (id) => call('api/admin/guests/' + e(id) + '/checkin', undefined, 'POST');

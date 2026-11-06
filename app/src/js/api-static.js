@@ -117,7 +117,6 @@ export const adminContent = unavailable;
 export const adminImportContent = unavailable;
 export const adminDeleteContent = unavailable;
 export const adminGuests = unavailable;
-export const adminGuestPin = unavailable;
 export const adminImportGuests = unavailable;
 export const adminGuest = unavailable;
 export const adminCheckinGuest = unavailable;

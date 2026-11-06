@@ -156,7 +156,7 @@ export function registerAdmin(app: FastifyInstance, db: DatabaseSync, state: Sta
     const { q: rawQ = '', filter = 'all' } = req.query as { q?: string; filter?: keyof typeof FILTERS };
     const q = normalize(rawQ), digits = dniDigits(rawQ), mail = normEmail(rawQ);
     const rows = db.prepare(
-      `SELECT g.id, g.name, g.dni, g.email, g.walk_in, r.guest_id IS NOT NULL AS registered, r.checked_in_at, r.prize_won_at, r.prize_delivered_at, r.dietary,
+      `SELECT g.id, g.name, g.dni, g.email, g.walk_in, r.guest_id IS NOT NULL AS registered, r.pin, r.ticket_token, r.checked_in_at, r.prize_won_at, r.prize_delivered_at, r.dietary,
          (SELECT COUNT(*) FROM attempt a WHERE a.guest_id = g.id) AS attempts
        FROM guest g LEFT JOIN registration r ON r.guest_id = g.id`
     ).all() as any[];
@@ -171,21 +171,11 @@ export function registerAdmin(app: FastifyInstance, db: DatabaseSync, state: Sta
     const guests = found.filter(FILTERS[filter]).sort((a, b) => a.name.localeCompare(b.name, 'es')).slice(0, 300).map((r) => ({
       id: r.id, name: r.name, dni: r.dni, walkIn: !!r.walk_in, registered: !!r.registered, checkedInAt: r.checked_in_at, prizeWonAt: r.prize_won_at,
       prizeDeliveredAt: r.prize_delivered_at, dietary: r.dietary, attempts: r.attempts, pendingVerification: pending.has(r.id),
+      // Staff read the PIN straight off the card at the door (admin cookie only; public endpoints never carry it).
+      pin: r.pin ?? null, ticketToken: r.ticket_token ?? null,
     }));
     const summary = { total: rows.length, confirmed: rows.filter((r) => r.registered).length, accredited: rows.filter((r) => r.checked_in_at).length };
     return { guests, counts, summary };
-  });
-
-  // PIN (and the ticket that shows it) on demand only, never in the list payload; every reveal is audited.
-  app.get('/api/admin/guests/:id/pin', admin, async (req, reply) => {
-    const id = Number((req.params as any).id);
-    const r = db.prepare('SELECT pin, ticket_token FROM registration WHERE guest_id = ?').get(id) as { pin: string; ticket_token: string } | undefined;
-    if (!r) {
-      const exists = !!db.prepare('SELECT 1 FROM guest WHERE id = ?').get(id);
-      return reply.code(exists ? 409 : 404).send({ error: exists ? 'not_registered' : 'not_found' });
-    }
-    audit(roleIn(req), 'pin_view', { guestId: id });
-    return { pin: r.pin, ticketToken: r.ticket_token }; // the ticket page shows the PIN too
   });
 
   app.post('/api/admin/guests/import', { ...admin, bodyLimit: 1_048_576 }, async (req, reply) => {
@@ -211,7 +201,7 @@ export function registerAdmin(app: FastifyInstance, db: DatabaseSync, state: Sta
 
   app.get('/api/admin/guests/:id', admin, async (req, reply) => {
     const g = db.prepare(
-      `SELECT g.id, g.name, r.guest_id IS NOT NULL AS registered, r.checked_in_at AS checkedInAt, r.prize_won_at AS prizeWonAt, r.prize_delivered_at AS prizeDeliveredAt, r.dietary
+      `SELECT g.id, g.name, r.guest_id IS NOT NULL AS registered, r.pin, r.checked_in_at AS checkedInAt, r.prize_won_at AS prizeWonAt, r.prize_delivered_at AS prizeDeliveredAt, r.dietary
        FROM guest g LEFT JOIN registration r ON r.guest_id = g.id WHERE g.id = ?`
     ).get((req.params as any).id) as any;
     if (!g) return reply.code(404).send({ error: 'not_found' });
@@ -236,6 +226,7 @@ export function registerAdmin(app: FastifyInstance, db: DatabaseSync, state: Sta
     }));
   });
 
+  const pinOf = (guestId: number) => (db.prepare('SELECT pin FROM registration WHERE guest_id = ?').get(guestId) as { pin: string }).pin;
   const verification = (id: unknown) => db.prepare('SELECT status, resolved_guest_id, dietary FROM verification_request WHERE id = ?').get(id as number) as
     { status: string; resolved_guest_id: number | null; dietary: string | null } | undefined;
 
@@ -259,7 +250,7 @@ export function registerAdmin(app: FastifyInstance, db: DatabaseSync, state: Sta
           .run(guestId, Date.now(), roleIn(req), id);
         audit(roleIn(req), 'verification_approve', { id, guestId });
       }
-      return { ticketToken };
+      return { ticketToken, pin: pinOf(guestId) };
     });
   });
 
@@ -283,7 +274,7 @@ export function registerAdmin(app: FastifyInstance, db: DatabaseSync, state: Sta
     const ticketToken = reg?.ticket_token ?? createRegistration(db, guestId, null);
     db.prepare('UPDATE registration SET checked_in_at = COALESCE(checked_in_at, ?) WHERE guest_id = ?').run(Date.now(), guestId);
     if (!reg) audit(role, 'walk_in', { guestId, ...detail });
-    return { guestId, ticketToken };
+    return { guestId, ticketToken, pin: pinOf(guestId) };
   };
 
   app.post('/api/admin/guests/:id/walkin', admin, async (req, reply) => {

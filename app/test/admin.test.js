@@ -453,8 +453,9 @@ test('walk-ins: accredit an unconfirmed guest once, add a guest at the door, no 
 
   const list = await app.inject({ url: '/api/admin/guests?q=sorpresa', headers: h });
   assert.deepEqual(list.json().guests.map((x) => [x.walkIn, x.registered, !!x.checkedInAt]), [[true, true, true]]);
-  assert.ok(!/pin|ticket/i.test(list.body));
-  assert.ok(!/pin|ticket/i.test((await app.inject({ url: '/api/admin/guests/' + g.id, headers: h })).body));
+  assert.equal(list.json().guests[0].pin, add.json().pin); // the door card shows the PIN the walk-in got
+  assert.match(add.json().pin, /^\d{6}$/);
+  assert.equal(w.json().pin, (await app.inject({ url: '/api/admin/guests/' + g.id, headers: h })).json().pin);
   assert.equal(db.prepare("SELECT COUNT(*) AS n FROM audit_log WHERE action = 'walk_in'").get().n, 3);
 });
 
@@ -579,21 +580,26 @@ test('door list: search by name/DNI/email, filters with counts, pending flag', a
   assert.equal((await app.inject({ url: '/api/admin/guests?filter=nope', headers: h })).statusCode, 400);
 });
 
-test('PIN reveal: admin only, audited, never in public payloads', async () => {
+test('PIN in plain sight for admins only, never in public payloads', async () => {
   const { app, db, h } = await adminApp();
   const g = await guest(app, 1);
-  assert.equal((await app.inject('/api/admin/guests/1/pin')).statusCode, 401);
-  const r = await app.inject({ url: '/api/admin/guests/1/pin', headers: h });
-  assert.equal(r.json().pin, g.pin);
-  assert.equal((await app.inject('/api/ticket/' + r.json().ticketToken)).json().pin, g.pin);
-  assert.equal(db.prepare("SELECT COUNT(*) AS n FROM audit_log WHERE action = 'pin_view'").get().n, 1);
-  assert.equal((await app.inject({ url: '/api/admin/guests/2/pin', headers: h })).json().error, 'not_registered');
-  assert.equal((await app.inject({ url: '/api/admin/guests/999999/pin', headers: h })).statusCode, 404);
+  assert.equal((await app.inject('/api/admin/guests')).statusCode, 401);
+  const list = (await app.inject({ url: '/api/admin/guests', headers: h })).json().guests;
+  const mine = list.find((x) => x.id === 1);
+  assert.equal(mine.pin, g.pin);
+  assert.equal((await app.inject('/api/ticket/' + mine.ticketToken)).json().pin, g.pin); // "Abrir ticket" link
+  assert.equal(list.find((x) => x.id === 2).pin, null); // not registered yet
+  assert.equal((await app.inject({ url: '/api/admin/guests/1', headers: h })).json().pin, g.pin);
 
+  // Public surfaces and verification candidates stay PIN-free.
   const a = (await start(app, g.session)).json();
   await finish(app, db, a.attemptId, 80);
-  for (const url of ['/api/live', '/api/live?session=' + g.session, '/api/checkin/' + g.checkinToken, '/api/admin/guests', '/api/admin/guests/1']) {
-    const body = (await app.inject({ url, headers: url.startsWith('/api/admin') ? h : {} })).body;
-    assert.ok(!body.includes(g.pin), url);
+  await post(app, '/api/register', { name: db.prepare('SELECT name FROM guest WHERE id = 1').get().name, dni: '99999999', email: 'x@x.com' });
+  const live = await app.inject('/api/live?session=' + g.session);
+  assert.equal(live.json().leaderboard.all[0].score, 80);
+  for (const res of [live, await app.inject('/api/live'), await app.inject('/api/checkin/' + g.checkinToken),
+    await app.inject({ url: '/api/admin/verifications', headers: h })]) {
+    assert.ok(!res.body.includes(g.pin), res.body.slice(0, 80));
+    assert.ok(!/"pin"/.test(res.body), res.body.slice(0, 80));
   }
 });
