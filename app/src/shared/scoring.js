@@ -14,6 +14,13 @@ export function roundScore({ found, ms, wrong = 0 }) {
 
 export const totalScore = (rounds) => clampScore(rounds.reduce((s, r) => s + roundScore(r), 0));
 
+// Pixel Revelado: correct within 2 s = 12, then −1 per started second, min 4; wrong or no answer = 0.
+export const pixelPoints = (correct, ms) => (correct ? Math.max(4, 12 - Math.max(0, Math.ceil((ms - 2000) / 1000))) : 0);
+// rounds: [{ correct, points }] answered so far; +4 only when all `total` rounds are correct (8 × 12 + 4 = 100).
+export const PIXEL_BONUS = 4;
+export const pixelTotal = (rounds, total) =>
+  clampScore(rounds.reduce((s, r) => s + r.points, 0) + (total > 0 && rounds.length === total && rounds.every((r) => r.correct) ? PIXEL_BONUS : 0));
+
 // Memo Test. Finish: 100 - max(0, s - freeSeconds) - wrongPenalty * wrong, never below finishFloor
 // (so finishing beats any time-out). Time-out or idle: 5 per pair found.
 export const MEMO_PAIRS = 8;

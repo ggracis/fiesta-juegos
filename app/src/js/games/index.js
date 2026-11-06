@@ -8,5 +8,6 @@
 import distinto from './distinto.js';
 import memo from './memo.js';
 import quiz from './quiz.js';
+import pixel from './pixel.js';
 
-export const GAME_MODULES = { distinto, memo, quiz };
+export const GAME_MODULES = { distinto, memo, quiz, pixel };

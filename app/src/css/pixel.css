@@ -1,0 +1,29 @@
+/* Pixel Revelado. Panel tokens only; --gold exists under html.noche, --sun is the theme A fallback. */
+#game[data-game="pixel"] #grid { display: none; }
+.px { position: absolute; left: 0; right: 0; top: 140px; display: flex; flex-direction: column; align-items: center; gap: 26px; }
+.px-frame { position: relative; display: grid; place-items: center; width: 960px; height: 600px; border-radius: var(--r3); overflow: hidden; background: var(--glass); border: 1px solid var(--glass-line); }
+.px-frame canvas { display: block; }
+.px-msg { position: absolute; left: 50%; bottom: 28px; translate: -50% 0; padding: 12px 44px; border-radius: 999px; font: 800 56px/1 var(--font); white-space: nowrap; color: var(--ink); background: var(--cream); box-shadow: inset 0 0 0 5px var(--gold, var(--sun)); pointer-events: none; }
+.px-msg:empty { display: none; }
+.px-msg.good { box-shadow: inset 0 0 0 5px var(--mint); }
+.px-msg.bad { box-shadow: inset 0 0 0 5px var(--red); }
+
+.px-opts { display: grid; grid-template-columns: repeat(2, 690px); grid-auto-rows: 124px; gap: 16px 24px; touch-action: none; }
+.px-opts button {
+  padding: 0 32px; border: 0; border-radius: var(--r2); font: 800 50px/1.05 var(--font); color: inherit;
+  background: var(--glass); box-shadow: inset 0 0 0 2px var(--glass-line); cursor: pointer; touch-action: manipulation;
+  transition: transform 90ms var(--ease), opacity 200ms;
+}
+.px-opts button.press { transform: scale(.96); }
+.px-opts.done button { opacity: .35; }
+.px-opts.done button.picked, .px-opts.done button.ok { opacity: 1; }
+.px-opts button.picked { box-shadow: inset 0 0 0 6px var(--gold, var(--sun)); }
+.px-opts button.ok { background: color-mix(in srgb, var(--mint) 40%, transparent); box-shadow: inset 0 0 0 8px var(--mint); }
+.px-opts button.bad { background: color-mix(in srgb, var(--red) 45%, transparent); box-shadow: inset 0 0 0 8px var(--red); }
+
+/* how-to illustration */
+.px-demo { display: grid; gap: 14px; padding: 24px; border-radius: var(--r3); background: var(--glass); border: 1px solid var(--glass-line); }
+.px-demo canvas { display: block; border-radius: var(--r1); }
+.px-chips { display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px; }
+.px-chips i { height: 48px; border-radius: var(--r1); background: var(--glass); box-shadow: inset 0 0 0 2px var(--glass-line); transition: transform 320ms var(--spring); }
+.px-chips i.on { background: color-mix(in srgb, var(--mint) 40%, transparent); box-shadow: inset 0 0 0 6px var(--mint); transform: scale(1.06); }

@@ -16,5 +16,18 @@
     {"question": "¿Cuántos huesos tiene el cuerpo humano adulto?", "correct": "206", "wrong": ["186", "226", "212"]},
     {"question": "¿Qué instrumento mide la presión atmosférica?", "correct": "Barómetro", "wrong": ["Termómetro", "Higrómetro", "Anemómetro"]}
   ],
-  "pixel": []
+  "pixel": [
+    {"file": "img01.jpg", "label": "Aerogenerador", "group": "demo"},
+    {"file": "img02.jpg", "label": "Panel solar", "group": "demo"},
+    {"file": "img03.jpg", "label": "Bombilla", "group": "demo"},
+    {"file": "img04.jpg", "label": "Batería", "group": "demo"},
+    {"file": "img05.jpg", "label": "Faro", "group": "demo"},
+    {"file": "img06.jpg", "label": "Globo aerostático", "group": "demo"},
+    {"file": "img07.jpg", "label": "Cohete", "group": "demo"},
+    {"file": "img08.jpg", "label": "Auto", "group": "demo"},
+    {"file": "img09.jpg", "label": "Montaña", "group": "demo"},
+    {"file": "img10.jpg", "label": "Palmera", "group": "demo"},
+    {"file": "img11.jpg", "label": "Taza de café", "group": "demo"},
+    {"file": "img12.jpg", "label": "Reloj", "group": "demo"}
+  ]
 }
