@@ -35,6 +35,7 @@ async function run(fn) {
 // `next` is honoured only for same-origin relative URLs.
 function safeNext() {
   const n = new URLSearchParams(location.search).get('next') || '';
+  if (!n) return null; // no ?next=: stay here (new URL('') is this page, which reloaded in a loop)
   try {
     const u = new URL(n, location.href);
     return u.origin === location.origin && !/[\\\t\r\n]/.test(n) ? u.pathname + u.search + u.hash : null;
