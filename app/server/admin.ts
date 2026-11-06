@@ -6,6 +6,7 @@ import { join } from 'node:path';
 import { newToken, csvLine, PIXEL_DIR, createRegistration } from './lib.ts';
 import { nameTokens, dniDigits, normEmail } from '../src/shared/identity.js';
 import { gameById, PARAM_INFO } from '../src/shared/games.js';
+import { SCENES, CUE_LEAD_MS } from '../src/shared/stage.js';
 import type { State } from './state.ts';
 
 const normalize = (s: string) => nameTokens(s).join(' ');
@@ -414,7 +415,11 @@ export function registerAdmin(app: FastifyInstance, db: DatabaseSync, state: Sta
     return reply.header('content-type', 'text/csv; charset=utf-8').header('content-disposition', 'attachment; filename="attempts.csv"').send(lines.join('\n') + '\n');
   });
 
+  // Optional body { prize }: the prize name shown on the stage winner plate. No body keeps the old call working.
   app.post('/api/admin/raffle', admin, async (req, reply) => {
+    const rawPrize = (req.body as { prize?: unknown } | undefined)?.prize;
+    if (rawPrize !== undefined && (typeof rawPrize !== 'string' || rawPrize.length > 80)) return reply.code(400).send({ error: 'invalid_input' });
+    const prize = (rawPrize ?? '').replace(/\s+/g, ' ').trim() || null;
     const pool = db.prepare(
       'SELECT guest_id FROM registration WHERE checked_in_at IS NOT NULL AND guest_id NOT IN (SELECT guest_id FROM raffle)'
     ).all() as { guest_id: number }[];
@@ -422,22 +427,54 @@ export function registerAdmin(app: FastifyInstance, db: DatabaseSync, state: Sta
     const pick = pool[randomInt(pool.length)].guest_id;
     const drawnAt = Date.now();
     const id = state.tx(() => {
-      const id = Number(db.prepare('INSERT INTO raffle(guest_id, drawn_at) VALUES (?,?)').run(pick, drawnAt).lastInsertRowid);
+      const id = Number(db.prepare('INSERT INTO raffle(guest_id, drawn_at, prize) VALUES (?,?,?)').run(pick, drawnAt, prize).lastInsertRowid);
       state.setSetting('raffleHidden', 0);
-      audit(roleIn(req), 'raffle', { id, guestId: pick });
+      state.setSetting('stage', { ...state.stage(), scene: 'winner', winner: id, at: drawnAt }); // the stage runs the same suspense, then holds the winner
+      audit(roleIn(req), 'raffle', { id, guestId: pick, prize });
       return id;
     });
     const { name } = db.prepare('SELECT name FROM guest WHERE id = ?').get(pick) as { name: string };
-    return { id, name, drawnAt };
+    return { id, name, drawnAt, prize: prize ?? '' };
   });
 
   app.get('/api/admin/raffle', admin, async () =>
-    db.prepare('SELECT r.id, g.name, r.drawn_at AS drawnAt FROM raffle r JOIN guest g ON g.id = r.guest_id ORDER BY r.id').all());
+    db.prepare("SELECT r.id, g.name, r.drawn_at AS drawnAt, COALESCE(r.prize, '') AS prize FROM raffle r JOIN guest g ON g.id = r.guest_id ORDER BY r.id").all());
   app.post('/api/admin/raffle/hide', admin, async (req, reply) => {
     const last = db.prepare('SELECT MAX(id) AS id FROM raffle').get() as { id: number | null };
     state.setSetting('raffleHidden', last.id ?? 0);
     audit(roleIn(req), 'raffle_hide');
     return reply.code(204).send();
+  });
+
+  // ---- Stage (LED wall): a vision mixer. Partial patches merge into the stored state; `at` marks every change.
+  const text = (max: number) => ({ type: 'string', maxLength: max });
+  app.get('/api/admin/stage', admin, async () => state.stage());
+  app.put('/api/admin/stage', {
+    ...admin,
+    schema: { body: { type: 'object', additionalProperties: false, minProperties: 1, properties: {
+      scene: { enum: SCENES }, speaker: { type: 'integer', minimum: 0, maximum: 49 }, winner: { type: 'integer', minimum: 0 },
+      speakers: { type: 'array', maxItems: 50, items: { type: 'object', required: ['name'], additionalProperties: false,
+        properties: { name: { type: 'string', minLength: 1, maxLength: 60 }, role: text(60) } } },
+      prizes: { type: 'array', maxItems: 50, items: text(80) },
+      // Same-origin path (media/intro.mp4) or an http(s) URL; it only ever becomes a <video src>.
+      video: { type: 'string', maxLength: 300, pattern: /^(|https?:\/\/\S+|[\w/][\w./%-]*)$/.source },
+    } } },
+  }, async (req, reply) => {
+    const p = req.body as Partial<ReturnType<State['stage']>>;
+    if (p.winner && !db.prepare('SELECT 1 FROM raffle WHERE id = ?').get(p.winner)) return reply.code(400).send({ error: 'unknown_winner' });
+    const next = { ...state.stage(), ...p, at: Date.now() };
+    if (p.speakers) next.speakers = p.speakers.map((x) => ({ name: x.name.trim(), role: (x.role ?? '').trim() })).filter((x) => x.name);
+    if (p.prizes) next.prizes = p.prizes.map((x) => x.trim()).filter(Boolean);
+    next.speaker = Math.max(0, Math.min(next.speaker, next.speakers.length - 1));
+    state.tx(() => { state.setSetting('stage', next); audit(roleIn(req), 'stage', p); });
+    return next;
+  });
+  // WOW cue: every panel and the stage play their part of one sweep at cueAt (server clock), then the stage holds the title.
+  app.post('/api/admin/stage/cue', admin, async (req) => {
+    const now = Date.now();
+    const next = { ...state.stage(), scene: 'title', cueAt: now + CUE_LEAD_MS, at: now };
+    state.tx(() => { state.setSetting('stage', next); audit(roleIn(req), 'stage_cue'); });
+    return next;
   });
 
   return { roleOf };

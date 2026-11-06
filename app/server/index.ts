@@ -246,11 +246,11 @@ export function buildApp(dbPath = DB_PATH, csvPath = CSV_PATH, opts: { adminPass
       id: g!.id, name: g!.name, params: g!.params,
       ...(guestId ? { attemptsLeft: Math.max(0, g!.maxAttempts - (count.get(guestId, g!.id) as { n: number }).n) } : {}),
     }));
-    const r = db.prepare('SELECT r.id, g.name, r.drawn_at FROM raffle r JOIN guest g ON g.id = r.guest_id ORDER BY r.id DESC LIMIT 1').get() as { id: number; name: string; drawn_at: number } | undefined;
+    const r = db.prepare('SELECT r.id, g.name, r.drawn_at, r.prize FROM raffle r JOIN guest g ON g.id = r.guest_id ORDER BY r.id DESC LIMIT 1').get() as { id: number; name: string; drawn_at: number; prize: string | null } | undefined;
     const raffle = r && state.getSetting('raffleHidden') !== r.id
-      ? { id: r.id, name: r.name, drawnAt: r.drawn_at, showSeconds: settings.raffleShowSeconds } : null;
+      ? { id: r.id, name: r.name, prize: r.prize ?? '', drawnAt: r.drawn_at, showSeconds: settings.raffleShowSeconds } : null;
     // serverNow lets panels sync the raffle show to the server clock.
-    return { paused: settings.paused, transition: { on: settings.transition, text: settings.transitionText }, raffleMode: settings.raffleMode, games, raffle, serverNow: Date.now(),
+    return { paused: settings.paused, transition: { on: settings.transition, text: settings.transitionText }, raffleMode: settings.raffleMode, games, raffle, stage: state.stageView(), serverNow: Date.now(),
       leaderboard: boards(games.map((g) => g.id), now) };
   });
 

@@ -58,6 +58,7 @@ export function openDb(file: string, csvPath: string) {
     CREATE INDEX IF NOT EXISTS attempt_guest_game ON attempt(guest_id, game);
   `);
   addColumn(db, 'raffle', 'sample', 'TEXT'); // legacy: names the old reel cycled; no longer written (panels now scramble letters)
+  addColumn(db, 'raffle', 'prize', 'TEXT'); // optional prize name shown on the stage winner plate
   const seedGame = db.prepare('INSERT OR IGNORE INTO game_config(game, enabled, sort, threshold, max_attempts, params) VALUES (?,?,?,?,?,?)');
   for (const g of GAMES) seedGame.run(g.id, g.ready ? 1 : 0, g.defaults.sort, g.defaults.threshold, g.defaults.maxAttempts, JSON.stringify(g.defaults.params));
   // New default param keys reach existing DBs; edited values are never overwritten.

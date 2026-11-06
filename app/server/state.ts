@@ -1,5 +1,6 @@
 import type { DatabaseSync } from 'node:sqlite';
 import { gameById } from '../src/shared/games.js';
+import { DEFAULT_STAGE } from '../src/shared/stage.js';
 
 type GameRow = { game: string; enabled: number; sort: number; threshold: number; max_attempts: number; params: string };
 
@@ -47,10 +48,22 @@ export function makeState(db: DatabaseSync) {
     `SELECT g.name, r.checked_in_at AS checkedInAt, r.prize_won_at AS prizeWonAt, r.prize_delivered_at AS prizeDeliveredAt
      FROM registration r JOIN guest g ON g.id = r.guest_id WHERE r.checkin_token = ?`
   ).get(token) as { name: string; checkedInAt: number | null; prizeWonAt: number | null; prizeDeliveredAt: number | null } | undefined;
+  const stage = () => ({ ...DEFAULT_STAGE, ...getSetting('stage') }) as typeof DEFAULT_STAGE;
+  // Public stage payload for /api/live: only what the LED wall shows (names, roles, prize), never guest data beyond the winner's name.
+  const stageView = () => {
+    const s = stage();
+    const w = s.winner ? db.prepare('SELECT r.id, g.name, r.prize, r.drawn_at FROM raffle r JOIN guest g ON g.id = r.guest_id WHERE r.id = ?').get(s.winner) as
+      { id: number; name: string; prize: string | null; drawn_at: number } | undefined : undefined;
+    return {
+      scene: s.scene, at: s.at, cueAt: s.cueAt, video: s.video,
+      speaker: s.speakers[s.speaker] ?? null, speakerIndex: s.speaker, speakerCount: s.speakers.length,
+      winner: w ? { id: w.id, name: w.name, prize: w.prize ?? '', drawnAt: w.drawn_at } : null,
+    };
+  };
   const tx = <T>(fn: () => T): T => {
     db.exec('BEGIN IMMEDIATE');
     try { const r = fn(); db.exec('COMMIT'); return r; } catch (e) { db.exec('ROLLBACK'); throw e; }
   };
-  return { tx, getSetting, setSetting, settings, gameConfig, allGames, checkinView };
+  return { tx, getSetting, setSetting, settings, stage, stageView, gameConfig, allGames, checkinView };
 }
 export type State = ReturnType<typeof makeState>;
