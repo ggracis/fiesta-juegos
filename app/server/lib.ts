@@ -10,6 +10,3 @@ export function generatePin(isTaken: (pin: string) => boolean): string {
 }
 
 export const newToken = () => randomBytes(16).toString('base64url');
-
-export const normalize = (s: string) =>
-  s.normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase().trim();

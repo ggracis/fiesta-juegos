@@ -1,12 +1,12 @@
 // One API, two backends chosen at build time (VITE_DATA_MODE = server | static).
-// Every call throws Error with .code ('rate_limited', 'already_registered', 'wrong_pin', 'locked', 'network', ...).
+// Every call throws Error with .code ('rate_limited', 'invalid_input', 'wrong_pin', 'locked', 'network', ...).
 export const isDemo = import.meta.env.VITE_DATA_MODE === 'static';
 
 let impl;
 const backend = () => (impl ??= isDemo ? import('./api-static.js') : import('./api-server.js'));
 const call = (name) => async (...a) => (await backend())[name](...a);
 
-export const search = call('search');
+export const lookup = call('lookup');
 export const register = call('register');
 export const ticket = call('ticket');
 export const login = call('login');

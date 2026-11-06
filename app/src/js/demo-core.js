@@ -1,15 +1,16 @@
 // Pure helpers behind the static (demo) backend. No DOM, no storage: state is passed in.
+import { matchesName, verify, dniDigits, normEmail } from '../shared/identity.js';
+
 export const MAX_FAILS = 5;
 export const LOCK_MS = 30_000;
 
-export const normalize = (s) => s.normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase().trim();
+// Same contracts as POST /api/lookup and POST /api/register; the caller stores pending requests.
+export const lookupRoster = (roster, name) => ({ found: roster.some((g) => matchesName(g.name, name)) });
 
-// registered: Set of guest ids. Same contract as GET /api/guests/search.
-export function searchRoster(roster, registered, q) {
-  const n = normalize(q);
-  if (n.length < 3) return [];
-  return roster.filter((g) => normalize(g.name).includes(n)).slice(0, 5)
-    .map((g) => ({ id: g.id, name: g.name, registered: registered.has(g.id) }));
+export function registerRoster(roster, { name, dni, email }, mode) {
+  const r = verify(roster.filter((g) => matchesName(g.name, name)), { dni, email }, mode);
+  if (r.guest) return { status: 'registered', ticketToken: r.guest.ticketToken };
+  return { status: 'pending', request: { name: name.trim(), dni: dniDigits(dni), email: normEmail(email), candidates: r.pending, createdAt: Date.now() } };
 }
 
 // fails: { [screenId]: { n, until } }, mutated in place. Same contract as POST /api/login.

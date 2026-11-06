@@ -91,27 +91,39 @@
 
   <section class="sec reg" id="reg" aria-labelledby="reg-title" data-reveal>
     <h2 id="reg-title">Confirma tu asistencia</h2>
-    <p class="lead">Busca tu nombre. Recibirás tu entrada con un código QR y un PIN para los juegos.</p>
+    <p class="lead">Escribe tu nombre completo. Verificaremos tus datos y recibirás tu entrada con un código QR y un PIN para los juegos.</p>
     <div class="card">
-      <div id="step-search">
-        <label for="q" class="sr-only">Tu nombre</label>
+      <form id="step-name" novalidate>
+        <label class="fld" for="q">Tu nombre y apellido</label>
         <div class="pill-input">
-          <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="10.5" cy="10.5" r="6.5"/><path d="M15.5 15.5 21 21"/></svg>
-          <input id="q" type="search" autocomplete="off" autocapitalize="words" spellcheck="false" enterkeyhint="search" placeholder="Escribe tu nombre o apellido">
+          <input id="q" type="text" autocomplete="name" autocapitalize="words" spellcheck="false" enterkeyhint="go" placeholder="Nombre y apellido, como en tu DNI">
         </div>
-        <p class="hint" id="hint" aria-live="polite">Escribe al menos 3 letras.</p>
-        <ul class="results" id="results" aria-live="polite"></ul>
-      </div>
-      <div id="step-confirm" class="confirm" hidden>
-        <div id="slot" class="slot"></div>
-        <h3 id="who"></h3>
+        <button class="btn" type="submit"><span class="lbl">Continuar</span>
+          <svg class="spin" viewBox="0 0 24 24" width="20" height="20" aria-hidden="true"><circle cx="12" cy="12" r="9" fill="none" stroke="#fff" stroke-width="3" stroke-linecap="round" stroke-dasharray="40 60"/></svg>
+        </button>
+      </form>
+      <form id="step-id" hidden novalidate>
+        <p class="found">Te encontramos en la lista. Para confirmar que eres tú, completa estos datos.</p>
+        <label class="fld" for="dni">DNI</label>
+        <div class="pill-input">
+          <input id="dni" type="text" inputmode="numeric" autocomplete="off" maxlength="10" placeholder="12.345.678">
+        </div>
+        <label class="fld" for="email">Correo electrónico</label>
+        <div class="pill-input">
+          <input id="email" type="email" autocomplete="email" autocapitalize="none" spellcheck="false" enterkeyhint="go" placeholder="tu@correo.com">
+        </div>
         <div class="row">
-          <button class="btn" id="yes" type="button"><span class="lbl">Sí, soy yo</span>
+          <button class="btn" type="submit"><span class="lbl">Confirmar inscripción</span>
             <svg class="spin" viewBox="0 0 24 24" width="20" height="20" aria-hidden="true"><circle cx="12" cy="12" r="9" fill="none" stroke="#fff" stroke-width="3" stroke-linecap="round" stroke-dasharray="40 60"/></svg>
             <svg class="chk" viewBox="0 0 24 24" width="22" height="22" aria-hidden="true"><path d="m5 12.5 4.5 4.5L19 7.5" fill="none" stroke="#fff" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/></svg>
           </button>
-          <button class="btn ghost" id="no" type="button">No soy yo</button>
+          <button class="btn ghost" id="back" type="button">Cambiar nombre</button>
         </div>
+      </form>
+      <div id="step-pending" class="pending" tabindex="-1" hidden>
+        <h3>Recibimos tu inscripción</h3>
+        <p>Necesitamos verificar tus datos. Acércate al equipo de acreditación en la entrada del evento y te ayudaremos a completar el proceso.</p>
+        <button class="btn ghost" id="again" type="button">Volver al inicio</button>
       </div>
       <p class="err" id="err" role="alert" hidden></p>
     </div>

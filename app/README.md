@@ -38,7 +38,9 @@ Requires Node 24 (runs TypeScript directly, uses built-in `node:sqlite`). `VITE_
 | `play.html` | Panel app (1920x1080 stage scaled to fit) |
 | `diag.html` | Touch diagnostics |
 
-Server mode also redirects `/t/<token>`, `/c/<token>`, `/play`, `/diag`. API: `GET /api/guests/search?q=`, `POST /api/register`, `GET /api/ticket/:token`, `POST /api/login` (`{pin, screenId}`), `POST /api/attempts`, `POST /api/attempts/:id/result`.
+Server mode also redirects `/t/<token>`, `/c/<token>`, `/play`, `/diag`. API: `POST /api/lookup` (`{name}` -> `{found}`, no roster data), `POST /api/register` (`{name, dni, email}` -> `{status:'registered', ticketToken}` or `{status:'pending'}`), `GET /api/ticket/:token`, `POST /api/login` (`{pin, screenId}`), `POST /api/attempts`, `POST /api/attempts/:id/result`.
+
+Registration validates identity: the guest types their full name (normalized; the full name or any 2+ tokens of it match), then DNI and email, checked against `data/guests.csv` (`name,dni,email`, fictitious demo data). A mismatch is stored in `verification_request` (static mode: `localStorage`) and the UI sends the guest to the accreditation desk; re-submitting matching data returns the existing ticket. The mode is one constant, `VALIDATION_MODE` in `src/shared/identity.js` (`name_dni_email` default, or `name_only`).
 
 ## GitHub Pages
 

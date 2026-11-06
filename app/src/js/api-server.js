@@ -10,8 +10,8 @@ async function call(path, body) {
   return d;
 }
 
-export const search = (q) => call('api/guests/search?q=' + encodeURIComponent(q));
-export const register = (guestId) => call('api/register', { guestId });
+export const lookup = (name) => call('api/lookup', { name });
+export const register = (name, dni, email) => call('api/register', { name, dni, email });
 export const ticket = (token) => call('api/ticket/' + encodeURIComponent(token)).catch((e) => { if (e.code === 'not_found') return null; throw e; });
 export const login = (pin, screenId) => call('api/login', { pin, screenId });
 export const startAttempt = (session) => call('api/attempts', { session });
