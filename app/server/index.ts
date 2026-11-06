@@ -242,5 +242,5 @@ export function buildApp(dbPath = DB_PATH, csvPath = CSV_PATH, opts: { adminPass
 
 if (import.meta.main) {
   const app = buildApp();
-  await app.listen({ port: Number(process.env.PORT) || 3000, host: '0.0.0.0' });
+  await app.listen({ port: Number(process.env.PORT) || 3000, host: process.env.HOST || '0.0.0.0' }); // HOST=127.0.0.1 behind Caddy
 }

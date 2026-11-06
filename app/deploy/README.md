@@ -10,7 +10,7 @@ If the venue internet can drop, also read **[OFFLINE.md](OFFLINE.md)** (panel of
 2. Security group (inbound only):
    - 22 from **your IP only**
    - 80 and 443 from anywhere
-   - **Do not open 3000.** The server hardcodes `0.0.0.0` (no `HOST` option), so the security group is the only thing keeping port 3000 private.
+   - **Do not open 3000.** The service also binds to `127.0.0.1` (`HOST` in fiesta.service), so only Caddy can reach it.
 3. Allocate an **Elastic IP** and associate it with the instance. Note it, e.g. `3.12.34.56`.
 4. Your host is the IP with dashes: `3-12-34-56.sslip.io`.
 
