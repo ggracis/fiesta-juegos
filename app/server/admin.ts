@@ -1,10 +1,12 @@
 import type { FastifyInstance, FastifyReply, FastifyRequest } from 'fastify';
 import type { DatabaseSync } from 'node:sqlite';
 import { createHash, randomInt, timingSafeEqual } from 'node:crypto';
-import { newToken, normalize } from './lib.ts';
+import { newToken } from './lib.ts';
+import { nameTokens, dniDigits, normEmail } from '../src/shared/identity.js';
 import { gameById } from '../src/shared/games.js';
 import type { State } from './state.ts';
 
+const normalize = (s: string) => nameTokens(s).join(' ');
 const SESSION_MS = 86_400_000;
 const ONLINE_MS = 15_000;
 const sha = (s: string) => createHash('sha256').update(s).digest();
@@ -92,6 +94,7 @@ export function registerAdmin(app: FastifyInstance, db: DatabaseSync, state: Sta
         properties: {
           paused: { type: 'boolean' }, transition: { type: 'boolean' }, transitionText: { type: 'string', maxLength: 200 },
           prizeStock: { type: 'integer', minimum: 0 }, raffleShowSeconds: { type: 'integer', minimum: 1, maximum: 600 },
+          registrationValidation: { enum: ['name_only', 'name_dni_email'] },
         },
       },
     },
@@ -148,16 +151,21 @@ export function registerAdmin(app: FastifyInstance, db: DatabaseSync, state: Sta
 
   app.post('/api/admin/guests/import', { ...admin, bodyLimit: 1_048_576 }, async (req, reply) => {
     if (typeof req.body !== 'string') return reply.code(415).send({ error: 'csv_required' });
-    const lines = req.body.replace(/^\uFEFF/, '').split(/\r?\n/);
-    const names = lines.slice(/^"?name"?\s*(,|$)/i.test(lines[0].trim()) ? 1 : 0).map((line) => {
-      const m = line.match(/^\s*"((?:[^"]|"")*)"/);
-      return (m ? m[1].replace(/""/g, '"') : line.split(',')[0]).trim();
-    }).filter(Boolean);
-    const ins = db.prepare('INSERT OR IGNORE INTO guest(name) VALUES (?)');
+    // CSV: name,dni,email ('#' lines are comments; optional header). Name may be quoted; dni/email never contain commas.
+    const lines = req.body.replace(/^\uFEFF/, '').split(/\r?\n/).filter((l) => l.trim() && !l.trim().startsWith('#'));
+    const rows = lines.slice(/^"?name"?\s*(,|$)/i.test(lines[0]?.trim() ?? '') ? 1 : 0).map((line) => {
+      const m = line.match(/^\s*"((?:[^"]|"")*)"\s*(?:,(.*))?$/);
+      const [name, ...rest] = m ? [m[1].replace(/""/g, '"'), ...(m[2] ?? '').split(',')] : line.split(',');
+      return { name: name.trim(), dni: dniDigits(rest[0]), email: normEmail(rest[1]) };
+    }).filter((r) => r.name);
+    const exists = db.prepare('SELECT 1 FROM guest WHERE name = ?');
+    // Re-import updates dni/email but never blanks them and never deletes guests.
+    const ins = db.prepare(`INSERT INTO guest(name, dni, email) VALUES (?,?,?) ON CONFLICT(name) DO UPDATE SET
+      dni = COALESCE(NULLIF(excluded.dni, ''), dni), email = COALESCE(NULLIF(excluded.email, ''), email)`);
     let added = 0;
     state.tx(() => {
-      for (const name of names) added += Number(ins.run(name).changes);
-      audit(roleIn(req), 'import', { rows: names.length, added });
+      for (const r of rows) { if (!exists.get(r.name)) added++; ins.run(r.name, r.dni, r.email); }
+      audit(roleIn(req), 'import', { rows: rows.length, added });
     });
     return { added, total: (db.prepare('SELECT COUNT(*) AS n FROM guest').get() as { n: number }).n };
   });

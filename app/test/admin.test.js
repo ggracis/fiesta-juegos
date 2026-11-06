@@ -15,7 +15,8 @@ const tmpFile = () => join(mkdtempSync(join(tmpdir(), 'fiesta-')), 'test.db');
 const post = (app, url, payload, headers) => app.inject({ method: 'POST', url, payload, headers });
 const put = (app, url, payload, headers) => app.inject({ method: 'PUT', url, payload, headers });
 async function guest(app, guestId, screenId = 'screen-' + guestId + '-xxxx') {
-  const { ticketToken } = (await post(app, '/api/register', { guestId })).json();
+  const g = app.db.prepare('SELECT name, dni, email FROM guest WHERE id = ?').get(guestId);
+  const { ticketToken } = (await post(app, '/api/register', { name: g.name, dni: g.dni, email: g.email })).json();
   const t = (await app.inject('/api/ticket/' + ticketToken)).json();
   const { session } = (await post(app, '/api/login', { pin: t.pin, screenId })).json();
   return { session, checkinToken: t.checkinToken, pin: t.pin, guestId };
@@ -26,7 +27,7 @@ async function finish(app, db, attemptId, score) {
   return (await post(app, `/api/attempts/${attemptId}/result`, { score, durationMs: 9000 })).json();
 }
 async function adminApp(opts = {}) {
-  const app = buildApp(opts.file ?? ':memory:', { adminPassword: 'secret' });
+  const app = buildApp(opts.file ?? ':memory:', undefined, { adminPassword: 'secret' });
   const res = await post(app, '/api/admin/login', { password: 'secret' });
   const cookie = res.headers['set-cookie'].split(';')[0];
   return { app, db: app.db, h: { cookie } };
@@ -149,7 +150,7 @@ test('live: heartbeat, games, paused, attemptsLeft, raffle', async () => {
 
 // ---- Task 4
 test('admin auth', async () => {
-  const app = buildApp(':memory:', { adminPassword: 'secret' });
+  const app = buildApp(':memory:', undefined, { adminPassword: 'secret' });
   assert.equal((await app.inject('/api/admin/me')).statusCode, 401);
   const bad = await post(app, '/api/admin/login', { password: 'nope' });
   assert.equal(bad.statusCode, 401);
@@ -167,15 +168,15 @@ test('admin auth', async () => {
 });
 
 test('admin login rate limit and disabled', async () => {
-  const app = buildApp(':memory:', { adminPassword: 'secret' });
+  const app = buildApp(':memory:', undefined, { adminPassword: 'secret' });
   for (let i = 0; i < 10; i++) assert.equal((await post(app, '/api/admin/login', { password: 'x' })).statusCode, 401);
   assert.equal((await post(app, '/api/admin/login', { password: 'x' })).statusCode, 429);
   assert.equal((await post(app, '/api/admin/login', { password: 'secret' })).statusCode, 429);
   await app.close();
-  const ok = buildApp(':memory:', { adminPassword: 'secret' });
+  const ok = buildApp(':memory:', undefined, { adminPassword: 'secret' });
   for (let i = 0; i < 15; i++) assert.equal((await post(ok, '/api/admin/login', { password: 'secret' })).statusCode, 204);
   await ok.close();
-  const off = buildApp(':memory:', { adminPassword: '' });
+  const off = buildApp(':memory:', undefined, { adminPassword: '' });
   const r = await post(off, '/api/admin/login', { password: 'x' });
   assert.equal(r.statusCode, 503);
   assert.equal(r.json().error, 'admin_disabled');
@@ -217,7 +218,7 @@ test('admin guests import, list, detail, checkin', async () => {
   const { app, h } = await adminApp();
   const csv = (body) => post(app, '/api/admin/guests/import', body, { ...h, 'content-type': 'text/csv' });
   const before = app.db.prepare('SELECT COUNT(*) AS n FROM guest').get().n;
-  const r = await csv('﻿name\r\nNuevo Uno\r\n"Nuevo, Dos"\r\n\r\nAna Lucía Fernández (demo)\r\nNuevo Uno\r\n');
+  const r = await csv('﻿# comment\r\nname,dni,email\r\nNuevo Uno,30.111.222,Uno@X.com\r\n"Nuevo, Dos",30111333,dos@x.com\r\n\r\nAna Lucía Fernández (demo)\r\nNuevo Uno\r\n');
   assert.equal(r.statusCode, 200);
   assert.deepEqual(r.json(), { added: 2, total: before + 2 });
   assert.equal((await post(app, '/api/admin/guests/import', 'x', { 'content-type': 'text/csv' })).statusCode, 401);
@@ -231,7 +232,8 @@ test('admin guests import, list, detail, checkin', async () => {
   const nr = await post(app, `/api/admin/guests/${id}/checkin`, undefined, h);
   assert.equal(nr.statusCode, 409);
   assert.equal(nr.json().error, 'not_registered');
-  await post(app, '/api/register', { guestId: id });
+  assert.equal(app.db.prepare('SELECT email FROM guest WHERE id = ?').get(id).email, 'uno@x.com'); // re-import without email kept it
+  assert.equal((await post(app, '/api/register', { name: 'nuevo uno', dni: '30111222', email: 'uno@x.com' })).json().status, 'registered');
   const c = await post(app, `/api/admin/guests/${id}/checkin`, undefined, h);
   assert.equal(c.statusCode, 200);
   assert.ok(c.json().checkedInAt > 0);
@@ -338,7 +340,7 @@ test('csv export neutralizes formulas', async () => {
 });
 
 test('malformed cookie is a 401, not a 500', async () => {
-  const app = buildApp(':memory:', { adminPassword: 'secret' });
+  const app = buildApp(':memory:', undefined, { adminPassword: 'secret' });
   assert.equal((await app.inject({ url: '/api/admin/me', headers: { cookie: 'fa=%E0%A4%A' } })).statusCode, 401);
   await app.close();
 });

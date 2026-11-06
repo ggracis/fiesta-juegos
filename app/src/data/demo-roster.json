@@ -2,6 +2,8 @@
  {
   "id": 1,
   "name": "Ana Lucía Fernández (demo)",
+  "dni": "20000000",
+  "email": "ana.lucia.fernandez@example.com",
   "pin": "579022",
   "ticketToken": "-YfhMujwE85ZTg",
   "checkinToken": "l_ZDQM37IHXOzg"
@@ -9,6 +11,8 @@
  {
   "id": 2,
   "name": "Anabel Rodríguez (demo)",
+  "dni": "21048580",
+  "email": "anabel.rodriguez@example.com",
   "pin": "755396",
   "ticketToken": "lDmJgKGgp0GcPA",
   "checkinToken": "mGGMACY319aeug"
@@ -16,6 +20,8 @@
  {
   "id": 3,
   "name": "Andrés Molina (demo)",
+  "dni": "22097160",
+  "email": "andres.molina@example.com",
   "pin": "022185",
   "ticketToken": "w5Ubv93oogQMtw",
   "checkinToken": "x7EEqU4zkOY1sQ"
@@ -23,6 +29,8 @@
  {
   "id": 4,
   "name": "Beatriz Salcedo (demo)",
+  "dni": "23145740",
+  "email": "beatriz.salcedo@example.com",
   "pin": "564486",
   "ticketToken": "caINHJsSM3zOSQ",
   "checkinToken": "-bykAHw_lqy70A"
@@ -30,6 +38,8 @@
  {
   "id": 5,
   "name": "Bruno Carvajal (demo)",
+  "dni": "24194320",
+  "email": "bruno.carvajal@example.com",
   "pin": "207235",
   "ticketToken": "iYGOptIhThIydQ",
   "checkinToken": "TnePN2qQNfvt1A"
@@ -37,6 +47,8 @@
  {
   "id": 6,
   "name": "Camila Ortega (demo)",
+  "dni": "5288565",
+  "email": "camila.ortega@example.com",
   "pin": "485904",
   "ticketToken": "ZKveeS0xNl8tXg",
   "checkinToken": "lpMCxIW8lv_jHQ"
@@ -44,6 +56,8 @@
  {
   "id": 7,
   "name": "Carlos Ibáñez (demo)",
+  "dni": "26291480",
+  "email": "carlos.ibanez@example.com",
   "pin": "571337",
   "ticketToken": "4R0wNvFhrRIYxg",
   "checkinToken": "xjDd36Z4WWCcJg"
@@ -51,6 +65,8 @@
  {
   "id": 8,
   "name": "Carmen Villalba (demo)",
+  "dni": "27340060",
+  "email": "carmen.villalba@example.com",
   "pin": "678437",
   "ticketToken": "6Jv3r5h0XJjhDA",
   "checkinToken": "oG2Me9N6c7XGyQ"
@@ -58,6 +74,8 @@
  {
   "id": 9,
   "name": "Daniel Peñalver (demo)",
+  "dni": "28388640",
+  "email": "daniel.penalver@example.com",
   "pin": "679182",
   "ticketToken": "d1rLnO6eRf2_Wg",
   "checkinToken": "69O6Qb9op3umkg"
@@ -65,6 +83,8 @@
  {
   "id": 10,
   "name": "Diana Montoya (demo)",
+  "dni": "29437220",
+  "email": "diana.montoya@example.com",
   "pin": "349706",
   "ticketToken": "y4Tc3L9lC7V6bg",
   "checkinToken": "78Oe98aCwF_a4A"
@@ -72,6 +92,8 @@
  {
   "id": 11,
   "name": "Elena Barrios (demo)",
+  "dni": "30485800",
+  "email": "elena.barrios@example.com",
   "pin": "071046",
   "ticketToken": "oRJd2P0aGZBAEg",
   "checkinToken": "_KSFp3dLHTl81Q"
@@ -79,6 +101,8 @@
  {
   "id": 12,
   "name": "Emilio Cordero (demo)",
+  "dni": "5514843",
+  "email": "emilio.cordero@example.com",
   "pin": "862085",
   "ticketToken": "cfkkl03oF3rUyQ",
   "checkinToken": "XTKjv7LsMJ5UBA"
@@ -86,6 +110,8 @@
  {
   "id": 13,
   "name": "Fabiola Reyes (demo)",
+  "dni": "32582960",
+  "email": "fabiola.reyes@example.com",
   "pin": "796746",
   "ticketToken": "RUJLcG_CzrMl0w",
   "checkinToken": "Ro8m8j1NNzQqgw"
@@ -93,6 +119,8 @@
  {
   "id": 14,
   "name": "Felipe Aguirre (demo)",
+  "dni": "33631540",
+  "email": "felipe.aguirre@example.com",
   "pin": "643481",
   "ticketToken": "-vraweKic6-JPw",
   "checkinToken": "uYEmds8037Ik4g"
@@ -100,6 +128,8 @@
  {
   "id": 15,
   "name": "Gabriela Soto (demo)",
+  "dni": "34680120",
+  "email": "gabriela.soto@example.com",
   "pin": "400779",
   "ticketToken": "wdkGkffhImqUdQ",
   "checkinToken": "YgB4b305m5WQ_A"
@@ -107,6 +137,8 @@
  {
   "id": 16,
   "name": "Gonzalo Pardo (demo)",
+  "dni": "35728700",
+  "email": "gonzalo.pardo@example.com",
   "pin": "476273",
   "ticketToken": "WtLYhJQvQ6wL6Q",
   "checkinToken": "8Uq48rICLOuPYw"
@@ -114,6 +146,8 @@
  {
   "id": 17,
   "name": "Helena Quiroga (demo)",
+  "dni": "36777280",
+  "email": "helena.quiroga@example.com",
   "pin": "192137",
   "ticketToken": "m_JwN22htInABA",
   "checkinToken": "ujQOizGZww4XyA"
@@ -121,6 +155,8 @@
  {
   "id": 18,
   "name": "Héctor Maldonado (demo)",
+  "dni": "5741121",
+  "email": "hector.maldonado@example.com",
   "pin": "310308",
   "ticketToken": "4qQCyv2rhNuOOw",
   "checkinToken": "tz7SETF0MmJ70A"
@@ -128,6 +164,8 @@
  {
   "id": 19,
   "name": "Inés Valdivia (demo)",
+  "dni": "38874440",
+  "email": "ines.valdivia@example.com",
   "pin": "728305",
   "ticketToken": "rLSESdfTeR6Xhw",
   "checkinToken": "qs6OjfaBL5Em3w"
@@ -135,6 +173,8 @@
  {
   "id": 20,
   "name": "Iván Escobar (demo)",
+  "dni": "39923020",
+  "email": "ivan.escobar@example.com",
   "pin": "074795",
   "ticketToken": "oEfB3VpeqVSBlw",
   "checkinToken": "jsdYH2jViog8Mg"
@@ -142,6 +182,8 @@
  {
   "id": 21,
   "name": "Jimena Torrealba (demo)",
+  "dni": "40971600",
+  "email": "jimena.torrealba@example.com",
   "pin": "846207",
   "ticketToken": "y5H-kwyqLQZwMg",
   "checkinToken": "bT3jYGLp4UWEUw"
@@ -149,6 +191,8 @@
  {
   "id": 22,
   "name": "Joaquín Lozano (demo)",
+  "dni": "42020180",
+  "email": "joaquin.lozano@example.com",
   "pin": "911239",
   "ticketToken": "k0QL7OLp_q7aKA",
   "checkinToken": "NTbC5eo02d-U8Q"
@@ -156,6 +200,8 @@
  {
   "id": 23,
   "name": "Julia Arancibia (demo)",
+  "dni": "43068760",
+  "email": "julia.arancibia@example.com",
   "pin": "177495",
   "ticketToken": "ChCoGoJ_O9Z90A",
   "checkinToken": "_DyyV8sao_MeSg"
@@ -163,6 +209,8 @@
  {
   "id": 24,
   "name": "Kevin Zamora (demo)",
+  "dni": "5967399",
+  "email": "kevin.zamora@example.com",
   "pin": "379796",
   "ticketToken": "mCF4f76EkCaN2w",
   "checkinToken": "zkbD3meB94HOWg"
@@ -170,6 +218,8 @@
  {
   "id": 25,
   "name": "Laura Benítez (demo)",
+  "dni": "45165920",
+  "email": "laura.benitez@example.com",
   "pin": "654796",
   "ticketToken": "_eqiZWb_OWwWvw",
   "checkinToken": "i1Bs8vG-qdUhbA"
@@ -177,6 +227,8 @@
  {
   "id": 26,
   "name": "Leandro Cifuentes (demo)",
+  "dni": "46214500",
+  "email": "leandro.cifuentes@example.com",
   "pin": "950062",
   "ticketToken": "iYFfCZTjg5RAwQ",
   "checkinToken": "dwdbvI6tqK0c5A"
@@ -184,6 +236,8 @@
  {
   "id": 27,
   "name": "Lucía Mendizábal (demo)",
+  "dni": "47263080",
+  "email": "lucia.mendizabal@example.com",
   "pin": "492509",
   "ticketToken": "wnY_BnSABO36rA",
   "checkinToken": "VsAEw_Lcy1LVWw"
@@ -191,6 +245,8 @@
  {
   "id": 28,
   "name": "Marcos Ferrer (demo)",
+  "dni": "48311660",
+  "email": "marcos.ferrer@example.com",
   "pin": "661013",
   "ticketToken": "TlG6KS8B5Es2vQ",
   "checkinToken": "JgUPjhobSjVFFA"
@@ -198,6 +254,8 @@
  {
   "id": 29,
   "name": "María José Pinto (demo)",
+  "dni": "49360240",
+  "email": "maria.jose.pinto@example.com",
   "pin": "455726",
   "ticketToken": "KHPbnH3hSvJHQA",
   "checkinToken": "AUftLSFmFpi4nA"
@@ -205,6 +263,8 @@
  {
   "id": 30,
   "name": "Mateo Cabrera (demo)",
+  "dni": "6193677",
+  "email": "mateo.cabrera@example.com",
   "pin": "885258",
   "ticketToken": "hEAwmisnXRK7Hw",
   "checkinToken": "RvAWBi-P7jJ6Ng"
@@ -212,6 +272,8 @@
  {
   "id": 31,
   "name": "Natalia Rivas (demo)",
+  "dni": "51457400",
+  "email": "natalia.rivas@example.com",
   "pin": "546758",
   "ticketToken": "4ZFFCayD1r84vQ",
   "checkinToken": "q3mGQ1pWQ0OJlw"
@@ -219,6 +281,8 @@
  {
   "id": 32,
   "name": "Nicolás Echeverría (demo)",
+  "dni": "52505980",
+  "email": "nicolas.echeverria@example.com",
   "pin": "621996",
   "ticketToken": "lufn-OBvyoCtLg",
   "checkinToken": "LEZllCNQ3PeZVQ"
@@ -226,6 +290,8 @@
  {
   "id": 33,
   "name": "Olivia Santamaría (demo)",
+  "dni": "53554560",
+  "email": "olivia.santamaria@example.com",
   "pin": "464552",
   "ticketToken": "fRl3JIwOG2ZyDg",
   "checkinToken": "0NNApV69536lDA"
@@ -233,6 +299,8 @@
  {
   "id": 34,
   "name": "Pablo Narváez (demo)",
+  "dni": "54603140",
+  "email": "pablo.narvaez@example.com",
   "pin": "312959",
   "ticketToken": "gpIlDcFsSWpTfQ",
   "checkinToken": "tvSfmZ8CWkQY-g"
@@ -240,6 +308,8 @@
  {
   "id": 35,
   "name": "Paula Gallardo (demo)",
+  "dni": "55651720",
+  "email": "paula.gallardo@example.com",
   "pin": "297017",
   "ticketToken": "PVSKrZ_fkT3T4Q",
   "checkinToken": "d0qMVGDclXrM_g"
@@ -247,6 +317,8 @@
  {
   "id": 36,
   "name": "Rafael Quintero (demo)",
+  "dni": "6419955",
+  "email": "rafael.quintero@example.com",
   "pin": "410478",
   "ticketToken": "Lkv1hEDwmvoJ1g",
   "checkinToken": "VXJP63p3aC21LQ"
@@ -254,6 +326,8 @@
  {
   "id": 37,
   "name": "Sofía Aranda (demo)",
+  "dni": "57748880",
+  "email": "sofia.aranda@example.com",
   "pin": "715634",
   "ticketToken": "jL0FFgMto5Uu6A",
   "checkinToken": "oxN_ASYKycAVDw"
@@ -261,6 +335,8 @@
  {
   "id": 38,
   "name": "Tomás Villegas (demo)",
+  "dni": "58797460",
+  "email": "tomas.villegas@example.com",
   "pin": "231573",
   "ticketToken": "24cmqlXoAoyt-g",
   "checkinToken": "BLWXxBep35WPKA"
@@ -268,6 +344,8 @@
  {
   "id": 39,
   "name": "Valentina Bravo (demo)",
+  "dni": "59846040",
+  "email": "valentina.bravo@example.com",
   "pin": "133310",
   "ticketToken": "Tza74XcUuzAGzw",
   "checkinToken": "IUT13IgE-119lQ"
@@ -275,6 +353,8 @@
  {
   "id": 40,
   "name": "Ximena Lara (demo)",
+  "dni": "60894620",
+  "email": "ximena.lara@example.com",
   "pin": "137867",
   "ticketToken": "AwZeH7VioN6obA",
   "checkinToken": "lkqsoJ7cvQHEsA"

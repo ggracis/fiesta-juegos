@@ -1,7 +1,8 @@
 import gsap from 'gsap';
 import { ScrollTrigger } from 'gsap/ScrollTrigger';
-import { search, register, ticketHref } from './api.js';
-import { $, RM, demoBadge, cleanName } from './common.js';
+import { lookup, register, ticketHref } from './api.js';
+import { formatDni, validDni, validEmail } from '../shared/identity.js';
+import { $, RM, demoBadge } from './common.js';
 
 gsap.registerPlugin(ScrollTrigger);
 ScrollTrigger.config({ ignoreMobileResize: true });
@@ -12,6 +13,7 @@ const $$ = (s, r = document) => [...r.querySelectorAll(s)];
 const hero = $('.hero'), curtain = $('#curtain');
 const seen = document.documentElement.classList.contains('seen');
 try { sessionStorage.setItem('gala.intro', '1'); } catch {}
+try { localStorage.setItem('gala.theme', document.documentElement.classList.contains('noche') ? 'noche' : ''); } catch {} // ticket follows the invitation's theme
 const maskOk = CSS.supports('mask-image', 'radial-gradient(#000,#000)') || CSS.supports('-webkit-mask-image', 'radial-gradient(#000,#000)');
 
 // ---------- split text into letters ----------
@@ -44,7 +46,8 @@ function intro() {
     .from('.art img', { opacity: 0, scale: 1.08, transformOrigin: '50% 0', duration: 1.6, ease: 'power2.out', ...CP }, t)
     .from('.px-sun', { opacity: 0, duration: 1.4, ...CP }, t + 0.2)
     .from('.px-petals', { opacity: 0, duration: 1.6, ...CP }, t + 0.6)
-    .from($$('.title .ch'), { y: 40, opacity: 0, duration: 1, stagger: 0.07, ...CP }, t + 0.35)
+    .from($$('.eyebrow'), { y: 12, opacity: 0, duration: 0.8, ...CP }, t + 0.2)
+    .from($$('.title .ch'),{ y: 40, opacity: 0, duration: 1, stagger: 0.07, ...CP }, t + 0.35)
     .from('.tag', { y: 18, opacity: 0, duration: 0.9, ...CP }, t + 1.0)
     .from('.knot .kl', { scaleX: 0, transformOrigin: '100% 50%', duration: 0.8, ease: 'power2.out', ...CP }, t + 1.15)
     .from('.knot .kr', { scaleX: 0, transformOrigin: '0% 50%', duration: 0.8, ease: 'power2.out', ...CP }, t + 1.15)
@@ -112,66 +115,58 @@ try {
   if (t) { $('#mine').href = t; $('#mine').hidden = false; }
 } catch {}
 
-// ---------- search ----------
-const list = $('#results'), hint = $('#hint'), errEl = $('#err');
-let picked = null, timer, seq = 0;
-const showErr = (m) => { errEl.textContent = m || ''; errEl.hidden = !m; };
+// ---------- registration: name -> DNI + email -> ticket (or pending verification) ----------
+const fName = $('#step-name'), fId = $('#step-id'), pend = $('#step-pending');
+const q = $('#q'), dni = $('#dni'), email = $('#email'), errEl = $('#err');
+const fields = [q, dni, email];
+const showErr = (m, el) => {
+  errEl.textContent = m || ''; errEl.hidden = !m;
+  fields.forEach((f) => f.removeAttribute('aria-invalid'));
+  if (m && el) { el.setAttribute('aria-invalid', 'true'); el.focus(); }
+};
+const busy = (b, on) => { b.disabled = on; b.classList.toggle('busy', on); };
 
-function rowHtml(g) {
-  const name = cleanName(g.name);
-  return `<button type="button" class="row-btn"><span class="av">${name[0].toUpperCase()}</span><span>${name}</span>${g.registered ? '<small>Ya inscrito</small>' : ''}</button>`;
+// One step visible at a time; focus moves to the new step's first control so keyboard/screen reader users follow along.
+function show(step, focusEl) {
+  showErr('');
+  [fName, fId, pend].forEach((s) => { s.hidden = s !== step; });
+  if (!RM) step.animate([{ opacity: 0, transform: 'translateY(10px)' }, { opacity: 1, transform: 'none' }], { duration: 350, easing: 'ease-out' });
+  focusEl.focus({ preventScroll: true });
 }
+const netErr = (e) => (e.code === 'rate_limited' ? 'Demasiados intentos. Espera unos segundos e inténtalo de nuevo.' : 'No se pudo completar la acción. Revisa tu conexión e inténtalo de nuevo.');
 
-async function doSearch(q) {
-  q = q.trim();
-  const mine = ++seq;
-  list.replaceChildren();
-  if (q.length < 3) { hint.textContent = 'Escribe al menos 3 letras.'; return; }
+fName.addEventListener('submit', async (e) => {
+  e.preventDefault();
+  if (q.value.trim().split(/\s+/).filter(Boolean).length < 2) return showErr('Escribe tu nombre y apellido completos, como figuran en tu DNI.', q);
+  const b = $('button[type=submit]', fName);
+  busy(b, true); showErr('');
   try {
-    const rows = await search(q);
-    if (mine !== seq) return;
-    hint.textContent = rows.length ? 'Toca tu nombre' : 'No te encontramos. Prueba con tu apellido.';
-    for (const g of rows) {
-      const li = document.createElement('li');
-      li.innerHTML = rowHtml(g);
-      if (!RM) li.classList.add('fade');
-      li.firstChild.addEventListener('click', () => pick(g, li));
-      list.append(li);
-    }
-  } catch (e) {
-    if (mine !== seq) return;
-    hint.textContent = '';
-    showErr(e.code === 'rate_limited' ? 'Demasiadas búsquedas. Espera unos segundos.' : 'No se pudo buscar. Revisa tu conexión e inténtalo de nuevo.');
-  }
-}
-$('#q').addEventListener('input', (e) => { showErr(''); clearTimeout(timer); timer = setTimeout(() => doSearch(e.target.value), 250); });
+    const { found } = await lookup(q.value);
+    if (found) show(fId, dni);
+    else showErr('No encontramos ese nombre. Escribe tu nombre y apellido tal como figuran en tu DNI e inténtalo de nuevo.', q);
+  } catch (err) { showErr(netErr(err)); }
+  busy(b, false);
+});
 
-function swap(confirming) {
-  $('#step-search').hidden = confirming;
-  $('#step-confirm').hidden = !confirming;
-  if (confirming && !RM) $('#step-confirm').animate([{ opacity: 0, transform: 'translateY(10px)' }, { opacity: 1, transform: 'none' }], { duration: 350, easing: 'ease-out' });
-}
-function pick(g, li) {
-  picked = g; showErr('');
-  $('#slot').replaceChildren(li);
-  $('#who').textContent = `¿Eres ${cleanName(g.name)}?`;
-  swap(true);
-}
-$('#no').addEventListener('click', () => { picked = null; swap(false); doSearch($('#q').value); });
+dni.addEventListener('input', () => { dni.value = formatDni(dni.value); });
+$('#back').addEventListener('click', () => show(fName, q));
+$('#again').addEventListener('click', () => { [q, dni, email].forEach((f) => { f.value = ''; }); show(fName, q); });
 
-$('#yes').addEventListener('click', async () => {
-  if (!picked) return;
-  const b = $('#yes');
-  b.disabled = true; b.classList.add('busy');
+fId.addEventListener('submit', async (e) => {
+  e.preventDefault();
+  if (!validDni(dni.value)) return showErr('Revisa tu DNI: debe tener 7 u 8 números.', dni);
+  if (!validEmail(email.value)) return showErr('Revisa tu correo electrónico: parece incompleto.', email);
+  const b = $('button[type=submit]', fId);
+  busy(b, true); showErr('');
   try {
-    const { ticketToken } = await register(picked.id);
-    const href = ticketHref(ticketToken);
+    const r = await register(q.value, dni.value, email.value);
+    if (r.status === 'pending') { busy(b, false); return show(pend, pend); }
+    const href = ticketHref(r.ticketToken);
     try { localStorage.setItem('fiesta.ticket', href); } catch {}
     b.classList.replace('busy', 'done');
     setTimeout(() => { location.href = href; }, RM ? 0 : 650);
-  } catch (e) {
-    b.classList.remove('busy'); b.disabled = false;
-    if (e.code === 'already_registered') { showErr(e.message); picked = null; swap(false); doSearch($('#q').value); }
-    else showErr('No se pudo completar la inscripción. Inténtalo de nuevo.');
+  } catch (err) {
+    busy(b, false);
+    showErr(err.code === 'invalid_input' ? 'Revisa tu DNI y tu correo electrónico.' : netErr(err));
   }
 });

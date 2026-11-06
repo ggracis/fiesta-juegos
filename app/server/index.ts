@@ -6,7 +6,8 @@ import { existsSync } from 'node:fs';
 import { openDb } from './db.ts';
 import { makeState } from './state.ts';
 import { registerAdmin } from './admin.ts';
-import { generatePin, newToken, normalize } from './lib.ts';
+import { generatePin, newToken } from './lib.ts';
+import { matchesName, verify, validDni, validEmail, dniDigits, normEmail } from '../src/shared/identity.js';
 import { clampScore, MIN_TOTAL_MS } from '../src/shared/scoring.js';
 
 const ROOT = join(import.meta.dirname, '..');
@@ -17,8 +18,8 @@ const CSV_PATH = join(ROOT, 'data', 'guests.csv');
 const MAX_FAILS = 5;
 const LOCK_MS = 30_000;
 
-export function buildApp(dbPath = DB_PATH, opts: { adminPassword?: string } = {}) {
-  const db = openDb(dbPath, CSV_PATH);
+export function buildApp(dbPath = DB_PATH, csvPath = CSV_PATH, opts: { adminPassword?: string } = {}) {
+  const db = openDb(dbPath, csvPath);
   // removeAdditional off: unknown body keys must be rejected (400), not silently stripped
   const app = Fastify({ trustProxy: true, ajv: { customOptions: { removeAdditional: false } } });
   app.decorate('db', db);
@@ -30,7 +31,15 @@ export function buildApp(dbPath = DB_PATH, opts: { adminPassword?: string } = {}
     return row ? Number(row.ref) : undefined;
   };
   const fails = new Map<string, { n: number; until: number }>(); // screen id -> state (all venue panels share one public IP)
-  const searchHits = new Map<string, number[]>(); // ip -> timestamps
+  const hits = new Map<string, number[]>(); // route+ip -> timestamps
+  const limited = (route: string, ip: string, max: number) => { // more than `max` requests in 10 s from one IP
+    const now = Date.now(), k = route + ip;
+    const h = (hits.get(k) ?? []).filter((t) => now - t < 10_000);
+    h.push(now);
+    hits.set(k, h);
+    return h.length > max;
+  };
+  const roster = () => db.prepare('SELECT id, name, dni, email FROM guest').all() as { id: number; name: string; dni: string; email: string }[];
 
   if (existsSync(DIST)) {
     app.register(fastifyStatic, { root: DIST });
@@ -41,38 +50,37 @@ export function buildApp(dbPath = DB_PATH, opts: { adminPassword?: string } = {}
     app.get('/c/:token', (req, reply) => reply.redirect('/checkin.html?c=' + encodeURIComponent((req.params as any).token)));
   }
 
-  app.get('/api/guests/search', {
-    schema: { querystring: { type: 'object', required: ['q'], properties: { q: { type: 'string', minLength: 3, maxLength: 60 } } } },
+  // Found / not found only: never echo roster data.
+  app.post('/api/lookup', {
+    schema: { body: { type: 'object', required: ['name'], additionalProperties: false, properties: { name: { type: 'string', minLength: 3, maxLength: 100 } } } },
   }, async (req, reply) => {
-    const now = Date.now();
-    const hits = (searchHits.get(req.ip) ?? []).filter((t) => now - t < 10_000);
-    hits.push(now);
-    searchHits.set(req.ip, hits);
-    if (hits.length > 30) return reply.code(429).send({ error: 'rate_limited' });
-
-    const q = normalize((req.query as any).q);
-    if (q.length < 3) return reply.code(400).send({ error: 'query_too_short' });
-    const rows = db.prepare(
-      'SELECT g.id, g.name, r.guest_id IS NOT NULL AS registered FROM guest g LEFT JOIN registration r ON r.guest_id = g.id ORDER BY g.name'
-    ).all() as { id: number; name: string; registered: number }[];
-    return rows.filter((r) => normalize(r.name).includes(q)).slice(0, 5)
-      .map((r) => ({ id: r.id, name: r.name, registered: !!r.registered }));
+    if (limited('lookup', req.ip, 30)) return reply.code(429).send({ error: 'rate_limited' });
+    return { found: roster().some((g) => matchesName(g.name, (req.body as any).name)) };
   });
 
   app.post('/api/register', {
-    schema: { body: { type: 'object', required: ['guestId'], additionalProperties: false, properties: { guestId: { type: 'integer' } } } },
+    schema: { body: { type: 'object', required: ['name', 'dni', 'email'], additionalProperties: false, properties: {
+      name: { type: 'string', minLength: 3, maxLength: 100 }, dni: { type: 'string', maxLength: 20 }, email: { type: 'string', maxLength: 120 } } } },
   }, async (req, reply) => {
-    const { guestId } = req.body as { guestId: number };
-    if (!db.prepare('SELECT 1 FROM guest WHERE id = ?').get(guestId)) return reply.code(404).send({ error: 'unknown_guest' });
-    if (db.prepare('SELECT 1 FROM registration WHERE guest_id = ?').get(guestId)) {
-      return reply.code(409).send({ error: 'already_registered', message: 'Este nombre ya está inscrito. Si eres tú, avisa a la organización.' });
+    if (limited('register', req.ip, 10)) return reply.code(429).send({ error: 'rate_limited' });
+    const { name, dni, email } = req.body as { name: string; dni: string; email: string };
+    const mode = state.getSetting('registrationValidation') as 'name_only' | 'name_dni_email';
+    if (mode !== 'name_only' && (!validDni(dni) || !validEmail(email))) return reply.code(400).send({ error: 'invalid_input' });
+    const r = verify(roster().filter((g) => matchesName(g.name, name)), { dni, email }, mode);
+    if (!r.guest) {
+      db.prepare('INSERT INTO verification_request(name, dni, email, candidates, created_at) VALUES (?,?,?,?,?)')
+        .run(name.trim(), dniDigits(dni), normEmail(email), JSON.stringify(r.pending), Date.now());
+      return { status: 'pending' };
     }
+    // Already registered with matching data: hand back the existing ticket (lost-ticket recovery).
+    const done = db.prepare('SELECT ticket_token FROM registration WHERE guest_id = ?').get(r.guest.id) as { ticket_token: string } | undefined;
+    if (done) return { status: 'registered', ticketToken: done.ticket_token };
     const taken = db.prepare('SELECT 1 FROM registration WHERE pin = ?');
     const pin = generatePin((p) => !!taken.get(p));
     const ticket = newToken();
     db.prepare('INSERT INTO registration(guest_id, pin, ticket_token, checkin_token, created_at) VALUES (?,?,?,?,?)')
-      .run(guestId, pin, ticket, newToken(), Date.now());
-    return { ticketToken: ticket };
+      .run(r.guest.id, pin, ticket, newToken(), Date.now());
+    return { status: 'registered', ticketToken: ticket };
   });
 
   app.get('/api/ticket/:token', async (req, reply) => {

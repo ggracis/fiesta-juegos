@@ -1,16 +1,32 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
-import { searchRoster, checkPin, MAX_FAILS, LOCK_MS } from '../src/js/demo-core.js';
+import { lookupRoster, registerRoster, checkPin, MAX_FAILS, LOCK_MS } from '../src/js/demo-core.js';
 
 const roster = JSON.parse(readFileSync(new URL('../src/data/demo-roster.json', import.meta.url), 'utf8'));
 
-test('static search: >= 3 chars, accent-insensitive, max 5, flags registered', () => {
-  assert.deepEqual(searchRoster(roster, new Set(), 'an'), []);
-  assert.equal(searchRoster(roster, new Set(), 'demo').length, 5);
-  const hit = searchRoster(roster, new Set([1]), 'lucia');
-  assert.ok(hit.length >= 1);
-  assert.equal(hit.find((g) => g.id === 1).registered, true);
+test('static lookup: found / not found only', () => {
+  assert.deepEqual(lookupRoster(roster, 'ANA lucia'), { found: true });
+  assert.deepEqual(lookupRoster(roster, 'lucia'), { found: false }); // one token
+  assert.deepEqual(lookupRoster(roster, 'nadie aqui'), { found: false });
+});
+
+test('static register: match -> ticket (repeatable); mismatch -> pending request', () => {
+  const g = roster[0], ok = { name: 'ana fernandez', dni: g.dni, email: g.email.toUpperCase() };
+  const r = registerRoster(roster, ok);
+  assert.deepEqual([r.status, r.ticketToken], ['registered', g.ticketToken]);
+  assert.equal(registerRoster(roster, ok).ticketToken, g.ticketToken);
+  const bad = registerRoster(roster, { ...ok, dni: '1.234.567' });
+  assert.equal(bad.status, 'pending');
+  assert.equal(bad.ticketToken, undefined);
+  assert.deepEqual([bad.request.dni, bad.request.candidates], ['1234567', [g.id]]);
+  assert.equal(registerRoster(roster, { name: 'nadie aqui', dni: g.dni, email: g.email }).request.candidates.length, 0);
+  assert.equal(registerRoster(roster, { name: 'ana fernandez', dni: '1', email: 'x' }, 'name_only').status, 'registered');
+});
+
+test('demo roster has unique fictitious DNIs and example.com emails', () => {
+  assert.equal(new Set(roster.map((g) => g.dni)).size, roster.length);
+  assert.ok(roster.every((g) => /^\d{7,8}$/.test(g.dni) && g.email.endsWith('@example.com')));
 });
 
 test('static roster: unique PINs and tokens', () => {

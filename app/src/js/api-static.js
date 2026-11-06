@@ -1,24 +1,22 @@
 // Demo backend for GitHub Pages: roster from a generated JSON, state in this browser's localStorage only.
 import roster from '../data/demo-roster.json';
 import { GAMES } from '../shared/games.js';
-import { searchRoster, checkPin } from './demo-core.js';
+import { lookupRoster, registerRoster, checkPin } from './demo-core.js';
 
 const mem = {};
 const read = (k, d) => { try { return JSON.parse(localStorage.getItem(k)) ?? d; } catch { return mem[k] ?? d; } };
 const write = (k, v) => { try { localStorage.setItem(k, JSON.stringify(v)); } catch { mem[k] = v; } };
 const fail = (code, extra) => Object.assign(new Error(code), { code, ...extra });
 
-export async function search(q) {
-  return searchRoster(roster, new Set(read('fiesta.demo.registered', [])), q);
+export async function lookup(name) {
+  return lookupRoster(roster, name);
 }
 
-export async function register(guestId) {
-  const g = roster.find((x) => x.id === guestId);
-  if (!g) throw fail('unknown_guest');
-  const done = read('fiesta.demo.registered', []);
-  if (done.includes(guestId)) throw fail('already_registered', { message: 'Este nombre ya está inscrito. Si eres tú, avisa a la organización.' });
-  write('fiesta.demo.registered', [...done, guestId]);
-  return { ticketToken: g.ticketToken };
+// Pending verification requests only live in this browser's localStorage.
+export async function register(name, dni, email) {
+  const r = registerRoster(roster, { name, dni, email });
+  if (r.request) write('fiesta.demo.pending', [...read('fiesta.demo.pending', []), r.request]);
+  return { status: r.status, ticketToken: r.ticketToken };
 }
 
 export async function ticket(token) {

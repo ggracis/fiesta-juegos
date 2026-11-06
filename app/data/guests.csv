@@ -1,41 +1,42 @@
-name
-Ana Lucía Fernández (demo)
-Anabel Rodríguez (demo)
-Andrés Molina (demo)
-Beatriz Salcedo (demo)
-Bruno Carvajal (demo)
-Camila Ortega (demo)
-Carlos Ibáñez (demo)
-Carmen Villalba (demo)
-Daniel Peñalver (demo)
-Diana Montoya (demo)
-Elena Barrios (demo)
-Emilio Cordero (demo)
-Fabiola Reyes (demo)
-Felipe Aguirre (demo)
-Gabriela Soto (demo)
-Gonzalo Pardo (demo)
-Helena Quiroga (demo)
-Héctor Maldonado (demo)
-Inés Valdivia (demo)
-Iván Escobar (demo)
-Jimena Torrealba (demo)
-Joaquín Lozano (demo)
-Julia Arancibia (demo)
-Kevin Zamora (demo)
-Laura Benítez (demo)
-Leandro Cifuentes (demo)
-Lucía Mendizábal (demo)
-Marcos Ferrer (demo)
-María José Pinto (demo)
-Mateo Cabrera (demo)
-Natalia Rivas (demo)
-Nicolás Echeverría (demo)
-Olivia Santamaría (demo)
-Pablo Narváez (demo)
-Paula Gallardo (demo)
-Rafael Quintero (demo)
-Sofía Aranda (demo)
-Tomás Villegas (demo)
-Valentina Bravo (demo)
-Ximena Lara (demo)
+# DEMO DATA: fictitious names, DNIs and emails (example.com). Replace before a real event.
+name,dni,email
+Ana Lucía Fernández (demo),20000000,ana.lucia.fernandez@example.com
+Anabel Rodríguez (demo),21048580,anabel.rodriguez@example.com
+Andrés Molina (demo),22097160,andres.molina@example.com
+Beatriz Salcedo (demo),23145740,beatriz.salcedo@example.com
+Bruno Carvajal (demo),24194320,bruno.carvajal@example.com
+Camila Ortega (demo),5288565,camila.ortega@example.com
+Carlos Ibáñez (demo),26291480,carlos.ibanez@example.com
+Carmen Villalba (demo),27340060,carmen.villalba@example.com
+Daniel Peñalver (demo),28388640,daniel.penalver@example.com
+Diana Montoya (demo),29437220,diana.montoya@example.com
+Elena Barrios (demo),30485800,elena.barrios@example.com
+Emilio Cordero (demo),5514843,emilio.cordero@example.com
+Fabiola Reyes (demo),32582960,fabiola.reyes@example.com
+Felipe Aguirre (demo),33631540,felipe.aguirre@example.com
+Gabriela Soto (demo),34680120,gabriela.soto@example.com
+Gonzalo Pardo (demo),35728700,gonzalo.pardo@example.com
+Helena Quiroga (demo),36777280,helena.quiroga@example.com
+Héctor Maldonado (demo),5741121,hector.maldonado@example.com
+Inés Valdivia (demo),38874440,ines.valdivia@example.com
+Iván Escobar (demo),39923020,ivan.escobar@example.com
+Jimena Torrealba (demo),40971600,jimena.torrealba@example.com
+Joaquín Lozano (demo),42020180,joaquin.lozano@example.com
+Julia Arancibia (demo),43068760,julia.arancibia@example.com
+Kevin Zamora (demo),5967399,kevin.zamora@example.com
+Laura Benítez (demo),45165920,laura.benitez@example.com
+Leandro Cifuentes (demo),46214500,leandro.cifuentes@example.com
+Lucía Mendizábal (demo),47263080,lucia.mendizabal@example.com
+Marcos Ferrer (demo),48311660,marcos.ferrer@example.com
+María José Pinto (demo),49360240,maria.jose.pinto@example.com
+Mateo Cabrera (demo),6193677,mateo.cabrera@example.com
+Natalia Rivas (demo),51457400,natalia.rivas@example.com
+Nicolás Echeverría (demo),52505980,nicolas.echeverria@example.com
+Olivia Santamaría (demo),53554560,olivia.santamaria@example.com
+Pablo Narváez (demo),54603140,pablo.narvaez@example.com
+Paula Gallardo (demo),55651720,paula.gallardo@example.com
+Rafael Quintero (demo),6419955,rafael.quintero@example.com
+Sofía Aranda (demo),57748880,sofia.aranda@example.com
+Tomás Villegas (demo),58797460,tomas.villegas@example.com
+Valentina Bravo (demo),59846040,valentina.bravo@example.com
+Ximena Lara (demo),60894620,ximena.lara@example.com

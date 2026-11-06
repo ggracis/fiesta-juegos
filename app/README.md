@@ -39,7 +39,9 @@ Requires Node 24 (runs TypeScript directly, uses built-in `node:sqlite`). `VITE_
 | `diag.html` | Touch diagnostics |
 | `admin.html` | Admin (server mode only): live control, guests + CSV import, games, prizes/ranking, raffle |
 
-Server mode also redirects `/t/<token>`, `/c/<token>`, `/play`, `/diag`. API: `GET /api/guests/search?q=`, `POST /api/register`, `GET /api/ticket/:token`, `POST /api/login` (`{pin, screenId}`), `POST /api/attempts` (`{session, game}`), `POST /api/attempts/:id/result`, `GET /api/live`, `GET /api/checkin/:token`, and `/api/admin/*` (see `server/admin.ts`).
+Server mode also redirects `/t/<token>`, `/c/<token>`, `/play`, `/diag`. API: `POST /api/lookup` (`{name}` -> `{found}`, no roster data), `POST /api/register` (`{name, dni, email}` -> `{status:'registered', ticketToken}` or `{status:'pending'}`), `GET /api/ticket/:token`, `POST /api/login` (`{pin, screenId}`), `POST /api/attempts` (`{session, game}`), `POST /api/attempts/:id/result`, `GET /api/live`, `GET /api/checkin/:token`, and `/api/admin/*` (see `server/admin.ts`).
+
+Registration validates identity: the guest types their full name (normalized; the full name or any 2+ tokens of it match), then DNI and email, checked against `data/guests.csv` (`name,dni,email`, fictitious demo data). A mismatch is stored in `verification_request` (static mode: `localStorage`) and the UI sends the guest to the accreditation desk; re-submitting matching data returns the existing ticket. The mode is one constant, `VALIDATION_MODE` in `src/shared/identity.js` (`name_dni_email` default, or `name_only`).
 
 ## Admin
 

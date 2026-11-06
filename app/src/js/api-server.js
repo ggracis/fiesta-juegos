@@ -14,8 +14,8 @@ async function call(path, body, method = body === undefined ? 'GET' : 'POST') {
 const e = encodeURIComponent;
 const notFound = (x) => x.catch((err) => { if (err.code === 'not_found') return null; throw err; });
 
-export const search = (q) => call('api/guests/search?q=' + encodeURIComponent(q));
-export const register = (guestId) => call('api/register', { guestId });
+export const lookup = (name) => call('api/lookup', { name });
+export const register = (name, dni, email) => call('api/register', { name, dni, email });
 export const ticket = (token) => notFound(call('api/ticket/' + e(token)));
 export const login = (pin, screenId) => call('api/login', { pin, screenId });
 export const startAttempt = (session, game) => call('api/attempts', { session, game });
