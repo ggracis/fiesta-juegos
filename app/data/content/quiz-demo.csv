@@ -1,0 +1,17 @@
+# Placeholder quiz bank (category=demo). Import in the admin, delete when the real bank arrives.
+question,correct,wrong1,wrong2,wrong3,category
+¿Cuál es el planeta más grande del sistema solar?,Júpiter,Saturno,Neptuno,Tierra,demo
+¿Qué gas absorben las plantas para hacer la fotosíntesis?,Dióxido de carbono,Oxígeno,Nitrógeno,Helio,demo
+¿Cuál es el océano más grande del mundo?,Pacífico,Atlántico,Índico,Ártico,demo
+¿Quién pintó la Mona Lisa?,Leonardo da Vinci,Miguel Ángel,Rafael,Botticelli,demo
+¿Cuántos lados tiene un hexágono?,6,5,7,8,demo
+¿Cuál es el símbolo químico del oro?,Au,Ag,Fe,Cu,demo
+¿En qué unidad se mide la potencia eléctrica?,Vatio,Voltio,Amperio,Ohmio,demo
+¿Cuál es el río más caudaloso del mundo?,Amazonas,Nilo,Misisipi,Yangtsé,demo
+¿Cuántos minutos tiene un día?,1440,1240,1600,1080,demo
+¿Cuál es la capital de Australia?,Canberra,Sídney,Melbourne,Perth,demo
+¿Qué aprovecha un panel solar fotovoltaico para generar electricidad?,La luz del sol,El viento,El calor de la tierra,Las mareas,demo
+¿Qué metal es líquido a temperatura ambiente?,Mercurio,Plomo,Estaño,Aluminio,demo
+¿En qué año llegó el ser humano a la Luna por primera vez?,1969,1965,1972,1959,demo
+¿Cuántos huesos tiene el cuerpo humano adulto?,206,186,226,212,demo
+¿Qué instrumento mide la presión atmosférica?,Barómetro,Termómetro,Higrómetro,Anemómetro,demo

@@ -6,5 +6,6 @@
 //   then onTimeout after a further params.idleWarnSeconds (5); the module ends the game with the score so far.
 // howTo.art (optional): (el, setStep) -> stop() — renders the how-to illustration into `el`; setStep(i) highlights step i.
 import distinto from './distinto.js';
+import quiz from './quiz.js';
 
-export const GAME_MODULES = { distinto };
+export const GAME_MODULES = { distinto, quiz };

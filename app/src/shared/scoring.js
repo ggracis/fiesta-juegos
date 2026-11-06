@@ -13,3 +13,13 @@ export function roundScore({ found, ms, wrong = 0 }) {
 }
 
 export const totalScore = (rounds) => clampScore(rounds.reduce((s, r) => s + roundScore(r), 0));
+
+// Quiz, per question: correct = 6 + round(4 × secondsLeft / limit); wrong or no answer = 0 (10 × 10 = 100 max).
+// ms is clamped to [0, limit]; under QUIZ_MIN_MS a tap is implausible and earns no speed bonus.
+export const QUIZ_MIN_MS = 400;
+export function quizPoints(correct, ms, params) {
+  if (!correct) return 0;
+  const limit = (Number(params?.secondsPerQuestion) || 12) * 1000;
+  const t = Math.max(0, Math.min(limit, Number(ms) || 0));
+  return t < QUIZ_MIN_MS ? 6 : 6 + Math.round((4 * (limit - t)) / limit);
+}

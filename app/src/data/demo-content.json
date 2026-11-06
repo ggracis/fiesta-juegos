@@ -1,1 +1,20 @@
-{ "quiz": [], "pixel": [] }
+{
+  "quiz": [
+    {"question": "¿Cuál es el planeta más grande del sistema solar?", "correct": "Júpiter", "wrong": ["Saturno", "Neptuno", "Tierra"]},
+    {"question": "¿Qué gas absorben las plantas para hacer la fotosíntesis?", "correct": "Dióxido de carbono", "wrong": ["Oxígeno", "Nitrógeno", "Helio"]},
+    {"question": "¿Cuál es el océano más grande del mundo?", "correct": "Pacífico", "wrong": ["Atlántico", "Índico", "Ártico"]},
+    {"question": "¿Quién pintó la Mona Lisa?", "correct": "Leonardo da Vinci", "wrong": ["Miguel Ángel", "Rafael", "Botticelli"]},
+    {"question": "¿Cuántos lados tiene un hexágono?", "correct": "6", "wrong": ["5", "7", "8"]},
+    {"question": "¿Cuál es el símbolo químico del oro?", "correct": "Au", "wrong": ["Ag", "Fe", "Cu"]},
+    {"question": "¿En qué unidad se mide la potencia eléctrica?", "correct": "Vatio", "wrong": ["Voltio", "Amperio", "Ohmio"]},
+    {"question": "¿Cuál es el río más caudaloso del mundo?", "correct": "Amazonas", "wrong": ["Nilo", "Misisipi", "Yangtsé"]},
+    {"question": "¿Cuántos minutos tiene un día?", "correct": "1440", "wrong": ["1240", "1600", "1080"]},
+    {"question": "¿Cuál es la capital de Australia?", "correct": "Canberra", "wrong": ["Sídney", "Melbourne", "Perth"]},
+    {"question": "¿Qué aprovecha un panel solar fotovoltaico para generar electricidad?", "correct": "La luz del sol", "wrong": ["El viento", "El calor de la tierra", "Las mareas"]},
+    {"question": "¿Qué metal es líquido a temperatura ambiente?", "correct": "Mercurio", "wrong": ["Plomo", "Estaño", "Aluminio"]},
+    {"question": "¿En qué año llegó el ser humano a la Luna por primera vez?", "correct": "1969", "wrong": ["1965", "1972", "1959"]},
+    {"question": "¿Cuántos huesos tiene el cuerpo humano adulto?", "correct": "206", "wrong": ["186", "226", "212"]},
+    {"question": "¿Qué instrumento mide la presión atmosférica?", "correct": "Barómetro", "wrong": ["Termómetro", "Higrómetro", "Anemómetro"]}
+  ],
+  "pixel": []
+}

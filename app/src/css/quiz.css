@@ -1,0 +1,45 @@
+/* Quiz Relámpago. Theme tokens only, so it follows both A (cream) and B (html.noche): surfaces are --cream, text --ink.
+   The panel page doesn't define --gold/--serif/--sans yet, hence the fallbacks to its own tokens. */
+.qz {
+  --qz-gold: var(--gold, var(--sun));
+  --qz-line: color-mix(in srgb, var(--ink) 14%, transparent);
+  position: absolute; inset: 0; z-index: 1; display: grid; grid-template-rows: auto auto 1fr auto auto; gap: 28px;
+  padding: 44px 80px 40px; text-align: left; color: var(--ink); background: var(--cream);
+  font-family: var(--sans, var(--font));
+}
+.qz-top { display: flex; justify-content: space-between; align-items: baseline; font-size: 40px; font-weight: 500; letter-spacing: .04em; }
+.qz-top b { font-weight: 700; font-variant-numeric: tabular-nums; }
+.qz-pts b { font-size: 64px; color: var(--red); }
+
+.qz-timer { display: flex; align-items: center; gap: 28px; }
+.qz-track { flex: 1; height: 24px; border-radius: 99px; overflow: hidden; background: var(--qz-line); }
+.qz-track i { display: block; height: 100%; border-radius: 99px; background: var(--qz-gold); transform-origin: left; will-change: transform; }
+.qz-track i.hurry { background: var(--red); }
+.qz-secs { width: 80px; text-align: right; font: 700 52px/1 var(--sans, var(--font)); font-variant-numeric: tabular-nums; }
+
+.qz-q {
+  align-self: center; max-width: 1640px; margin: 0 auto; text-align: center;
+  font: 600 76px/1.15 var(--serif, var(--font-display)); text-wrap: balance;
+}
+
+.qz-opts { display: grid; grid-template-columns: 1fr 1fr; gap: 28px; }
+.qz-opts button {
+  position: relative; display: flex; align-items: center; gap: 32px; min-height: 190px; padding: 0 48px 0 32px; border: 3px solid var(--qz-gold); border-radius: var(--r2, 32px);
+  font: 600 50px/1.15 var(--sans, var(--font)); text-align: left; color: var(--ink); background: color-mix(in srgb, var(--ink) 5%, var(--cream));
+  transition: opacity 200ms var(--ease), transform 90ms var(--ease);
+}
+.qz-opts button em {
+  flex: none; display: grid; place-items: center; width: 92px; height: 92px; border-radius: 50%; border: 2px solid var(--qz-gold);
+  font: italic 600 54px/1 var(--serif, var(--font-display)); color: var(--qz-gold);
+}
+.qz-opts button.pick { box-shadow: 0 0 0 8px var(--qz-gold); }
+.qz-opts button.ok { color: var(--cream); background: var(--ink); box-shadow: 0 0 0 8px var(--qz-gold); }
+.qz-opts button.bad { border-color: var(--red); opacity: .75; }
+.qz-opts button.ok::after, .qz-opts button.bad::after { position: absolute; right: 40px; font: 700 64px/1 var(--sans, var(--font)); }
+.qz-opts button.ok::after { content: '✓'; color: var(--qz-gold); }
+.qz-opts button.bad::after { content: '✕'; color: var(--red); }
+.qz-opts button.off { opacity: .35; }
+
+.qz-msg { min-height: 64px; text-align: center; font: 700 56px/64px var(--sans, var(--font)); }
+.qz-msg.good { color: var(--ink); }
+.qz-msg.bad { color: var(--red); }
