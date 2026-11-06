@@ -1,5 +1,7 @@
 // One API, two backends chosen at build time (VITE_DATA_MODE = server | static).
 // Every call throws Error with .code ('rate_limited', 'invalid_input', 'wrong_pin', 'locked', 'network', ...).
+import { uuid } from './offline.js'; // works on http://<lan-ip> too (no crypto.randomUUID there)
+
 export const isDemo = import.meta.env.VITE_DATA_MODE === 'static';
 
 let impl;
@@ -15,6 +17,8 @@ export const finishAttempt = call('finishAttempt');
 export const rounds = call('rounds');
 export const answer = call('answer');
 export const live = call('live');
+export const panelRoster = call('panelRoster');
+export const panelSync = call('panelSync');
 export const checkinInfo = call('checkinInfo');
 export const checkinAction = call('checkinAction');
 export const adminLogin = call('adminLogin');
@@ -39,9 +43,9 @@ export const attemptsCsvUrl = `${import.meta.env.BASE_URL}api/admin/attempts.csv
 export function screenId() {
   try {
     let id = localStorage.getItem('fiesta.screen');
-    if (!id) { id = crypto.randomUUID(); localStorage.setItem('fiesta.screen', id); }
+    if (!id) { id = uuid(); localStorage.setItem('fiesta.screen', id); }
     return id;
-  } catch { return (screenId.fallback ??= crypto.randomUUID()); }
+  } catch { return (screenId.fallback ??= uuid()); }
 }
 
 // Pages live in the same folder in both modes, so relative URLs work under any base path.

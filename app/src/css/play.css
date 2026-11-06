@@ -200,3 +200,9 @@ button.press, button.big:active { transform: scale(.94); }
 /* ---------- idle notice (ctx.idle) ---------- */
 #ov-idle { position: absolute; z-index: 35; left: 50%; bottom: 56px; transform: translateX(-50%); padding: 18px 56px; border-radius: 999px; font: 800 52px var(--font); white-space: nowrap; color: var(--ink); background: var(--sun); box-shadow: var(--shadow-jelly); pointer-events: none; }
 #ov-idle[hidden] { display: none; }
+
+/* offline indicator + staff setup strip */
+#offline { position: absolute; z-index: 20; right: 40px; top: 40px; padding: 10px 24px; border-radius: 999px; background: rgba(0, 0, 0, .5); color: #fff; font-size: 28px; font-weight: 600; }
+#setup { position: absolute; z-index: 30; left: 40px; top: 40px; display: flex; gap: 24px; align-items: center; padding: 16px 24px; border-radius: 24px; background: var(--glass); font-size: 30px; font-weight: 600; }
+#setup button { font: inherit; padding: 14px 28px; border: 0; border-radius: 16px; background: var(--sun); color: #2A0610; }
+#offline[hidden], #setup[hidden] { display: none; }

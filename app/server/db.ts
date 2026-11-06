@@ -40,6 +40,7 @@ export function openDb(file: string, csvPath: string) {
   for (const c of ['resolved_guest_id', 'resolved_at']) addColumn(db, 'verification_request', c, 'INTEGER');
   addColumn(db, 'attempt', 'game', "TEXT NOT NULL DEFAULT 'distinto'");
   addColumn(db, 'attempt', 'content', 'TEXT'); // JSON rounds incl. answers, frozen per attempt
+  for (const c of ['prize_won', 'no_prize', 'offline']) addColumn(db, 'attempt', c, 'INTEGER NOT NULL DEFAULT 0'); // no_prize: over-max offline play, recorded but never wins
   db.exec(`
     CREATE TABLE IF NOT EXISTS answer(attempt_id TEXT NOT NULL REFERENCES attempt(id), idx INTEGER NOT NULL, choice INTEGER, ms INTEGER NOT NULL, points INTEGER NOT NULL, PRIMARY KEY(attempt_id, idx));
     CREATE TABLE IF NOT EXISTS quiz_question(id INTEGER PRIMARY KEY, question TEXT NOT NULL UNIQUE, correct TEXT NOT NULL, wrong1 TEXT NOT NULL, wrong2 TEXT NOT NULL, wrong3 TEXT NOT NULL, category TEXT NOT NULL DEFAULT '');
