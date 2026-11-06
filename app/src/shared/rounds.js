@@ -1,9 +1,14 @@
 // Server-keyed rounds for quiz and pixel. Pure: used by the server and the static demo.
-import { quizPoints, pixelPoints } from './scoring.js';
+import { quizPoints, pixelPoints, pixelTotal, clampScore } from './scoring.js';
 
 export const ROUND_GAMES = ['quiz', 'pixel'];
 // game -> (correct: boolean, ms: number, params) => points. Games without a formula store 0 points.
 export const ROUND_POINTS = { quiz: quizPoints, pixel: pixelPoints };
+// Final score of a round game from its stored answers ({ points }) and the number of rounds it had.
+// A correct answer always earns points (> 0), so points > 0 marks it correct.
+export const roundsTotal = (game, answers, n) => game === 'pixel'
+  ? pixelTotal(answers.map((x) => ({ points: x.points, correct: x.points > 0 })), n)
+  : clampScore(answers.reduce((s, x) => s + x.points, 0));
 
 export function mulberry32(a) {
   return () => { a |= 0; a = (a + 0x6D2B79F5) | 0; let t = Math.imul(a ^ (a >>> 15), 1 | a); t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t; return ((t ^ (t >>> 14)) >>> 0) / 4294967296; };

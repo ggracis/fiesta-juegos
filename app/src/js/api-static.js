@@ -2,7 +2,7 @@
 import roster from '../data/demo-roster.json';
 import demoContent from '../data/demo-content.json';
 import { GAMES, gameById } from '../shared/games.js';
-import { buildRounds, publicRounds, mulberry32, ROUND_GAMES, ROUND_POINTS } from '../shared/rounds.js';
+import { buildRounds, publicRounds, mulberry32, ROUND_GAMES, roundsTotal, ROUND_POINTS } from '../shared/rounds.js';
 import { lookupRoster, registerRoster, checkPin } from './demo-core.js';
 
 const mem = {};
@@ -79,7 +79,7 @@ export async function answer(id, session, index, choice, ms) {
 
 export async function finishAttempt(id, score, durationMs) {
   const a = read('fiesta.demo.attempts', []).find((x) => x.id === id);
-  if (ROUND_GAMES.includes(a?.game)) score = Math.min(100, (a.answers ?? []).reduce((s, x) => s + x.points, 0));
+  if (ROUND_GAMES.includes(a?.game)) score = roundsTotal(a.game, a.answers ?? [], a.content?.length ?? 0);
   patchAttempt(id, { score, durationMs, finished: true });
   return { score, replay: false, prizeWon: false };
 }

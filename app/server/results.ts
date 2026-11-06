@@ -1,13 +1,13 @@
 import type { DatabaseSync } from 'node:sqlite';
 import { clampScore, MIN_TOTAL_MS, MEMO_MIN_MS } from '../src/shared/scoring.js';
-import { ROUND_GAMES } from '../src/shared/rounds.js';
+import { ROUND_GAMES, roundsTotal } from '../src/shared/rounds.js';
 import type { State } from './state.ts';
 
 // The one place an attempt gets finished: used by POST /api/attempts/:id/result and by panel sync.
 // Idempotent: a finished attempt returns its stored outcome (replay) and changes nothing.
 export function makeResults(db: DatabaseSync, state: State) {
   return (id: string, score: number, durationMs: number, checkElapsed = true) => {
-    const a = db.prepare('SELECT guest_id, game, started_at, finished_at, score, prize_won, no_prize FROM attempt WHERE id = ?').get(id) as any;
+    const a = db.prepare('SELECT guest_id, game, started_at, finished_at, score, prize_won, no_prize, content FROM attempt WHERE id = ?').get(id) as any;
     if (!a) return { code: 404, error: 'unknown_attempt' };
     if (a.finished_at) return { score: a.score, replay: true, prizeWon: !!a.prize_won };
     const now = Date.now();
@@ -16,7 +16,7 @@ export function makeResults(db: DatabaseSync, state: State) {
     if (durationMs < minMs || (checkElapsed && now - a.started_at < minMs)) return { code: 400, error: 'implausible_duration' };
     // round games: the score is the sum of server-computed answer points, never the client's
     const final = ROUND_GAMES.includes(a.game)
-      ? clampScore((db.prepare('SELECT COALESCE(SUM(points), 0) AS s FROM answer WHERE attempt_id = ?').get(id) as { s: number }).s)
+      ? roundsTotal(a.game, db.prepare('SELECT points FROM answer WHERE attempt_id = ?').all(id) as { points: number }[], a.content ? JSON.parse(a.content).length : 0)
       : clampScore(score);
     const prizeWon = state.tx(() => {
       let won = false;

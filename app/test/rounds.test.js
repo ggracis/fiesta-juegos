@@ -185,3 +185,12 @@ test('params merge: existing DB keeps edited values and gains new default keys',
   assert.equal(p.idleSeconds, 20);
   again.close();
 });
+
+test('roundsTotal: pixel adds the all-correct bonus, quiz just sums', async () => {
+  const { roundsTotal } = await import('../src/shared/rounds.js');
+  const twelve = Array.from({ length: 8 }, () => ({ points: 12 }));
+  assert.equal(roundsTotal('pixel', twelve, 8), 100);
+  assert.equal(roundsTotal('pixel', [...twelve.slice(1), { points: 0 }], 8), 84); // one miss: no bonus
+  assert.equal(roundsTotal('pixel', twelve.slice(1), 8), 84); // one unanswered: no bonus
+  assert.equal(roundsTotal('quiz', [{ points: 10 }, { points: 0 }, { points: 7 }], 10), 17);
+});
