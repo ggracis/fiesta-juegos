@@ -39,7 +39,11 @@ export function openDb(file: string, csvPath: string) {
   addColumn(db, 'verification_request', 'status', "TEXT NOT NULL DEFAULT 'pending'");
   for (const c of ['resolved_guest_id', 'resolved_at']) addColumn(db, 'verification_request', c, 'INTEGER');
   addColumn(db, 'attempt', 'game', "TEXT NOT NULL DEFAULT 'distinto'");
+  addColumn(db, 'attempt', 'content', 'TEXT'); // JSON rounds incl. answers, frozen per attempt
   db.exec(`
+    CREATE TABLE IF NOT EXISTS answer(attempt_id TEXT NOT NULL REFERENCES attempt(id), idx INTEGER NOT NULL, choice INTEGER, ms INTEGER NOT NULL, points INTEGER NOT NULL, PRIMARY KEY(attempt_id, idx));
+    CREATE TABLE IF NOT EXISTS quiz_question(id INTEGER PRIMARY KEY, question TEXT NOT NULL UNIQUE, correct TEXT NOT NULL, wrong1 TEXT NOT NULL, wrong2 TEXT NOT NULL, wrong3 TEXT NOT NULL, category TEXT NOT NULL DEFAULT '');
+    CREATE TABLE IF NOT EXISTS pixel_image(id INTEGER PRIMARY KEY, file TEXT NOT NULL UNIQUE, label TEXT NOT NULL, grp TEXT NOT NULL DEFAULT '');
     CREATE TABLE IF NOT EXISTS game_config(game TEXT PRIMARY KEY, enabled INTEGER NOT NULL, sort INTEGER NOT NULL,
       threshold INTEGER NOT NULL, max_attempts INTEGER NOT NULL, params TEXT NOT NULL DEFAULT '{}');
     CREATE TABLE IF NOT EXISTS setting(key TEXT PRIMARY KEY, value TEXT NOT NULL);
@@ -51,7 +55,14 @@ export function openDb(file: string, csvPath: string) {
   `);
   const seedGame = db.prepare('INSERT OR IGNORE INTO game_config(game, enabled, sort, threshold, max_attempts, params) VALUES (?,?,?,?,?,?)');
   for (const g of GAMES) seedGame.run(g.id, g.ready ? 1 : 0, g.defaults.sort, g.defaults.threshold, g.defaults.maxAttempts, JSON.stringify(g.defaults.params));
-  const seedSetting = db.prepare('INSERT OR IGNORE INTO setting(key, value) VALUES (?,?)');
+  // New default param keys reach existing DBs; edited values are never overwritten.
+  const setParams = db.prepare('UPDATE game_config SET params = ? WHERE game = ?');
+  for (const g of GAMES) {
+    const { params } = db.prepare('SELECT params FROM game_config WHERE game = ?').get(g.id) as { params: string };
+    const merged = JSON.stringify({ ...g.defaults.params, ...JSON.parse(params) });
+    if (merged !== params) setParams.run(merged, g.id);
+  }
+  const seedSetting =db.prepare('INSERT OR IGNORE INTO setting(key, value) VALUES (?,?)');
   const defaults: Record<string, unknown> = { paused: false, transition: false, transitionText: '', prizeStock: 0, raffleShowSeconds: 15, raffleHidden: 0, registrationValidation: 'name_dni_email' };
   for (const [k, v] of Object.entries(defaults)) seedSetting.run(k, JSON.stringify(v));
   const { n } = db.prepare('SELECT COUNT(*) AS n FROM guest').get() as { n: number };

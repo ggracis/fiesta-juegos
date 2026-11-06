@@ -43,7 +43,7 @@ function safeNext() {
 
 let S = null; // last admin state
 let timer;
-const TABS = [['live', 'En vivo'], ['guests', 'Invitados'], ['games', 'Juegos'], ['prizes', 'Premios y ranking'], ['raffle', 'Sorteo']];
+const TABS = [['live', 'En vivo'], ['guests', 'Invitados'], ['games', 'Juegos'], ['content', 'Contenido'], ['prizes', 'Premios y ranking'], ['raffle', 'Sorteo']];
 
 function showLogin() {
   clearInterval(timer);
@@ -72,7 +72,7 @@ async function select(tab) {
   for (const [k] of TABS) $('t-' + k).hidden = k !== tab;
   clearInterval(timer);
   if (!(await refresh()) || current !== tab) return;
-  ({ live: renderLive, guests: loadGuests, games: renderGames, prizes: renderPrizes, raffle: loadRaffle })[tab]();
+  ({ live: renderLive, guests: loadGuests, games: renderGames, content: renderContent, prizes: renderPrizes, raffle: loadRaffle })[tab]();
   if (tab === 'live') timer = setInterval(async () => { if (!document.hidden && current === 'live' && await refresh()) renderLive(); }, 5000);
 }
 
@@ -149,17 +149,15 @@ function renderGames() {
       sort: h('input', { type: 'number', min: 0, step: 1, value: g.sort, id: `s-${g.id}` }),
       threshold: h('input', { type: 'number', min: 0, max: 100, step: 1, value: g.threshold, id: `t-${g.id}` }),
       maxAttempts: h('input', { type: 'number', min: 1, step: 1, value: g.maxAttempts, id: `m-${g.id}` }),
-      params: h('textarea', { value: JSON.stringify(g.params, null, 2), id: `p-${g.id}`, spellcheck: false }),
     };
+    const pf = Object.entries(g.params).map(([k, v]) => [k, h('input', { type: 'number', step: 'any', value: v, id: `p-${g.id}-${k}` })]);
     const err = h('p', { className: 'err', role: 'alert', hidden: true });
     const save = h('button', { className: 'b primary', type: 'button' }, 'Guardar');
     save.onclick = async () => {
-      let params;
-      try { params = JSON.parse(f.params.value); if (!params || typeof params !== 'object' || Array.isArray(params)) throw 0; }
-      catch { err.textContent = 'Los parámetros deben ser un objeto JSON válido.'; err.hidden = false; return; }
+      const params = Object.fromEntries(pf.map(([k, i]) => [k, i.valueAsNumber]));
       err.hidden = true;
       const patch = { enabled: f.enabled.checked, sort: f.sort.valueAsNumber, threshold: f.threshold.valueAsNumber, maxAttempts: f.maxAttempts.valueAsNumber, params };
-      if (Object.values(patch).some((v) => typeof v === 'number' && Number.isNaN(v))) { err.textContent = 'Completa todos los números.'; err.hidden = false; return; }
+      if ([patch.sort, patch.threshold, patch.maxAttempts, ...Object.values(params)].some(Number.isNaN)) { err.textContent = 'Completa todos los números.'; err.hidden = false; return; }
       if (await saveGame(g.id, patch)) toast(`${g.name} guardado`);
     };
     const field = (label, ctl) => h('div', {}, h('label', { htmlFor: ctl.id }, label), ctl);
@@ -167,8 +165,58 @@ function renderGames() {
       h('h2', {}, g.name, !g.ready && h('span', { className: 'badge' }, 'Próximamente')),
       h('label', { className: 'sw' }, f.enabled, h('span', {}, 'Habilitado')),
       h('div', { className: 'grid2' }, field('Orden', f.sort), field('Umbral de premio (%)', f.threshold), field('Intentos máx.', f.maxAttempts)),
-      field('Parámetros (JSON)', f.params), err, save));
+      pf.length > 0 && h('div', { className: 'grid2' }, ...pf.map(([k, i]) => field(k, i))), err, save));
   }
+}
+
+// ---- Contenido
+const CONTENT = {
+  quiz: { title: 'Quiz: preguntas', hint: 'question,correct,wrong1,wrong2,wrong3,category', cols: [['question', 'Pregunta'], ['correct', 'Correcta'], ['category', 'Categoría']] },
+  pixel: { title: 'Pixel Revelado: imágenes', hint: 'file,label,group (las imágenes se copian a data/content/pixel/ en el servidor)', cols: [['file', 'Archivo'], ['label', 'Etiqueta'], ['group', 'Grupo']] },
+};
+const IMPORT_ERRORS = {
+  empty_field: 'campo vacío o faltante', question_too_long: 'pregunta de más de 110 caracteres', answer_too_long: 'respuesta de más de 40 caracteres',
+  duplicate_answers: 'respuestas repetidas', invalid_file: 'nombre de archivo inválido', invalid_label: 'etiqueta vacía o de más de 40 caracteres',
+  missing_file: 'el archivo no está en el servidor',
+};
+const lists = {};
+async function loadContent(kind) {
+  const rows = await run(() => api.adminContent(kind));
+  if (!rows) return;
+  const body = lists[kind]; clear(body);
+  for (const r of rows) {
+    const del = h('button', { className: 'b', type: 'button' }, 'Eliminar');
+    del.onclick = async () => {
+      if (confirm('¿Eliminar este elemento?') && await run(() => api.adminDeleteContent(kind, r.id)) !== undefined) loadContent(kind);
+    };
+    body.append(h('tr', {}, ...CONTENT[kind].cols.map(([k]) => h('td', {}, String(r[k] ?? ''))), h('td', {}, del)));
+  }
+}
+function renderContent() {
+  const box = $('content-cards');
+  if (!box.children.length) {
+    for (const [kind, c] of Object.entries(CONTENT)) {
+      const file = h('input', { type: 'file', accept: '.csv,text/csv', id: 'ci-' + kind });
+      const result = h('div', { 'aria-live': 'polite' });
+      lists[kind] = h('tbody');
+      file.onchange = async () => {
+        const f = file.files[0];
+        if (!f) return;
+        if (f.size > 1_048_576) { file.value = ''; return toast('El archivo supera 1 MB.', true); }
+        const r = await run(async () => api.adminImportContent(kind, await f.text()));
+        file.value = '';
+        if (!r) return;
+        clear(result);
+        result.append(h('p', {}, `Agregados: ${r.added} · Actualizados: ${r.updated} · Con errores: ${r.errors.length}`),
+          r.errors.length > 0 && h('ul', { className: 'err' }, ...r.errors.map((e) => h('li', {}, `Línea ${e.line}: ${IMPORT_ERRORS[e.error] || e.error}`))));
+        loadContent(kind);
+      };
+      box.append(h('div', { className: 'card' }, h('h2', {}, c.title),
+        h('label', { htmlFor: 'ci-' + kind, className: 'muted' }, 'Importar CSV (', h('code', {}, c.hint), ')'), file, result,
+        h('div', { className: 'scroll' }, h('table', {}, h('thead', {}, h('tr', {}, ...c.cols.map(([, t]) => h('th', {}, t)), h('th'))), lists[kind]))));
+    }
+  }
+  for (const kind of Object.keys(CONTENT)) loadContent(kind);
 }
 
 // ---- Premios y ranking

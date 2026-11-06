@@ -2,13 +2,14 @@ import Fastify from 'fastify';
 import fastifyStatic from '@fastify/static';
 import { randomUUID, randomInt } from 'node:crypto';
 import { join } from 'node:path';
-import { existsSync } from 'node:fs';
+import { existsSync, mkdirSync } from 'node:fs';
 import { openDb } from './db.ts';
 import { makeState } from './state.ts';
 import { registerAdmin } from './admin.ts';
-import { generatePin, newToken } from './lib.ts';
+import { generatePin, newToken, PIXEL_DIR } from './lib.ts';
 import { matchesName, verify, validDni, validEmail, dniDigits, normEmail } from '../src/shared/identity.js';
 import { clampScore, MIN_TOTAL_MS } from '../src/shared/scoring.js';
+import { buildRounds, publicRounds, mulberry32, ROUND_GAMES, ROUND_POINTS } from '../src/shared/rounds.js';
 
 const ROOT = join(import.meta.dirname, '..');
 const DB_PATH = join(ROOT, 'data', 'fiesta.db');
@@ -49,6 +50,9 @@ export function buildApp(dbPath = DB_PATH, csvPath = CSV_PATH, opts: { adminPass
     app.get('/t/:token', (req, reply) => reply.redirect('/ticket.html?t=' + encodeURIComponent((req.params as any).token)));
     app.get('/c/:token', (req, reply) => reply.redirect('/checkin.html?c=' + encodeURIComponent((req.params as any).token)));
   }
+
+  mkdirSync(PIXEL_DIR, { recursive: true });
+  app.register(fastifyStatic, { root: PIXEL_DIR, prefix: '/content/pixel/', decorateReply: false }); // fastify-static rejects path traversal
 
   // Found / not found only: never echo roster data.
   app.post('/api/lookup', {
@@ -147,7 +151,10 @@ export function buildApp(dbPath = DB_PATH, csvPath = CSV_PATH, opts: { adminPass
     const { score, durationMs } = req.body as { score: number; durationMs: number };
     const now = Date.now();
     if (durationMs < MIN_TOTAL_MS || now - a.started_at < MIN_TOTAL_MS) return reply.code(400).send({ error: 'implausible_duration' });
-    const final = clampScore(score);
+    // round games: the score is the sum of server-computed answer points, never the client's
+    const final = ROUND_GAMES.includes(a.game)
+      ? clampScore((db.prepare('SELECT COALESCE(SUM(points), 0) AS s FROM answer WHERE attempt_id = ?').get(id) as { s: number }).s)
+      : clampScore(score);
     const prizeWon = state.tx(() => {
       let won = false;
       db.prepare('UPDATE attempt SET finished_at = ?, score = ?, duration_ms = ? WHERE id = ? AND finished_at IS NULL')
@@ -161,6 +168,65 @@ export function buildApp(dbPath = DB_PATH, csvPath = CSV_PATH, opts: { adminPass
       return won;
     });
     return { score: final, replay: false, prizeWon };
+  });
+
+  // Own attempt of the session's guest, or the error reply to send.
+  const ownAttempt = (id: string, session: unknown) => {
+    const guestId = guestOf(session);
+    if (!guestId) return { code: 401, error: 'bad_session' };
+    const a = db.prepare('SELECT guest_id, game, seed, content, finished_at FROM attempt WHERE id = ?').get(id) as any;
+    if (!a) return { code: 404, error: 'unknown_attempt' };
+    if (a.guest_id !== guestId) return { code: 401, error: 'bad_session' };
+    return { a };
+  };
+  const roundSeconds = (params: Record<string, any>) => Number(params.secondsPerQuestion ?? params.revealSeconds ?? 12);
+
+  app.get('/api/attempts/:id/rounds', {
+    schema: { params: { type: 'object', properties: { id: { type: 'string' } } }, querystring: { type: 'object', properties: { session: { type: 'string' } } } },
+  }, async (req, reply) => {
+    const r = ownAttempt((req.params as any).id, (req.query as any).session);
+    if (!r.a) return reply.code(r.code!).send({ error: r.error });
+    const a = r.a;
+    if (!ROUND_GAMES.includes(a.game)) return reply.code(400).send({ error: 'not_a_round_game' });
+    let rounds = a.content ? JSON.parse(a.content) : null;
+    if (!rounds) {
+      const params = state.gameConfig(a.game)!.params;
+      const bank = a.game === 'quiz'
+        ? (db.prepare('SELECT question, correct, wrong1, wrong2, wrong3 FROM quiz_question ORDER BY id').all() as any[])
+          .map((q) => ({ question: q.question, correct: q.correct, wrong: [q.wrong1, q.wrong2, q.wrong3] }))
+        : (db.prepare('SELECT file, label, grp AS "group" FROM pixel_image ORDER BY id').all());
+      try { rounds = buildRounds(a.game, bank, Number(a.game === 'quiz' ? params.questions : params.images) || (a.game === 'quiz' ? 10 : 8), mulberry32(a.seed)); }
+      catch { return reply.code(409).send({ error: 'not_enough_content' }); }
+      db.prepare('UPDATE attempt SET content = ? WHERE id = ?').run(JSON.stringify(rounds), (req.params as any).id);
+    }
+    return { rounds: publicRounds(rounds).map((x: any) => (x.image ? { ...x, image: 'content/pixel/' + x.image } : x)) };
+  });
+
+  app.post('/api/attempts/:id/answer', {
+    schema: {
+      params: { type: 'object', properties: { id: { type: 'string' } } },
+      body: { type: 'object', required: ['session', 'index', 'choice', 'ms'], additionalProperties: false, properties: {
+        session: { type: 'string' }, index: { type: 'integer' }, choice: { type: ['integer', 'null'], minimum: 0, maximum: 3 }, ms: { type: 'number' } } },
+    },
+  }, async (req, reply) => {
+    const id = (req.params as any).id as string;
+    const { session, index, choice, ms } = req.body as { session: string; index: number; choice: number | null; ms: number };
+    const r = ownAttempt(id, session);
+    if (!r.a) return reply.code(r.code!).send({ error: r.error });
+    const a = r.a;
+    if (!ROUND_GAMES.includes(a.game)) return reply.code(400).send({ error: 'not_a_round_game' });
+    if (a.finished_at) return reply.code(409).send({ error: 'finished' });
+    const rounds = a.content ? JSON.parse(a.content) : [];
+    if (index < 0 || index >= rounds.length) return reply.code(400).send({ error: 'bad_index' });
+    // sync sqlite: no await between this check and the insert
+    if (db.prepare('SELECT 1 FROM answer WHERE attempt_id = ? AND idx = ?').get(id, index)) return reply.code(409).send({ error: 'already_answered' });
+    const params = state.gameConfig(a.game)!.params;
+    const clamped = Math.max(0, Math.min(roundSeconds(params) * 1000, Math.round(ms)));
+    const correctChoice = rounds[index].answer as number;
+    const correct = choice === correctChoice;
+    const points = correct ? (ROUND_POINTS[a.game]?.(true, clamped, params) ?? 0) : 0; // no formula registered yet: 0
+    db.prepare('INSERT INTO answer(attempt_id, idx, choice, ms, points) VALUES (?,?,?,?,?)').run(id, index, choice, clamped, points);
+    return { correct, correctChoice, points };
   });
 
   app.get('/api/live', async (req) => {

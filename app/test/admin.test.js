@@ -203,7 +203,8 @@ test('admin settings and games', async () => {
   const g = await put(app, '/api/admin/games/distinto', { threshold: 80, params: { rounds: 5 } }, h);
   assert.equal(g.statusCode, 200);
   assert.equal(g.json().threshold, 80);
-  assert.deepEqual(g.json().params, { rounds: 5 });
+  assert.equal(g.json().params.rounds, 5);
+  assert.equal(g.json().params.idleSeconds, 20); // default keys are merged on read
   assert.equal(g.json().maxAttempts, 1);
   const g2 = await put(app, '/api/admin/games/distinto', { enabled: false }, h);
   assert.equal(g2.json().threshold, 80);

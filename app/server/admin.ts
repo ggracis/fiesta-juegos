@@ -1,7 +1,9 @@
 import type { FastifyInstance, FastifyReply, FastifyRequest } from 'fastify';
 import type { DatabaseSync } from 'node:sqlite';
 import { createHash, randomInt, timingSafeEqual } from 'node:crypto';
-import { newToken } from './lib.ts';
+import { existsSync } from 'node:fs';
+import { join } from 'node:path';
+import { newToken, csvLine, PIXEL_DIR } from './lib.ts';
 import { nameTokens, dniDigits, normEmail } from '../src/shared/identity.js';
 import { gameById } from '../src/shared/games.js';
 import type { State } from './state.ts';
@@ -115,7 +117,7 @@ export function registerAdmin(app: FastifyInstance, db: DatabaseSync, state: Sta
         type: 'object', additionalProperties: false, minProperties: 1,
         properties: {
           enabled: { type: 'boolean' }, sort: { type: 'integer', minimum: 0 }, threshold: { type: 'integer', minimum: 0, maximum: 100 },
-          maxAttempts: { type: 'integer', minimum: 1 }, params: { type: 'object' },
+          maxAttempts: { type: 'integer', minimum: 1 }, params: { type: 'object', maxProperties: 20, additionalProperties: { type: 'number' } },
         },
       },
     },
@@ -214,6 +216,65 @@ export function registerAdmin(app: FastifyInstance, db: DatabaseSync, state: Sta
     }
     audit(roleIn(req), action, { name: v.name });
     return state.checkinView(token);
+  });
+
+  // ---- Quiz / pixel content (CSV). Bad rows are reported, good rows still import.
+  const csvRows = (body: string, first: string) => {
+    const rows = body.replace(/^\uFEFF/, '').split(/\r?\n/).map((l, i) => ({ line: i + 1, text: l.trim() }))
+      .filter((r) => r.text && !r.text.startsWith('#')).map((r) => ({ line: r.line, cells: csvLine(r.text) }));
+    return rows[0]?.cells[0].toLowerCase() === first ? rows.slice(1) : rows;
+  };
+  const importCsv = (kind: 'quiz' | 'pixel') => async (req: FastifyRequest, reply: FastifyReply) => {
+    if (typeof req.body !== 'string') return reply.code(415).send({ error: 'csv_required' });
+    const errors: { line: number; error: string }[] = [];
+    let added = 0, updated = 0;
+    const upsert = kind === 'quiz'
+      ? db.prepare(`INSERT INTO quiz_question(question, correct, wrong1, wrong2, wrong3, category) VALUES (?,?,?,?,?,?) ON CONFLICT(question) DO UPDATE SET
+          correct = excluded.correct, wrong1 = excluded.wrong1, wrong2 = excluded.wrong2, wrong3 = excluded.wrong3, category = excluded.category`)
+      : db.prepare('INSERT INTO pixel_image(file, label, grp) VALUES (?,?,?) ON CONFLICT(file) DO UPDATE SET label = excluded.label, grp = excluded.grp');
+    const exists = db.prepare(kind === 'quiz' ? 'SELECT 1 FROM quiz_question WHERE question = ?' : 'SELECT 1 FROM pixel_image WHERE file = ?');
+    state.tx(() => {
+      for (const { line, cells } of csvRows(req.body as string, kind === 'quiz' ? 'question' : 'file')) {
+        let err = '';
+        if (kind === 'quiz') {
+          const [q = '', ...ans] = cells;
+          const a = ans.slice(0, 4);
+          if (a.length < 4 || !q || a.some((x) => !x)) err = 'empty_field';
+          else if (q.length > 110) err = 'question_too_long';
+          else if (a.some((x) => x.length > 40)) err = 'answer_too_long';
+          else if (new Set(a).size < 4) err = 'duplicate_answers';
+        } else {
+          const [file = '', label = ''] = cells;
+          if (!/^[\w.-]+\.(jpe?g|png|webp)$/i.test(file)) err = 'invalid_file';
+          else if (!label || label.length > 40) err = 'invalid_label';
+          else if (!existsSync(join(PIXEL_DIR, file))) err = 'missing_file';
+        }
+        if (err) { errors.push({ line, error: err }); continue; }
+        if (exists.get(cells[0])) updated++; else added++;
+        if (kind === 'quiz') upsert.run(cells[0], cells[1], cells[2], cells[3], cells[4], cells[5] ?? '');
+        else upsert.run(cells[0], cells[1], cells[2] ?? '');
+      }
+      audit(roleIn(req), 'content_import', { kind, added, updated, errors: errors.length });
+    });
+    return { added, updated, errors };
+  };
+  app.post('/api/admin/content/quiz/import', { ...admin, bodyLimit: 1_048_576 }, importCsv('quiz'));
+  app.post('/api/admin/content/pixel/import', { ...admin, bodyLimit: 1_048_576 }, importCsv('pixel'));
+
+  const KINDS: Record<string, { table: string; list: string }> = {
+    quiz: { table: 'quiz_question', list: 'SELECT id, question, correct, wrong1, wrong2, wrong3, category FROM quiz_question ORDER BY id' },
+    pixel: { table: 'pixel_image', list: 'SELECT id, file, label, grp AS "group" FROM pixel_image ORDER BY id' },
+  };
+  app.get('/api/admin/content/:kind', admin, async (req, reply) => {
+    const k = KINDS[(req.params as any).kind];
+    return k ? db.prepare(k.list).all().map((r) => ({ ...r })) : reply.code(404).send({ error: 'not_found' });
+  });
+  app.delete('/api/admin/content/:kind/:id', admin, async (req, reply) => {
+    const { kind, id } = req.params as { kind: string; id: string };
+    const k = KINDS[kind];
+    if (!k || db.prepare(`DELETE FROM ${k.table} WHERE id = ?`).run(id).changes === 0) return reply.code(404).send({ error: 'not_found' });
+    audit(roleIn(req), 'content_delete', { kind, id: Number(id) });
+    return reply.code(204).send();
   });
 
   app.get('/api/admin/ranking/:game', admin, async (req, reply) => {

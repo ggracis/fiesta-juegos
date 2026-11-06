@@ -20,6 +20,8 @@ export const ticket = (token) => notFound(call('api/ticket/' + e(token)));
 export const login = (pin, screenId) => call('api/login', { pin, screenId });
 export const startAttempt = (session, game) => call('api/attempts', { session, game });
 export const finishAttempt = (id, score, durationMs) => call(`api/attempts/${encodeURIComponent(id)}/result`, { score, durationMs });
+export const rounds = (id, session) => call(`api/attempts/${e(id)}/rounds?session=${e(session)}`);
+export const answer = (id, session, index, choice, ms) => call(`api/attempts/${e(id)}/answer`, { session, index, choice, ms });
 export function live({ screenId, game, session } = {}) {
   const qs = new URLSearchParams(Object.entries({ screenId, game, session }).filter(([, v]) => v)).toString();
   return call('api/live' + (qs ? '?' + qs : ''));
@@ -33,6 +35,9 @@ export const adminMe = () => call('api/admin/me');
 export const adminState = () => call('api/admin/state');
 export const adminSettings = (patch) => call('api/admin/settings', patch, 'PUT');
 export const adminGame = (id, patch) => call('api/admin/games/' + e(id), patch, 'PUT');
+export const adminContent = (kind) => call('api/admin/content/' + e(kind));
+export const adminImportContent = (kind, csvText) => call(`api/admin/content/${e(kind)}/import`, csvText);
+export const adminDeleteContent = (kind, id) => call(`api/admin/content/${e(kind)}/${e(id)}`, undefined, 'DELETE');
 export const adminGuests = (q = '') => call('api/admin/guests?q=' + e(q));
 export const adminImportGuests = (csvText) => call('api/admin/guests/import', csvText);
 export const adminGuest = (id) => call('api/admin/guests/' + e(id));

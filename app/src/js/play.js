@@ -410,7 +410,7 @@ async function startGame() {
   show('game');
   let res;
   try {
-    res = await GAME_MODULES[gameId].play($('#game'), { attemptId, params, sfx, tap, rng: mulberry32(seed), idle, signal: ac.signal });
+    res = await GAME_MODULES[gameId].play($('#game'), { attemptId, session, params, sfx, tap, rng: mulberry32(seed), idle, signal: ac.signal });
   } catch {
     if (!ac.signal.aborted) toAttract(); // module failure: back to the start
     return;
