@@ -1,10 +1,12 @@
 # Deploy on AWS EC2 (t4g.micro, Ubuntu 24.04 ARM64)
 
-Single VM: Caddy (HTTPS, 80/443) -> Node server on `127.0.0.1:3000`. Free `sslip.io` hostname, no domain needed.
+Single VM in region **sa-east-1 (Sao Paulo)**: Ubuntu 24.04 arm64 on a `t4g.micro`, Node 24, systemd service `fiesta`, Caddy (HTTPS, 80/443) -> Node server on `127.0.0.1:3000`, backup cron every 5 min. Free `sslip.io` hostname, no domain needed.
+
+If the venue internet can drop, also read **[OFFLINE.md](OFFLINE.md)** (panel offline mode, notebook Plan B, switch-over checklist, `restore-latest.sh` / `.ps1`).
 
 ## 1. Launch
 
-1. EC2 > Launch instance: Ubuntu Server 24.04 LTS, **Arm64**, `t4g.micro`, 8-16 GB gp3, your key pair.
+1. Switch the console to **sa-east-1**. EC2 > Launch instance: Ubuntu Server 24.04 LTS, **Arm64**, `t4g.micro`, 8-16 GB gp3, your key pair.
 2. Security group (inbound only):
    - 22 from **your IP only**
    - 80 and 443 from anywhere
@@ -39,10 +41,11 @@ sudo -u fiesta npm run build
 
 Put the roster (`data/guests.csv`) in `/opt/fiesta/app/data/` if it is not in the repo.
 
-Admin password (never commit it):
+Admin password (never commit it). `PANEL_TOKEN` is **optional**: only needed if panels will call this server cross-origin (OFFLINE.md, Plan B); it also turns on CORS for `/api/*`, so leave it out otherwise.
 
 ```sh
 echo 'ADMIN_PASSWORD=choose-a-long-password' | sudo -u fiesta tee /opt/fiesta/app/.env
+# optional: echo 'PANEL_TOKEN=another-long-random-string' | sudo -u fiesta tee -a /opt/fiesta/app/.env
 sudo chmod 600 /opt/fiesta/app/.env
 ```
 
@@ -89,4 +92,6 @@ sudo systemctl restart fiesta
 - [ ] `sudo systemctl restart fiesta`, then confirm admin and panels stay logged in (sessions persist in the DB).
 - [ ] Port 3000 is unreachable from outside: `curl http://<elastic-ip>:3000` times out.
 - [ ] Cron backup is producing files in `/opt/fiesta/backups/`.
+- [ ] Every panel: staff login + "Activar modo sin conexión" done, cached guest count looks right, airplane-mode test passed (OFFLINE.md).
+- [ ] Notebook (Plan B) ready: repo + `npm ci`, `restore-latest` tested, `PANEL_TOKEN` chosen.
 - [ ] Billing alarm exists.

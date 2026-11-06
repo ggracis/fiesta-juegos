@@ -1,7 +1,9 @@
 import gsap from 'gsap';
 import { SplitText } from 'gsap/SplitText';
 import confetti from 'canvas-confetti';
-import { login, startAttempt, finishAttempt, live, screenId } from './api.js';
+import { login, startAttempt, finishAttempt, live, screenId, panelRoster, panelSync, isDemo } from './api.js';
+import { createQueue, createFlusher, createPinCheck, startLocalAttempt, attemptsLeft, bumpCount } from './offline.js';
+import { ROUND_GAMES } from '../shared/rounds.js';
 import { $, RM, injectSprite, mascot, demoBadge, cleanName, firstName, wait, mulberry32 } from './common.js';
 import { GAME_MODULES } from './games/index.js';
 
@@ -73,9 +75,55 @@ setInterval(() => {
   }
 }, 600);
 
+// ---------- offline: roster cache, result queue, indicator ----------
+// Server unreachable = network error or 5xx (Caddy answers 502 when node is down).
+const down = (e) => e.code === 'network' || e.status >= 500;
+const store = (() => { try { localStorage.getItem('x'); return localStorage; } catch { return { getItem: () => null, setItem() {} }; } })();
+let roster = null, netOk = true;
+try { roster = JSON.parse(store.getItem('fiesta.roster')); } catch {}
+const saveRoster = () => { if (roster) try { store.setItem('fiesta.roster', JSON.stringify(roster)); } catch {} };
+const queue = createQueue(store);
+const pinCheck = createPinCheck(() => roster);
+const outcome = new Map(); // attemptId -> resolver of the server's prize answer (only while the result screen waits)
+const settle = (id, won) => { outcome.get(id)?.(won); outcome.delete(id); };
+
+// Offline attempts and their results go through the staff-authenticated sync; online attempts finish via the public endpoint.
+async function sendItem(it) {
+  if (it.kind === 'attempt' || it.offline) {
+    const r = (await panelSync([it])).results[0];
+    if (it.kind === 'attempt') { if (r.ok) { bumpCount(roster, it.guestId, it.game); saveRoster(); } } else settle(it.attemptId, !!r.prizeWon);
+  } else settle(it.attemptId, !!(await finishAttempt(it.attemptId, it.score, it.durationMs)).prizeWon);
+}
+function showNet() {
+  const n = queue.items().length;
+  $('#offline').hidden = netOk;
+  $('#offline').textContent = 'Sin conexión' + (n ? ` · ${n} por enviar` : '');
+}
+const flusher = createFlusher(queue, sendItem, { onChange: showNet });
+addEventListener('online', () => { poll(); flusher.kick(); });
+if (queue.items().length) flusher.kick();
+
+function renderSetup() {
+  const when = roster ? new Date(roster.at).toLocaleTimeString('es', { hour: '2-digit', minute: '2-digit' }) : '';
+  $('#setupinfo').textContent = (roster ? `${roster.guests.length} invitados guardados (${when})` : 'Sin datos guardados')
+    + (queue.items().length ? ` · ${queue.items().length} por enviar` : '');
+}
+async function refreshRoster() {
+  if (isDemo) return;
+  try { roster = await panelRoster(); saveRoster(); } catch {} // 401 (staff not logged in) or offline: keep the cached one
+  renderSetup();
+}
+refreshRoster();
+setInterval(refreshRoster, 300_000);
+if (new URLSearchParams(location.search).has('setup') && !isDemo) {
+  $('#setup').hidden = false;
+  tap($('#setupbtn'), () => { location.href = new URL('admin.html?next=' + encodeURIComponent(location.pathname + location.search), location.href).href; });
+}
+
 // ---------- screens + idle ----------
 const screens = [...document.querySelectorAll('.screen')];
 let current = 'attract', idleTimer, gid = 0, session = null, attempt = null, playerName = '';
+let local = null, playerId = null; // local: offline session { offline, guestId, name } (PIN checked against the cached roster)
 let gameId = null, howStop = null, gameAbort = null, curIdle = null, topsTl = null, backTimer = null, holaSplit = null;
 
 function show(name) {
@@ -93,7 +141,7 @@ function bump() {
 addEventListener('pointerdown', bump, true);
 
 function toAttract() {
-  gid++; session = null; attempt = null; gameId = null; pin = ''; renderDots();
+  gid++; session = null; local = null; playerId = null; attempt = null; gameId = null; pin = ''; renderDots();
   clearTimeout(howTimer); picking = false;
   liveState?.games.forEach((g) => { delete g.attemptsLeft; });
   gameAbort?.abort(); gameAbort = null; curIdle?.stop(); curIdle = null; howStop?.(); howStop = null; clearInterval(backTimer);
@@ -206,9 +254,15 @@ async function submitPin() {
   const myGid = gid;
   locked = true;
   try {
-    const d = await login(pin, screenId());
+    let d;
+    try { d = await login(pin, screenId()); session = d.session; playerId = d.guestId; local = null; }
+    catch (e) {
+      if (!down(e)) throw e;
+      d = await pinCheck(pin); // throws wrong_pin / locked / no_roster like the server would
+      local = { offline: true, ...d }; session = null;
+    }
     if (myGid !== gid) return;
-    session = d.session; playerName = d.name;
+    playerName = d.name;
     dots.classList.add('ok');
     const mid = (dots.children.length - 1) / 2;
     gsap.to(dots.children, {
@@ -253,8 +307,14 @@ async function claim() {
 // ---------- menu ----------
 const tiles = $('#tiles');
 const menuMsg = (t) => { $('#menumsg').textContent = t || ' '; };
+// Offline: round games can't be played (their answer key lives on the server); an offline session counts attempts locally.
+function menuGames() {
+  let list = liveState?.games ?? (roster?.games ?? []).map(({ id, name, params }) => ({ id, name, params }));
+  if (local || !netOk) list = list.filter((g) => !ROUND_GAMES.includes(g.id));
+  return local ? list.map((g) => ({ ...g, attemptsLeft: attemptsLeft(roster, queue, local.guestId, g.id) })) : list;
+}
 function renderMenu() {
-  const games = liveState?.games ?? [];
+  const games = menuGames();
   tiles.replaceChildren();
   if (!games.length) {
     const d = document.createElement('div');
@@ -281,7 +341,12 @@ async function pick(id) {
   picking = true;
   const myGid = gid;
   try {
-    const d = await startAttempt(session, id);
+    let d;
+    if (local) d = startLocalAttempt({ roster, queue, guestId: local.guestId, game: id });
+    else {
+      try { d = await startAttempt(session, id); bumpCount(roster, playerId, id); saveRoster(); }
+      catch (e) { if (!down(e) || !roster) throw e; d = startLocalAttempt({ roster, queue, guestId: playerId, game: id }); } // server dropped mid-session
+    }
     if (myGid !== gid) return;
     attempt = d; gameId = id;
     startHowto();
@@ -299,8 +364,8 @@ let liveState = null, inflight = null, raffleOn = false, shownRaffle = null, raf
 function poll() {
   if (inflight) return inflight;
   return (inflight = live({ screenId: screenId(), game: gameId || 'menu', session: session || undefined })
-    .then((s) => { liveState = s; if (current === 'menu') renderMenu(); applyOverlays(); })
-    .catch(() => {}) // keep last good state
+    .then((s) => { liveState = s; netOk = true; showNet(); if (queue.items().length) flusher.kick(); if (current === 'menu') renderMenu(); applyOverlays(); },
+      () => { if (netOk) { netOk = false; if (current === 'menu') renderMenu(); } showNet(); }) // keep last good state
     .finally(() => { inflight = null; }));
 }
 setInterval(poll, 5000);
@@ -390,59 +455,62 @@ function countTo(el, from, to, dur) {
   gsap.to(o, { v: to, duration: dur, ease: 'power1.out', onUpdate: () => { el.textContent = Math.round(o.v); } });
 }
 
-async function finishWithRetry(id, score, ms) {
-  for (let i = 0; ; i++) {
-    try { return await finishAttempt(id, score, ms); }
-    catch (e) { if (e.code !== 'network' || i === 3) throw e; await wait(1000 * 2 ** i); } // 1 s, 2 s, 4 s
-  }
-}
-
 async function startGame() {
   clearTimeout(howTimer);
   if (current !== 'howto' || !attempt) return;
   if (blocked()) { howTimer = setTimeout(startGame, 1000); return; }
   howStop?.(); howStop = null;
   const myGid = ++gid;
-  const { attemptId, seed } = attempt;
-  const params = liveState?.games.find((g) => g.id === gameId)?.params ?? {};
+  const { attemptId, seed, offline } = attempt;
+  const params = menuGames().find((g) => g.id === gameId)?.params ?? {};
   const ac = gameAbort = new AbortController();
   const idle = curIdle = makeIdle(params);
   show('game');
   let res;
   try {
-    res = await GAME_MODULES[gameId].play($('#game'), { attemptId, session, params, sfx, tap, rng: mulberry32(seed), idle, signal: ac.signal });
+    res = await GAME_MODULES[gameId].play($('#game'), { attemptId, session: local ? undefined : session, params, sfx, tap, rng: mulberry32(seed), idle, signal: ac.signal });
   } catch {
     if (!ac.signal.aborted) toAttract(); // module failure: back to the start
     return;
   } finally { idle.stop(); }
   if (myGid !== gid) return;
   const { score, durationMs } = res;
-  let note = '', prize = false;
-  try { prize = (await finishWithRetry(attemptId, score, durationMs)).prizeWon; } catch { note = 'No se pudo guardar el resultado.'; }
-  if (myGid !== gid) return;
-  showResult(score, note, prize);
+  // The result is queued first, so a dropped connection never loses it and the screen never waits on the network.
+  queue.push({ kind: 'result', attemptId, score, durationMs, offline: !!offline });
+  const answer = new Promise((r) => outcome.set(attemptId, r));
+  flusher.kick();
+  showResult(score, answer);
 }
 
 // ---------- result ----------
-function showResult(score, note, prize) {
+function showResult(score, answer) {
   const prevBest = readTop()[0]?.s;
   const record = prevBest !== undefined && score > prevBest;
   saveTop(firstName(playerName), score);
   $('#rtitle').textContent = score > 70 ? '¡Increíble!' : score >= 40 ? '¡Muy bien!' : '¡Buen intento!';
   $('#rscore').textContent = '0';
-  $('#rnote').textContent = note || ' ';
+  $('#rnote').textContent = ' ';
   $('#record').hidden = !record;
-  $('#rprize').hidden = !prize; $('#thanks').hidden = !!prize;
+  $('#rprize').hidden = true; $('#rpending').hidden = true; $('#thanks').hidden = false;
   show('result');
   sfx.fan();
   gsap.from('#medal', { y: -900, duration: 0.9, ease: 'bounce.out' });
   gsap.from('#rtitle', { scale: 0.5, opacity: 0, duration: 0.5, ease: 'back.out(2)', delay: 0.2 });
   countTo($('#rscore'), 0, score, 1.2);
-  if (prize && !RM) gsap.from('#rprize', { scale: 0.5, opacity: 0, duration: 0.6, ease: 'back.out(2)', delay: 1.2 });
   if (record) gsap.from('#record', { scale: 0, rotation: -20, duration: 0.5, ease: 'back.out(2.5)', delay: 1.1 });
   confetti({ particleCount: score > 70 ? 80 : 60, spread: 100, startVelocity: 45, origin: { y: 0.55 }, disableForReducedMotion: true, zIndex: 100, colors: ['#FFC14D', '#FF8A3D', '#FF5A4D', '#FF2D8A', '#FFF7F3'] });
 
-  const myGid = gid;
+  const myGid = gid, threshold = roster?.games.find((g) => g.id === gameId)?.threshold;
+  const counted = wait(1200); // let the score count up first
+  const reveal = (el) => {
+    if (myGid !== gid || current !== 'result') return;
+    $('#thanks').hidden = true; el.hidden = false;
+    if (!RM) gsap.from(el, { scale: 0.5, opacity: 0, duration: 0.6, ease: 'back.out(2)' });
+  };
+  let answered = false;
+  answer.then(async (won) => { answered = true; if (won) { await counted; $('#rpending').hidden = true; reveal($('#rprize')); } });
+  // No answer in time (offline / slow): never award locally, just tell them to ask at the desk if they cleared the threshold.
+  wait(2000).then(() => { if (!answered && threshold !== undefined && score >= threshold) reveal($('#rpending')); });
   let left = BACK_S;
   const ring = $('#backring');
   ring.style.animation = 'none'; void ring.getBoundingClientRect();
@@ -460,3 +528,12 @@ function showResult(score, note, prize) {
 show('attract');
 renderTops();
 poll();
+
+// ---------- service worker (server mode, production only): caches the panel's own files for offline reloads ----------
+if (!isDemo && import.meta.env.PROD && 'serviceWorker' in navigator) {
+  // The first load happened before the worker controlled the page: hand it the URLs this page already used.
+  const precache = (reg) => reg.active?.postMessage({ precache: [location.href, ...performance.getEntriesByType('resource').map((r) => r.name)] });
+  navigator.serviceWorker.register(import.meta.env.BASE_URL + 'sw.js').then(() => navigator.serviceWorker.ready).then((reg) => {
+    if (document.readyState === 'complete') precache(reg); else addEventListener('load', () => precache(reg));
+  }).catch(() => {});
+}

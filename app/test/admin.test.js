@@ -108,7 +108,7 @@ test('prize: respects stock, threshold and one per guest', async () => {
   const a2 = (await start(app, g1.session)).json();
   assert.equal((await finish(app, db, a2.attemptId, 90)).prizeWon, true);
   const replay = await post(app, `/api/attempts/${a2.attemptId}/result`, { score: 90, durationMs: 9000 });
-  assert.equal(replay.json().prizeWon, false);
+  assert.equal(replay.json().prizeWon, true); // replay reports the stored outcome: a lost response must not hide the prize
   const a3 = (await start(app, g1.session)).json();
   assert.equal((await finish(app, db, a3.attemptId, 95)).prizeWon, false); // already has one
   const b1 = (await start(app, g2.session)).json();

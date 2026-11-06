@@ -6,9 +6,10 @@ import { existsSync, mkdirSync } from 'node:fs';
 import { openDb } from './db.ts';
 import { makeState } from './state.ts';
 import { registerAdmin } from './admin.ts';
+import { makeResults } from './results.ts';
+import { registerPanel } from './panel.ts';
 import { generatePin, newToken, PIXEL_DIR } from './lib.ts';
 import { matchesName, verify, validDni, validEmail, dniDigits, normEmail } from '../src/shared/identity.js';
-import { clampScore, MIN_TOTAL_MS } from '../src/shared/scoring.js';
 import { buildRounds, publicRounds, mulberry32, ROUND_GAMES, ROUND_POINTS } from '../src/shared/rounds.js';
 
 const ROOT = join(import.meta.dirname, '..');
@@ -19,7 +20,7 @@ const CSV_PATH = join(ROOT, 'data', 'guests.csv');
 const MAX_FAILS = 5;
 const LOCK_MS = 30_000;
 
-export function buildApp(dbPath = DB_PATH, csvPath = CSV_PATH, opts: { adminPassword?: string } = {}) {
+export function buildApp(dbPath = DB_PATH, csvPath = CSV_PATH, opts: { adminPassword?: string; panelToken?: string } = {}) {
   const db = openDb(dbPath, csvPath);
   // removeAdditional off: unknown body keys must be rejected (400), not silently stripped
   const app = Fastify({ trustProxy: true, ajv: { customOptions: { removeAdditional: false } } });
@@ -115,7 +116,7 @@ export function buildApp(dbPath = DB_PATH, csvPath = CSV_PATH, opts: { adminPass
     fails.delete(screenId);
     const session = newToken();
     db.prepare("INSERT INTO session(token, kind, ref, created_at) VALUES (?, 'guest', ?, ?)").run(session, String(row.id), now);
-    return { name: row.name, session };
+    return { name: row.name, session, guestId: row.id };
   });
 
   app.post('/api/attempts', {
@@ -138,37 +139,18 @@ export function buildApp(dbPath = DB_PATH, csvPath = CSV_PATH, opts: { adminPass
     return { attemptId: id, seed, serverStart };
   });
 
+  const applyResult = makeResults(db, state);
   app.post('/api/attempts/:id/result', {
     schema: {
       params: { type: 'object', properties: { id: { type: 'string' } } },
       body: { type: 'object', required: ['score', 'durationMs'], additionalProperties: false, properties: { score: { type: 'number' }, durationMs: { type: 'number' } } },
     },
   }, async (req, reply) => {
-    const id = (req.params as any).id;
-    const a = db.prepare('SELECT guest_id, game, started_at, finished_at, score FROM attempt WHERE id = ?').get(id) as any;
-    if (!a) return reply.code(404).send({ error: 'unknown_attempt' });
-    if (a.finished_at) return { score: a.score, replay: true, prizeWon: false };
     const { score, durationMs } = req.body as { score: number; durationMs: number };
-    const now = Date.now();
-    if (durationMs < MIN_TOTAL_MS || now - a.started_at < MIN_TOTAL_MS) return reply.code(400).send({ error: 'implausible_duration' });
-    // round games: the score is the sum of server-computed answer points, never the client's
-    const final = ROUND_GAMES.includes(a.game)
-      ? clampScore((db.prepare('SELECT COALESCE(SUM(points), 0) AS s FROM answer WHERE attempt_id = ?').get(id) as { s: number }).s)
-      : clampScore(score);
-    const prizeWon = state.tx(() => {
-      let won = false;
-      db.prepare('UPDATE attempt SET finished_at = ?, score = ?, duration_ms = ? WHERE id = ? AND finished_at IS NULL')
-        .run(now, final, Math.round(durationMs), id);
-      if (final >= (state.gameConfig(a.game)?.threshold ?? Infinity)) {
-        // one statement: guest has no prize yet AND stock left, so stock can't go negative
-        won = db.prepare(
-          'UPDATE registration SET prize_won_at = ? WHERE guest_id = ? AND prize_won_at IS NULL AND (SELECT COUNT(*) FROM registration WHERE prize_won_at IS NOT NULL) < ?'
-        ).run(now, a.guest_id, state.settings().prizeStock).changes === 1;
-      }
-      return won;
-    });
-    return { score: final, replay: false, prizeWon };
+    const r = applyResult((req.params as any).id, score, durationMs);
+    return 'error' in r ? reply.code(r.code!).send({ error: r.error }) : r;
   });
+  registerPanel(app, db, state, applyResult, roleOf, opts.panelToken ?? process.env.PANEL_TOKEN ?? '');
 
   // Own attempt of the session's guest, or the error reply to send.
   const ownAttempt = (id: string, session: unknown) => {

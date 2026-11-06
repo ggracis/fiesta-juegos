@@ -96,6 +96,8 @@ export async function checkinInfo(token) {
 
 const unavailable = async () => { throw fail('demo_unavailable'); };
 export const checkinAction = unavailable;
+export const panelRoster = unavailable;
+export const panelSync = unavailable;
 export const adminLogin = unavailable;
 export const adminLogout = unavailable;
 export const adminMe = unavailable;
