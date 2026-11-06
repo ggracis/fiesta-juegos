@@ -7,6 +7,7 @@ import { DatabaseSync } from 'node:sqlite';
 import { openDb } from '../server/db.ts';
 import { buildApp } from '../server/index.ts';
 import { GAMES } from '../src/shared/games.js';
+import { rafflePhase, reelIndex, LEAD_MS, SUSPENSE_MS, REEL_STEPS } from '../src/shared/raffle.js';
 
 const CSV = join(import.meta.dirname, '..', 'data', 'guests.csv');
 const tmpFile = () => join(mkdtempSync(join(tmpdir(), 'fiesta-')), 'test.db');
@@ -190,7 +191,7 @@ test('admin settings and games', async () => {
   const { app, h } = await adminApp();
   assert.equal((await app.inject('/api/admin/state')).statusCode, 401);
   const st = (await app.inject({ url: '/api/admin/state', headers: h })).json();
-  assert.deepEqual(st.settings, { paused: false, transition: false, transitionText: '', prizeStock: 0, raffleShowSeconds: 15 });
+  assert.deepEqual(st.settings, { paused: false, transition: false, transitionText: '', prizeStock: 0, raffleShowSeconds: 15, raffleMode: false });
   assert.equal(st.games.length, GAMES.length);
   assert.deepEqual(st.prizes, { stock: 0, won: 0, delivered: 0, left: 0 });
   assert.deepEqual(st.screens, []);
@@ -426,4 +427,80 @@ test('verifications: list without PIN, approve once, dietary carries over, rejec
   assert.equal((await app.inject({ url: '/api/admin/verifications?status=rejected', headers: h })).json()[0].id, v2.id);
   const actions = db.prepare("SELECT action FROM audit_log WHERE action LIKE 'verification_%' ORDER BY id").all().map((r) => r.action);
   assert.deepEqual(actions, ['verification_approve', 'verification_reject']);
+});
+
+test('walk-ins: accredit an unconfirmed guest once, add a guest at the door, no PIN in lists', async () => {
+  const { app, db, h } = await adminApp();
+  const g = db.prepare('SELECT id FROM guest ORDER BY id LIMIT 1').get();
+  const w = await post(app, `/api/admin/guests/${g.id}/walkin`, undefined, h);
+  assert.equal(w.statusCode, 200);
+  assert.equal((await post(app, `/api/admin/guests/${g.id}/walkin`, undefined, h)).json().ticketToken, w.json().ticketToken);
+  const reg = db.prepare('SELECT COUNT(*) AS n, MAX(checked_in_at) AS at FROM registration WHERE guest_id = ?').get(g.id);
+  assert.equal(reg.n, 1);
+  assert.ok(reg.at > 0);
+  assert.match((await app.inject('/api/ticket/' + w.json().ticketToken)).json().pin, /^\d{6}$/);
+  assert.equal((await post(app, '/api/admin/guests/999999/walkin', undefined, h)).statusCode, 404);
+  assert.equal((await post(app, `/api/admin/guests/${g.id}/walkin`)).statusCode, 401);
+
+  const add = await post(app, '/api/admin/guests', { name: '  Invitado   Sorpresa ', dni: '30.999.111', email: 'S@X.com' }, h);
+  assert.equal(add.statusCode, 200);
+  const row = db.prepare('SELECT name, dni, email, walk_in FROM guest WHERE id = ?').get(add.json().guestId);
+  assert.deepEqual({ ...row }, { name: 'Invitado Sorpresa', dni: '30999111', email: 's@x.com', walk_in: 1 });
+  assert.ok(db.prepare('SELECT checked_in_at FROM registration WHERE guest_id = ?').get(add.json().guestId).checked_in_at);
+  assert.equal((await post(app, '/api/admin/guests', { name: 'Invitado Sorpresa' }, h)).json().error, 'guest_exists');
+  assert.equal((await post(app, '/api/admin/guests', { name: 'Solo Nombre' }, h)).statusCode, 200); // dni/email optional
+
+  const list = await app.inject({ url: '/api/admin/guests?q=sorpresa', headers: h });
+  assert.deepEqual(list.json().map((x) => [x.walkIn, x.registered, !!x.checkedInAt]), [[true, true, true]]);
+  assert.ok(!/pin|ticket/i.test(list.body));
+  assert.ok(!/pin|ticket/i.test((await app.inject({ url: '/api/admin/guests/' + g.id, headers: h })).body));
+  assert.equal(db.prepare("SELECT COUNT(*) AS n FROM audit_log WHERE action = 'walk_in'").get().n, 3);
+});
+
+test('raffle mode: live carries mode, clock and a sample without past winners or PINs', async () => {
+  const { app, h } = await adminApp();
+  let live = (await app.inject('/api/live')).json();
+  assert.equal(live.raffleMode, false);
+  assert.ok(Math.abs(live.serverNow - Date.now()) < 5000);
+  assert.equal((await put(app, '/api/admin/settings', { raffleMode: true }, h)).json().raffleMode, true);
+  assert.equal((await app.inject('/api/live')).json().raffleMode, true);
+
+  const pins = [];
+  for (const id of [1, 2, 3, 4]) {
+    const g = await guest(app, id);
+    pins.push(g.pin);
+    await post(app, '/api/admin/checkin/' + g.checkinToken, { action: 'checkin' }, h);
+  }
+  const first = (await post(app, '/api/admin/raffle', undefined, h)).json();
+  const second = (await post(app, '/api/admin/raffle', undefined, h)).json();
+  const res = await app.inject('/api/live');
+  live = res.json();
+  assert.equal(live.raffle.id, second.id);
+  assert.equal(live.raffle.drawnAt, second.drawnAt);
+  assert.ok(live.raffle.sample.includes(second.name));
+  assert.ok(!live.raffle.sample.includes(first.name)); // past winners never come back
+  assert.equal(live.raffle.sample.length, 3);
+  for (const p of pins) assert.ok(!res.body.includes(p));
+  assert.ok(!/pin|ticket|checkin/i.test(JSON.stringify(live.raffle)));
+  const winners = (await app.inject({ url: '/api/admin/raffle', headers: h })).json();
+  assert.deepEqual(winners.map((w) => w.name), [first.name, second.name]);
+  await app.close();
+});
+
+test('raffle timeline: phase from offset and drawnAt, reel lands on the winner', () => {
+  const drawnAt = 1_000_000, show = 15_000, offset = 250; // panel clock 250 ms behind the server
+  const at = (serverT) => rafflePhase(serverT - offset, offset, drawnAt, show);
+  assert.equal(at(drawnAt).phase, 'wait');
+  assert.deepEqual(at(drawnAt + LEAD_MS), { phase: 'suspense', ms: 0 });
+  assert.deepEqual(at(drawnAt + LEAD_MS + SUSPENSE_MS - 1), { phase: 'suspense', ms: SUSPENSE_MS - 1 });
+  assert.deepEqual(at(drawnAt + LEAD_MS + SUSPENSE_MS + 100), { phase: 'reveal', ms: 100 });
+  assert.equal(at(drawnAt + LEAD_MS + SUSPENSE_MS + show).phase, 'done');
+  // Two panels with different clocks, same server instant -> same frame.
+  assert.deepEqual(rafflePhase(5000 - 400, 400, 0, show), rafflePhase(5000 + 900, -900, 0, show));
+
+  for (const n of [1, 7, 40]) for (const w of [0, n - 1]) assert.equal(reelIndex(SUSPENSE_MS, n, w), w);
+  // Decelerates: more names change in the first second than in the last one.
+  const changes = (a, b) => { let c = 0, prev = reelIndex(a, 40, 3); for (let t = a; t <= b; t += 10) { const i = reelIndex(t, 40, 3); if (i !== prev) c++; prev = i; } return c; };
+  assert.ok(changes(0, 1000) > 3 * changes(SUSPENSE_MS - 1000, SUSPENSE_MS));
+  assert.ok(changes(0, SUSPENSE_MS) <= REEL_STEPS);
 });

@@ -18,6 +18,7 @@ const csvField = (v: unknown) => {
   if (typeof v === 'string' && /^[=+\-@\t\r]/.test(s)) return csvField("'" + s);
   return /[",\r\n]/.test(s) ? '"' + s.replace(/"/g, '""') + '"' : s;
 };
+const shuffle = <T>(a: T[]) => { for (let i = a.length - 1; i > 0; i--) { const j = randomInt(i + 1); [a[i], a[j]] = [a[j], a[i]]; } return a; };
 const iso = (ms: number | null) => (ms ? new Date(ms).toISOString() : '');
 
 export function registerAdmin(app: FastifyInstance, db: DatabaseSync, state: State, adminPassword: string) {
@@ -97,6 +98,7 @@ export function registerAdmin(app: FastifyInstance, db: DatabaseSync, state: Sta
         properties: {
           paused: { type: 'boolean' }, transition: { type: 'boolean' }, transitionText: { type: 'string', maxLength: 200 },
           prizeStock: { type: 'integer', minimum: 0 }, raffleShowSeconds: { type: 'integer', minimum: 1, maximum: 600 },
+          raffleMode: { type: 'boolean' },
           registrationValidation: { enum: ['name_only', 'name_dni_email'] },
         },
       },
@@ -141,13 +143,13 @@ export function registerAdmin(app: FastifyInstance, db: DatabaseSync, state: Sta
   }, async (req) => {
     const q = normalize(String((req.query as any).q ?? ''));
     const rows = db.prepare(
-      `SELECT g.id, g.name, r.guest_id IS NOT NULL AS registered, r.checked_in_at, r.prize_won_at, r.prize_delivered_at, r.dietary,
+      `SELECT g.id, g.name, g.walk_in, r.guest_id IS NOT NULL AS registered, r.checked_in_at, r.prize_won_at, r.prize_delivered_at, r.dietary,
          (SELECT COUNT(*) FROM attempt a WHERE a.guest_id = g.id) AS attempts
        FROM guest g LEFT JOIN registration r ON r.guest_id = g.id ORDER BY g.name`
     ).all() as any[];
     // ponytail: filter in JS for accent-insensitive match; fine for a few hundred guests
     return rows.filter((r) => !q || normalize(r.name).includes(q)).slice(0, 200).map((r) => ({
-      id: r.id, name: r.name, registered: !!r.registered, checkedInAt: r.checked_in_at, prizeWonAt: r.prize_won_at,
+      id: r.id, name: r.name, walkIn: !!r.walk_in, registered: !!r.registered, checkedInAt: r.checked_in_at, prizeWonAt: r.prize_won_at,
       prizeDeliveredAt: r.prize_delivered_at, dietary: r.dietary, attempts: r.attempts,
     }));
   });
@@ -238,6 +240,38 @@ export function registerAdmin(app: FastifyInstance, db: DatabaseSync, state: Sta
         audit(roleIn(req), 'verification_reject', { id });
       }
       return { status: 'rejected' };
+    });
+  });
+
+  // Walk-ins: a guest who never confirmed gets a registration and check-in in one step; returns the ticket for the staff phone.
+  const walkIn = (guestId: number, role: string, detail: Record<string, unknown>) => {
+    const reg = db.prepare('SELECT ticket_token FROM registration WHERE guest_id = ?').get(guestId) as { ticket_token: string } | undefined;
+    const ticketToken = reg?.ticket_token ?? createRegistration(db, guestId, null);
+    db.prepare('UPDATE registration SET checked_in_at = COALESCE(checked_in_at, ?) WHERE guest_id = ?').run(Date.now(), guestId);
+    if (!reg) audit(role, 'walk_in', { guestId, ...detail });
+    return { guestId, ticketToken };
+  };
+
+  app.post('/api/admin/guests/:id/walkin', admin, async (req, reply) => {
+    const id = Number((req.params as any).id);
+    return state.tx(() => {
+      if (!db.prepare('SELECT 1 FROM guest WHERE id = ?').get(id)) return reply.code(404).send({ error: 'not_found' });
+      return walkIn(id, roleIn(req), {});
+    });
+  });
+
+  app.post('/api/admin/guests', {
+    ...admin,
+    schema: { body: { type: 'object', required: ['name'], additionalProperties: false, properties: {
+      name: { type: 'string', minLength: 3, maxLength: 120 }, dni: { type: 'string', maxLength: 20 }, email: { type: 'string', maxLength: 120 } } } },
+  }, async (req, reply) => {
+    const { name: raw, dni, email } = req.body as { name: string; dni?: string; email?: string };
+    const name = raw.replace(/\s+/g, ' ').trim();
+    if (nameTokens(name).length < 1) return reply.code(400).send({ error: 'invalid_input' });
+    return state.tx(() => {
+      if (db.prepare('SELECT 1 FROM guest WHERE name = ?').get(name)) return reply.code(409).send({ error: 'guest_exists' });
+      const id = Number(db.prepare('INSERT INTO guest(name, dni, email, walk_in) VALUES (?,?,?,1)').run(name, dniDigits(dni), normEmail(email)).lastInsertRowid);
+      return walkIn(id, roleIn(req), { added: name });
     });
   });
 
@@ -363,8 +397,12 @@ export function registerAdmin(app: FastifyInstance, db: DatabaseSync, state: Sta
     if (!pool.length) return reply.code(409).send({ error: 'no_candidates' });
     const pick = pool[randomInt(pool.length)].guest_id;
     const drawnAt = Date.now();
+    // Up to 40 names for the panels' reel: the winner plus a random slice of the other candidates, shuffled.
+    const nameOf = db.prepare('SELECT name FROM guest WHERE id = ?');
+    const others = shuffle(pool.map((p) => p.guest_id).filter((g) => g !== pick)).slice(0, 39);
+    const sample = shuffle([pick, ...others]).map((g) => (nameOf.get(g) as { name: string }).name);
     const id = state.tx(() => {
-      const id = Number(db.prepare('INSERT INTO raffle(guest_id, drawn_at) VALUES (?,?)').run(pick, drawnAt).lastInsertRowid);
+      const id = Number(db.prepare('INSERT INTO raffle(guest_id, drawn_at, sample) VALUES (?,?,?)').run(pick, drawnAt, JSON.stringify(sample)).lastInsertRowid);
       state.setSetting('raffleHidden', 0);
       audit(roleIn(req), 'raffle', { id, guestId: pick });
       return id;
@@ -373,6 +411,8 @@ export function registerAdmin(app: FastifyInstance, db: DatabaseSync, state: Sta
     return { id, name, drawnAt };
   });
 
+  app.get('/api/admin/raffle', admin, async () =>
+    db.prepare('SELECT r.id, g.name, r.drawn_at AS drawnAt FROM raffle r JOIN guest g ON g.id = r.guest_id ORDER BY r.id').all());
   app.post('/api/admin/raffle/hide', admin, async (req, reply) => {
     const last = db.prepare('SELECT MAX(id) AS id FROM raffle').get() as { id: number | null };
     state.setSetting('raffleHidden', last.id ?? 0);

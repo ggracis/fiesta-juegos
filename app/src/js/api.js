@@ -35,11 +35,14 @@ export const adminImportGuests = call('adminImportGuests');
 export const adminGuest = call('adminGuest');
 export const adminCheckinGuest = call('adminCheckinGuest');
 export const adminVerifications = call('adminVerifications');
+export const adminWalkIn = call('adminWalkIn');
+export const adminAddGuest = call('adminAddGuest');
 export const adminApproveVerification = call('adminApproveVerification');
 export const adminRejectVerification = call('adminRejectVerification');
 export const adminRanking = call('adminRanking');
 export const adminRaffle = call('adminRaffle');
 export const adminHideRaffle = call('adminHideRaffle');
+export const adminWinners = call('adminWinners');
 export const attemptsCsvUrl = `${import.meta.env.BASE_URL}api/admin/attempts.csv`;
 
 // Per-screen id: venue panels share one public IP, so lockouts are keyed by this instead.

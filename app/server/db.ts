@@ -40,6 +40,7 @@ export function openDb(file: string, csvPath: string) {
   addColumn(db, 'verification_request', 'status', "TEXT NOT NULL DEFAULT 'pending'");
   for (const c of ['resolved_guest_id', 'resolved_at']) addColumn(db, 'verification_request', c, 'INTEGER');
   addColumn(db, 'verification_request', 'resolved_by', 'TEXT'); // admin role that approved/rejected
+  addColumn(db, 'guest', 'walk_in', 'INTEGER NOT NULL DEFAULT 0'); // added by staff at the door, not from the invite list
   addColumn(db, 'attempt', 'game', "TEXT NOT NULL DEFAULT 'distinto'");
   addColumn(db, 'attempt', 'content', 'TEXT'); // JSON rounds incl. answers, frozen per attempt
   for (const c of ['prize_won', 'no_prize', 'offline']) addColumn(db, 'attempt', c, 'INTEGER NOT NULL DEFAULT 0'); // no_prize: over-max offline play, recorded but never wins
@@ -56,6 +57,7 @@ export function openDb(file: string, csvPath: string) {
     CREATE TABLE IF NOT EXISTS audit_log(id INTEGER PRIMARY KEY, at INTEGER NOT NULL, role TEXT NOT NULL, action TEXT NOT NULL, detail TEXT);
     CREATE INDEX IF NOT EXISTS attempt_guest_game ON attempt(guest_id, game);
   `);
+  addColumn(db, 'raffle', 'sample', 'TEXT'); // JSON names cycled on the panels before the reveal (includes the winner)
   const seedGame = db.prepare('INSERT OR IGNORE INTO game_config(game, enabled, sort, threshold, max_attempts, params) VALUES (?,?,?,?,?,?)');
   for (const g of GAMES) seedGame.run(g.id, g.ready ? 1 : 0, g.defaults.sort, g.defaults.threshold, g.defaults.maxAttempts, JSON.stringify(g.defaults.params));
   // New default param keys reach existing DBs; edited values are never overwritten.

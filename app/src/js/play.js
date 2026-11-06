@@ -4,6 +4,7 @@ import confetti from 'canvas-confetti';
 import { login, startAttempt, finishAttempt, live, screenId, panelRoster, panelSync, isDemo } from './api.js';
 import { createQueue, createFlusher, createPinCheck, startLocalAttempt, attemptsLeft, bumpCount } from './offline.js';
 import { ROUND_GAMES } from '../shared/rounds.js';
+import { rafflePhase, reelIndex } from '../shared/raffle.js';
 import { $, RM, injectSprite, mascot, demoBadge, cleanName, firstName, wait, mulberry32 } from './common.js';
 import { GAME_MODULES } from './games/index.js';
 
@@ -55,6 +56,7 @@ const sfx = {
   good: () => { blip(880, 0.1); blip(1320, 0.16, 'sine', 0.07, 0.09); },
   bad: () => blip(150, 0.22, 'sawtooth', 0.05),
   fan: () => [523, 659, 784, 1047].forEach((f, i) => blip(f, 0.2, 'triangle', 0.07, i * 0.12)),
+  drum: () => { blip(95, 0.06, 'triangle', 0.09); blip(190, 0.03, 'square', 0.02); }, // one hit per reel step: a slowing drumroll
 };
 tap($('#snd'), () => {
   ac ??= new (window.AudioContext || window.webkitAudioContext)();
@@ -361,49 +363,84 @@ async function pick(id) {
 
 // ---------- live state: poll + overlays ----------
 let liveState = null, inflight = null, raffleOn = false, shownRaffle = null, raffleTimer, rSplit = null;
+let clockOffset = 0; // server clock - local clock from the last poll (half the round trip as the estimate)
 function poll() {
   if (inflight) return inflight;
+  const t0 = Date.now();
   return (inflight = live({ screenId: screenId(), game: gameId || 'menu', session: session || undefined })
-    .then((s) => { liveState = s; netOk = true; showNet(); if (queue.items().length) flusher.kick(); if (current === 'menu') renderMenu(); applyOverlays(); },
+    .then((s) => { if (s.serverNow) clockOffset = s.serverNow - (t0 + Date.now()) / 2; liveState = s; netOk = true; showNet(); if (queue.items().length) flusher.kick(); if (current === 'menu') renderMenu(); applyOverlays(); },
       () => { if (netOk) { netOk = false; if (current === 'menu') renderMenu(); } showNet(); }) // keep last good state
     .finally(() => { inflight = null; }));
 }
-setInterval(poll, 5000);
+// Every 1 s in raffle mode (so every panel sees a draw well before its show starts), otherwise every 5 s.
+let ticks = 0;
+setInterval(() => { if (liveState?.raffleMode || raffleOn || ++ticks % 5 === 0) poll(); }, 1000);
 
 const setOv = (id, on) => { $(id).hidden = !on; };
 const gone = (s) => !!gameId && !s.games.some((g) => g.id === gameId);
-const blocked = () => !!liveState && (raffleOn || liveState.transition.on || liveState.paused || gone(liveState));
-// Priority raffle > transition > pause. Nothing interrupts a running round; they show once it ends.
+const blocked = () => !!liveState && (raffleOn || liveState.raffleMode || liveState.transition.on || liveState.paused || gone(liveState));
+const showMsOf = (r) => Math.max(3, r.showSeconds || 15) * 1000;
+// Priority raffle > raffle-mode plate > transition > pause. Nothing interrupts a running round; they show once it ends.
 function applyOverlays() {
   const s = liveState;
   if (!s || raffleOn) return;
   const mid = current === 'game' || current === 'result';
   const rf = s.raffle;
-  if (rf && rf.id !== shownRaffle && Date.now() - rf.drawnAt > (rf.showSeconds + 10) * 1000) shownRaffle = rf.id; // stale
+  if (rf && rf.id !== shownRaffle && rafflePhase(Date.now(), clockOffset, rf.drawnAt, showMsOf(rf)).phase === 'done') shownRaffle = rf.id; // missed it
   if (!mid && rf && rf.id !== shownRaffle) return showRaffle(rf);
-  const trans = !mid && s.transition.on;
+  const plate = !mid && !!s.raffleMode;
+  setOv('#ov-plate', plate);
+  const trans = !mid && !plate && s.transition.on;
   if (trans) $('#ttext').textContent = s.transition.text || 'Un momento…';
   setOv('#ov-trans', trans);
-  setOv('#ov-pause', !mid && !trans && (s.paused || gone(s)));
+  setOv('#ov-pause', !mid && !plate && !trans && (s.paused || gone(s)));
 }
 
+// Every panel runs the same timeline off the server clock (shared/raffle.js): wait -> ~8 s reel -> winner -> back.
+let raffleRaf;
 function showRaffle(r) {
   shownRaffle = r.id; raffleOn = true;
-  setOv('#ov-trans', false); setOv('#ov-pause', false);
+  setOv('#ov-trans', false); setOv('#ov-pause', false); setOv('#ov-plate', false);
   rSplit?.revert(); rSplit = null; // revert first: it restores the previous winner's markup
-  $('#rwin').textContent = cleanName(r.name);
+  const names = r.sample?.length ? r.sample : [r.name];
+  const wi = Math.max(0, names.indexOf(r.name)), showMs = showMsOf(r), win = $('#rwin');
+  $('#ov-raffle').className = 'overlay suspense';
+  $('#rkick').textContent = 'Sorteando…'; $('#rcong').hidden = true;
+  win.textContent = RM ? '' : cleanName(names[(wi + 1) % names.length]);
   setOv('#ov-raffle', true);
-  if (!RM) {
-    rSplit = SplitText.create('#rwin', { type: 'chars' });
-    gsap.from('#rkick', { scale: 0.4, opacity: 0, duration: 0.5, ease: 'back.out(2)' });
-    gsap.from(rSplit.chars, { scale: 0, y: 80, opacity: 0, duration: 0.6, ease: 'back.out(2.2)', stagger: 0.04, delay: 0.5 });
-    gsap.from('#rcong', { opacity: 0, y: 30, duration: 0.5, delay: 1.4 });
-    const shot = (x) => confetti({ particleCount: 90, spread: 100, startVelocity: 55, origin: { x, y: 0.6 }, zIndex: 100, disableForReducedMotion: true, colors: ['#FFC14D', '#FF8A3D', '#FF5A4D', '#FF2D8A', '#FFF7F3'] });
-    setTimeout(() => { shot(0.2); shot(0.8); }, 900);
-    setTimeout(() => { shot(0.3); shot(0.7); }, 1700);
-  }
-  clearTimeout(raffleTimer);
-  raffleTimer = setTimeout(() => { raffleOn = false; setOv('#ov-raffle', false); applyOverlays(); }, Math.max(3, r.showSeconds || 15) * 1000);
+  cancelAnimationFrame(raffleRaf); clearTimeout(raffleTimer);
+  let last = -1;
+  const frame = () => {
+    const { phase, ms } = rafflePhase(Date.now(), clockOffset, r.drawnAt, showMs);
+    if (phase === 'done') return endRaffle();
+    if (phase === 'reveal') { revealRaffle(r.name); raffleTimer = setTimeout(endRaffle, showMs - ms); return; }
+    if (phase === 'suspense' && !RM) {
+      const i = reelIndex(ms, names.length, wi);
+      if (i !== last) { last = i; win.textContent = cleanName(names[i]); sfx.drum(); }
+    }
+    raffleRaf = requestAnimationFrame(frame);
+  };
+  frame();
+}
+function revealRaffle(name) {
+  $('#ov-raffle').className = 'overlay reveal' + (RM ? ' fade' : '');
+  $('#rkick').textContent = '¡Ganador!';
+  $('#rwin').textContent = cleanName(name);
+  $('#rcong').hidden = false;
+  sfx.fan();
+  if (RM) return;
+  rSplit = SplitText.create('#rwin', { type: 'chars' });
+  gsap.from('#rkick', { scale: 0.4, opacity: 0, duration: 0.5, ease: 'back.out(2)' });
+  gsap.from(rSplit.chars, { scale: 0, y: 80, opacity: 0, duration: 0.6, ease: 'back.out(2.2)', stagger: 0.04, delay: 0.2 });
+  gsap.from('#rcong', { opacity: 0, y: 30, duration: 0.5, delay: 1.1 });
+  const shot = (x) => confetti({ particleCount: 90, spread: 100, startVelocity: 55, origin: { x, y: 0.6 }, zIndex: 100, disableForReducedMotion: true, colors: ['#FFC14D', '#FF8A3D', '#FF5A4D', '#FF2D8A', '#FFF7F3'] });
+  shot(0.5);
+  setTimeout(() => { shot(0.2); shot(0.8); }, 600);
+  setTimeout(() => { shot(0.3); shot(0.7); }, 1400);
+}
+function endRaffle() {
+  cancelAnimationFrame(raffleRaf); clearTimeout(raffleTimer);
+  raffleOn = false; setOv('#ov-raffle', false); applyOverlays();
 }
 
 // ---------- how to ----------

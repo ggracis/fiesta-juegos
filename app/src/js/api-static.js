@@ -88,7 +88,7 @@ export async function finishAttempt(id, score, durationMs) {
 
 export async function live() {
   const games = GAMES.filter((g) => g.ready).map((g) => ({ id: g.id, name: g.name, params: g.defaults.params, attemptsLeft: 99 }));
-  return { paused: false, transition: { on: false, text: '' }, games, raffle: null };
+  return { paused: false, transition: { on: false, text: '' }, raffleMode: false, games, raffle: null, serverNow: Date.now() };
 }
 
 export async function checkinInfo(token) {
@@ -114,8 +114,11 @@ export const adminImportGuests = unavailable;
 export const adminGuest = unavailable;
 export const adminCheckinGuest = unavailable;
 export const adminVerifications = unavailable;
+export const adminWalkIn = unavailable;
+export const adminAddGuest = unavailable;
 export const adminApproveVerification = unavailable;
 export const adminRejectVerification = unavailable;
 export const adminRanking = unavailable;
 export const adminRaffle = unavailable;
 export const adminHideRaffle = unavailable;
+export const adminWinners = unavailable;

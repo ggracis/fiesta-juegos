@@ -18,6 +18,7 @@ export function makeState(db: DatabaseSync) {
     transitionText: String(getSetting('transitionText') ?? ''),
     prizeStock: Number(getSetting('prizeStock')) || 0,
     raffleShowSeconds: Number(getSetting('raffleShowSeconds')) || 15,
+    raffleMode: !!getSetting('raffleMode'),
   });
   // Round games are only ready with enough content to build rounds (same minimum as buildRounds),
   // so an empty bank never shows the game on a panel or burns an attempt.

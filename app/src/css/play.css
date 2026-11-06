@@ -197,6 +197,29 @@ button.press, button.big:active { transform: scale(.94); }
 #rwin div { display: inline-block; }
 #ov-trans h2 { font-size: 150px; line-height: 1.05; }
 
+/* ---------- raffle: waiting plate, synced suspense reel, reveal ---------- */
+.overlay > * { position: relative; }
+.overlay > .glow { position: absolute; inset: -20%; pointer-events: none; opacity: 0;
+  background: radial-gradient(40% 40% at 50% 50%, color-mix(in srgb, var(--sun) 45%, transparent), transparent 70%); }
+#ov-plate h2 { font: 800 150px/1.05 var(--font-display); color: var(--cream); animation: float 4s var(--ease) infinite alternate; }
+#ov-plate .glow { animation: breathe 4s ease-in-out infinite alternate; }
+#ov-raffle.suspense .glow { animation: pulse .45s ease-in-out infinite alternate; }
+#ov-raffle.suspense .kick { animation: pulse-k .45s ease-in-out infinite alternate; }
+#ov-raffle.suspense #rwin { color: var(--cream); opacity: .9; }
+#ov-raffle.reveal .glow { opacity: 1; transform: scale(1.3); transition: opacity .6s, transform .6s var(--ease); }
+#ov-raffle.reveal #rwin { color: var(--sun); }
+#ov-raffle.fade #rwin, #ov-raffle.fade #rcong { animation: fade-in .8s ease-out both; }
+#rwin { max-width: 1600px; overflow-wrap: anywhere; }
+@keyframes float { from { transform: translateY(-10px); } to { transform: translateY(10px); } }
+@keyframes breathe { from { opacity: .25; transform: scale(.95); } to { opacity: .6; transform: scale(1.05); } }
+@keyframes pulse { from { opacity: .2; transform: scale(.9); } to { opacity: .85; transform: scale(1.1); } }
+@keyframes pulse-k { to { transform: scale(1.06); } }
+@keyframes fade-in { from { opacity: 0; } }
+@media (prefers-reduced-motion: reduce) {
+  #ov-plate h2, #ov-plate .glow, #ov-raffle.suspense .glow, #ov-raffle.suspense .kick { animation: none; }
+  #ov-plate .glow { opacity: .4; }
+}
+
 /* ---------- idle notice (ctx.idle) ---------- */
 #ov-idle { position: absolute; z-index: 35; left: 50%; bottom: 56px; transform: translateX(-50%); padding: 18px 56px; border-radius: 999px; font: 800 52px var(--font); white-space: nowrap; color: var(--ink); background: var(--sun); box-shadow: var(--shadow-jelly); pointer-events: none; }
 #ov-idle[hidden] { display: none; }

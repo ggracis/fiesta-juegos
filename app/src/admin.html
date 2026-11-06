@@ -59,6 +59,15 @@
         <label for="csv" class="muted">Importar CSV (<code>name,dni,email</code>)</label>
         <input id="csv" type="file" accept=".csv,text/csv">
       </div>
+      <form class="card" id="add-guest">
+        <h2>Agregar invitado en la puerta</h2>
+        <p class="muted">Para quien no está en la lista: queda acreditado y recibe su PIN.</p>
+        <label for="ag-name">Nombre y apellido</label>
+        <input id="ag-name" required minlength="3" maxlength="120" autocomplete="off">
+        <div class="row"><input id="ag-dni" maxlength="20" placeholder="DNI (opcional)" inputmode="numeric" aria-label="DNI (opcional)" autocomplete="off">
+          <input id="ag-email" type="email" maxlength="120" placeholder="Email (opcional)" aria-label="Email (opcional)" autocomplete="off"></div>
+        <button class="b primary" type="submit">Agregar y dar entrada</button>
+      </form>
       <div class="card">
         <div class="scroll"><table><thead><tr><th>Nombre</th><th>Estado</th><th></th></tr></thead><tbody id="guests"></tbody></table></div>
         <p class="muted" id="guests-empty" hidden>Sin resultados.</p>
@@ -92,10 +101,20 @@
     </section>
 
     <section id="t-raffle" class="pane" role="tabpanel" hidden>
+      <div class="card">
+        <h2>Modo sorteo</h2>
+        <p class="muted" id="raffle-mode-info"></p>
+        <button class="b primary" id="raffle-mode" type="button"></button>
+      </div>
       <div class="card center">
         <button class="b primary big" id="draw" type="button">Sortear</button>
         <p class="winner" id="winner" aria-live="polite"></p>
         <button class="b" id="hide-raffle" type="button" hidden>Ocultar en pantallas</button>
+      </div>
+      <div class="card">
+        <h2>Ganadores</h2>
+        <ol id="winners"></ol>
+        <p class="muted" id="winners-empty" hidden>Todavía no hay ganadores.</p>
       </div>
     </section>
   </main>

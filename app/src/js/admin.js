@@ -14,6 +14,7 @@ const ERRORS = {
   admin_disabled: 'El panel no está habilitado en el servidor.', network: 'Sin conexión con el servidor.',
   not_registered: 'Ese invitado todavía no confirmó su asistencia.', no_candidates: 'No quedan invitados acreditados para sortear.',
   unknown_game: 'Juego desconocido.', not_found: 'No encontrado.', csv_required: 'Selecciona un archivo CSV.',
+  guest_exists: 'Ya existe un invitado con ese nombre: búscalo en la lista.',
   already_resolved: 'Esa verificación ya fue resuelta.', http: 'Error del servidor.', already_checked_in: 'Ya estaba acreditado.', demo_unavailable: 'No disponible en el modo demo.',
 };
 let toastTimer;
@@ -114,22 +115,36 @@ async function loadGuests() {
   if (!rows) return;
   const body = $('guests'); clear(body);
   for (const g of rows) {
-    const btn = h('button', { className: 'b', type: 'button', disabled: !g.registered || !!g.checkedInAt }, g.checkedInAt ? 'Acreditado' : 'Acreditar');
+    const btn = g.registered
+      ? h('button', { className: 'b', type: 'button', disabled: !!g.checkedInAt }, g.checkedInAt ? 'Acreditado' : 'Acreditar')
+      : h('button', { className: 'b primary', type: 'button' }, 'Acreditar y dar entrada');
     btn.onclick = async (ev) => {
       ev.stopPropagation();
-      if (await run(() => api.adminCheckinGuest(g.id))) { toast(`${g.name} acreditado`); loadGuests(); }
+      if (g.registered) { if (await run(() => api.adminCheckinGuest(g.id))) { toast(`${g.name} acreditado`); loadGuests(); } return; }
+      if (!confirm(`¿Acreditar a ${g.name}? No había confirmado asistencia.`)) return;
+      const r = await run(() => api.adminWalkIn(g.id));
+      if (r) { await loadGuests(); showTicket(g.name, r.ticketToken); }
     };
     const tr = h('tr', { className: 'click' },
       h('td', {}, g.name, g.dietary && h('div', { className: 'muted' }, 'Restricción: ' + g.dietary)),
       h('td', {},
         h('span', { className: 'badge' + (g.registered ? ' ok' : '') }, g.registered ? 'Confirmado' : 'Sin confirmar'),
         g.checkedInAt && h('span', { className: 'badge ok' }, 'Acreditado ' + time(g.checkedInAt)),
+        g.walkIn && h('span', { className: 'badge' }, 'Agregado en puerta'),
         g.prizeWonAt && h('span', { className: 'badge prize' }, g.prizeDeliveredAt ? 'Premio entregado' : 'Premio ganado')),
       h('td', {}, btn));
     tr.onclick = () => showDetail(g.id);
     body.append(tr);
   }
   $('guests-empty').hidden = rows.length > 0;
+}
+const ticketLink = (token) =>
+  h('a', { className: 'b primary', href: 'ticket.html?t=' + encodeURIComponent(token), target: '_blank', rel: 'noopener' }, 'Abrir ticket (QR y PIN)');
+// Walk-in result: shown in the detail card so the guest can see their PIN on the staff phone.
+function showTicket(name, token) {
+  const box = $('detail'); clear(box); box.hidden = false;
+  box.append(h('h2', {}, name + ' acreditado'), h('p', { className: 'muted' }, 'Muéstrale el ticket o que le saque una foto al PIN.'), ticketLink(token));
+  box.scrollIntoView({ block: 'nearest' });
 }
 // Not reloaded on search keystrokes, so the ticket link of a just-approved request stays on screen.
 async function loadVerifs() {
@@ -165,8 +180,7 @@ async function loadVerifs() {
       const name = sel.selectedOptions[0].textContent.split(' · ')[0];
       const r = await run(() => api.adminApproveVerification(v.id, Number(sel.value)));
       if (!r) return;
-      item.replaceChildren(h('strong', {}, 'Aprobado: ' + name),
-        h('a', { className: 'b primary', href: 'ticket.html?t=' + encodeURIComponent(r.ticketToken), target: '_blank', rel: 'noopener' }, 'Abrir ticket (QR y PIN)'));
+      item.replaceChildren(h('strong', {}, 'Aprobado: ' + name), ticketLink(r.ticketToken));
       toast(name + ' aprobado'); refresh(); loadGuests();
     };
     no.onclick = async () => {
@@ -287,20 +301,30 @@ async function renderPrizes() {
 }
 
 // ---- Sorteo
-function showWinner(name) {
-  $('winner').textContent = name;
-  $('draw').textContent = 'Volver a sortear';
-  $('hide-raffle').hidden = false;
+function renderRaffleMode() {
+  const on = S.settings.raffleMode;
+  $('raffle-mode').textContent = on ? 'Salir del modo sorteo' : 'Activar modo sorteo';
+  $('raffle-mode').className = 'b' + (on ? '' : ' primary');
+  $('raffle-mode-info').textContent = on
+    ? 'Activo: las pantallas muestran «¡Los sorteos están por comenzar!» al terminar cada partida.'
+    : 'Desactivado: las pantallas siguen con los juegos. Actívalo antes de sortear.';
 }
 async function loadRaffle() {
-  const l = await run(() => api.live());
-  if (l?.raffle) showWinner(l.raffle.name);
+  renderRaffleMode();
+  const [l, winners] = await Promise.all([run(() => api.live()), run(api.adminWinners)]);
+  if (l?.raffle) { $('winner').textContent = l.raffle.name; $('hide-raffle').hidden = false; }
+  if (!winners) return;
+  $('winners').replaceChildren(...winners.map((w) => h('li', {}, w.name + ' · ' + time(w.drawnAt))));
+  $('winners-empty').hidden = winners.length > 0;
+  $('draw').textContent = winners.length ? 'Sortear otro premio' : 'Sortear';
 }
 async function draw() {
-  if (!confirm('¿Sortear un nuevo ganador entre los acreditados?')) return;
+  const msg = S.settings.raffleMode ? '¿Sortear un ganador entre los acreditados?' : 'El modo sorteo está desactivado: las pantallas mostrarán el ganador al terminar cada partida. ¿Sortear igual?';
+  if (!confirm(msg)) return;
   const w = await run(api.adminRaffle);
   if (!w) return;
-  showWinner(w.name);
+  toast('Ganador: ' + w.name);
+  loadRaffle();
 }
 
 // ---- Wiring
@@ -320,6 +344,14 @@ async function boot() {
   $('paused').onchange = (ev) => setting({ paused: ev.target.checked });
   $('trans').onchange = (ev) => setting({ transition: ev.target.checked });
   $('trans-save').onclick = () => setting({ transitionText: $('trans-text').value }).then((r) => r && toast('Texto guardado'));
+  $('add-guest').onsubmit = async (ev) => {
+    ev.preventDefault();
+    const name = $('ag-name').value.trim();
+    const r = await run(() => api.adminAddGuest({ name, dni: $('ag-dni').value.trim(), email: $('ag-email').value.trim() }));
+    if (!r) return;
+    ev.target.reset(); $('gq').value = name;
+    await loadGuests(); showTicket(name, r.ticketToken);
+  };
   $('gq').oninput = () => { clearTimeout(gTimer); gTimer = setTimeout(loadGuests, 300); };
   $('csv').onchange = async (ev) => {
     const f = ev.target.files[0];
@@ -336,6 +368,7 @@ async function boot() {
   };
   $('rank-game').onchange = renderPrizes;
   $('draw').onclick = draw;
+  $('raffle-mode').onclick = async () => { if (await setting({ raffleMode: !S.settings.raffleMode })) renderRaffleMode(); };
   $('hide-raffle').onclick = async () => { if (await run(api.adminHideRaffle)) { toast('Ocultado en las pantallas'); $('hide-raffle').hidden = true; } };
 
   try { await api.adminMe(); enter(); } catch (e) { if (e.code === 'unauthorized') showLogin(); else { showLogin(); toast(ERRORS[e.code] || 'Ocurrió un error inesperado.', true); } }
