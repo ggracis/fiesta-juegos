@@ -12,7 +12,7 @@ If the venue internet can drop, also read **[OFFLINE.md](OFFLINE.md)** (panel of
    - 80 and 443 from anywhere
    - **Do not open 3000.** The service also binds to `127.0.0.1` (`HOST` in fiesta.service), so only Caddy can reach it.
 3. Allocate an **Elastic IP** and associate it with the instance. Note it, e.g. `3.12.34.56`.
-4. Your host is the IP with dashes: `3-12-34-56.sslip.io`.
+4. Your host is the IP with dashes: `3-12-34-56.nip.io`. Serve the `sslip.io` twin too: some routers' DNS answers NXDOMAIN for one of the two (seen 2026-11-06 with sslip.io), so share the nip.io link and keep both certificates.
 
 ## 2. Install (SSH in as `ubuntu`)
 
@@ -57,11 +57,11 @@ sudo systemctl daemon-reload && sudo systemctl enable --now fiesta
 
 sudo cp /opt/fiesta/app/deploy/Caddyfile /etc/caddy/Caddyfile
 sudo systemctl edit caddy      # add:  [Service]
-                               #       Environment=SITE_HOST=3-12-34-56.sslip.io
+                               #       Environment="SITE_HOST=3-12-34-56.nip.io, 3-12-34-56.sslip.io"
 sudo systemctl restart caddy
 ```
 
-Check: `https://3-12-34-56.sslip.io/` loads, `systemctl status fiesta` is active.
+Check: `https://3-12-34-56.nip.io/` loads, `systemctl status fiesta` is active.
 
 ## 5. Backups (every 5 min, keeps newest 288)
 
