@@ -101,6 +101,49 @@
       </div>
     </section>
 
+    <section id="t-stage" class="pane" role="tabpanel" hidden>
+      <div class="card">
+        <h2>Escenario</h2>
+        <p class="st-now" id="st-now" aria-live="polite"></p>
+        <iframe id="st-preview" class="st-preview" title="Vista previa de la pantalla de escenario" tabindex="-1"></iframe>
+        <p class="muted">La pantalla LED abre <a class="link" id="st-link" target="_blank" rel="noopener">stage.html</a> en pantalla completa (F11) y hace un clic para habilitar el sonido.</p>
+      </div>
+      <div class="card">
+        <div class="mixer" id="st-mixer"></div>
+        <div class="st-nav">
+          <button class="b" id="st-prev" type="button">‹ Orador anterior</button>
+          <span id="st-sp"></span>
+          <button class="b" id="st-next" type="button">Orador siguiente ›</button>
+        </div>
+      </div>
+      <div class="card center">
+        <button class="b primary big" id="st-cue" type="button">Momento WOW</button>
+        <p class="muted">Un barrido dorado cruza los 4 paneles y termina en el escenario con el título. Arranca 6 segundos después de tocarlo.</p>
+      </div>
+      <div class="card">
+        <h2>Sorteo en el escenario</h2>
+        <label for="st-prize">Premio de este sorteo</label>
+        <div class="row"><input id="st-prize" list="st-prizes" maxlength="80" autocomplete="off"><button class="b primary" id="st-draw" type="button">Sortear</button></div>
+        <datalist id="st-prizes"></datalist>
+        <p class="muted">Las pantallas y el escenario muestran el suspenso y el ganador. Toca «Mostrar» para volver a poner un ganador anterior.</p>
+        <ol class="st-winners" id="st-winners"></ol>
+      </div>
+      <div class="card">
+        <h2>Oradores</h2>
+        <p class="muted">En el orden en que suben al escenario. Los nombres y cargos se pueden corregir en cualquier momento.</p>
+        <div class="st-speakers" id="st-speakers"></div>
+        <div class="row"><button class="b" id="st-add" type="button">Agregar orador</button><button class="b primary" id="st-save-sp" type="button">Guardar oradores</button></div>
+      </div>
+      <div class="card">
+        <h2>Premios y video</h2>
+        <label for="st-prize-list">Premios, uno por línea, en el orden en que se sortean</label>
+        <textarea id="st-prize-list" rows="10"></textarea>
+        <label for="st-video">Video (archivo en la carpeta media del servidor, por ejemplo media/video.mp4)</label>
+        <input id="st-video" maxlength="300" placeholder="media/video.mp4" autocomplete="off">
+        <button class="b primary" id="st-save" type="button">Guardar premios y video</button>
+      </div>
+    </section>
+
     <section id="t-raffle" class="pane" role="tabpanel" hidden>
       <div class="card">
         <h2>Modo sorteo</h2>

@@ -129,3 +129,6 @@ export const adminRanking = unavailable;
 export const adminRaffle = unavailable;
 export const adminHideRaffle = unavailable;
 export const adminWinners = unavailable;
+export const adminStage = unavailable;
+export const adminSetStage = unavailable;
+export const adminCue = unavailable;

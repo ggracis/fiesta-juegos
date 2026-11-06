@@ -68,6 +68,9 @@ export const adminVerifications = () => call('api/admin/verifications?status=pen
 export const adminApproveVerification = (id, guestId) => call('api/admin/verifications/' + e(id) + '/approve', { guestId });
 export const adminRejectVerification = (id) => call('api/admin/verifications/' + e(id) + '/reject', undefined, 'POST');
 export const adminRanking = (game) => call('api/admin/ranking/' + e(game));
-export const adminRaffle = () => call('api/admin/raffle', undefined, 'POST');
+export const adminRaffle = (prize) => call('api/admin/raffle', prize ? { prize } : undefined, 'POST');
 export const adminWinners = () => call('api/admin/raffle');
 export const adminHideRaffle = () => call('api/admin/raffle/hide', undefined, 'POST');
+export const adminStage = () => call('api/admin/stage');
+export const adminSetStage = (patch) => call('api/admin/stage', patch, 'PUT');
+export const adminCue = () => call('api/admin/stage/cue', undefined, 'POST');

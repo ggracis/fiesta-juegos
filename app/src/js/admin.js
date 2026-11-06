@@ -46,7 +46,7 @@ function safeNext() {
 
 let S = null; // last admin state
 let timer;
-const TABS = [['live', 'En vivo'], ['guests', 'Invitados'], ['games', 'Juegos'], ['content', 'Contenido'], ['prizes', 'Premios y ranking'], ['raffle', 'Sorteo']];
+const TABS = [['live', 'En vivo'], ['guests', 'Invitados'], ['games', 'Juegos'], ['content', 'Contenido'], ['prizes', 'Premios y ranking'], ['raffle', 'Sorteo'], ['stage', 'Escenario']];
 
 function showLogin() {
   clearInterval(timer);
@@ -79,7 +79,7 @@ async function select(tab) {
   for (const [k] of TABS) $('t-' + k).hidden = k !== tab;
   clearInterval(timer);
   if (!(await refresh()) || current !== tab) return;
-  ({ live: renderLive, guests: () => { loadVerifs(); loadGuests(); }, games: renderGames, content: renderContent, prizes: renderPrizes, raffle: loadRaffle })[tab]();
+  ({ live: renderLive, guests: () => { loadVerifs(); loadGuests(); }, games: renderGames, content: renderContent, prizes: renderPrizes, raffle: loadRaffle, stage: () => loadStage(true) })[tab]();
   if (tab === 'live') timer = setInterval(async () => { if (!document.hidden && current === 'live' && await refresh()) renderLive(); }, 5000);
 }
 
@@ -367,6 +367,97 @@ async function draw() {
   toast('Ganador: ' + w.name);
   loadRaffle();
 }
+
+// ---- Escenario: the LED wall behind the stage, driven like a vision mixer
+const SCENE_LABELS = { title: 'Título', ambient: 'Ambiente', speaker: 'Orador', raffle: 'Premios y sorteos', winner: 'Ganador', video: 'Video', black: 'Negro' };
+let ST = null, stReady = false, spDraft = [], prizeTouched = false;
+async function loadStage(full) {
+  if (!stReady) initStage();
+  const [st, winners] = await Promise.all([run(api.adminStage), run(api.adminWinners)]);
+  if (!st || !winners) return;
+  ST = st;
+  renderMixer(winners);
+  if (full) { spDraft = ST.speakers.map((x) => ({ ...x })); renderSpeakers(); $('st-prize-list').value = ST.prizes.join('\n'); $('st-video').value = ST.video; }
+}
+const setStage = async (patch) => { if (await run(() => api.adminSetStage(patch))) await loadStage(); };
+function renderMixer(winners) {
+  const sp = ST.speakers[ST.speaker], w = winners.find((x) => x.id === ST.winner);
+  const btn = (scene, sub) => {
+    const on = ST.scene === scene;
+    const b = h('button', { type: 'button', className: 'mx' + (on ? ' on' : ''), ariaPressed: String(on) }, h('strong', {}, SCENE_LABELS[scene]), h('span', {}, sub));
+    b.onclick = () => (scene === 'winner' && !w ? toast('Todavía no hay ganadores: sortea primero.', true) : setStage({ scene }));
+    return b;
+  };
+  $('st-mixer').replaceChildren(
+    btn('title', 'Gala Huawei Digital Power 2026'),
+    btn('ambient', 'Animaciones suaves que rotan'),
+    btn('speaker', sp ? sp.name + (sp.role ? ' · ' + sp.role : '') : 'Sin oradores'),
+    btn('raffle', 'Placa de premios'),
+    btn('winner', w ? w.name + (w.prize ? ' · ' + w.prize : '') : 'Todavía no hay sorteos'),
+    btn('video', ST.video || 'Sin video configurado'),
+    btn('black', 'Pantalla apagada'));
+  $('st-now').textContent = 'En pantalla: ' + SCENE_LABELS[ST.scene] + (ST.scene === 'speaker' && sp ? ` (${sp.name})` : '');
+  $('st-sp').textContent = sp ? `${ST.speaker + 1} de ${ST.speakers.length}: ${sp.name}` : 'Sin oradores';
+  $('st-prev').disabled = ST.speaker <= 0;
+  $('st-next').disabled = ST.speaker >= ST.speakers.length - 1;
+  $('st-prizes').replaceChildren(...ST.prizes.map((p) => h('option', { value: p })));
+  if (!prizeTouched && document.activeElement !== $('st-prize')) $('st-prize').value = ST.prizes[winners.length] ?? ''; // next prize in the list
+  $('st-winners').replaceChildren(...winners.map((x) => {
+    const show = h('button', { type: 'button', className: 'b' }, 'Mostrar');
+    show.onclick = () => setStage({ scene: 'winner', winner: x.id });
+    return h('li', { className: x.id === ST.winner ? 'on' : '' }, x.name + (x.prize ? ' · ' + x.prize : '') + ' · ' + time(x.drawnAt), show);
+  }));
+}
+function renderSpeakers() {
+  $('st-speakers').replaceChildren(...spDraft.map((x, i) => {
+    const name = h('input', { value: x.name, maxLength: 60, placeholder: 'Nombre', ariaLabel: `Nombre del orador ${i + 1}` });
+    const role = h('input', { value: x.role, maxLength: 60, placeholder: 'Cargo', ariaLabel: `Cargo del orador ${i + 1}` });
+    name.oninput = () => { x.name = name.value; };
+    role.oninput = () => { x.role = role.value; };
+    const move = (label, d, aria) => {
+      const b = h('button', { type: 'button', className: 'b', ariaLabel: aria, disabled: !spDraft[i + d] }, label);
+      b.onclick = () => { [spDraft[i], spDraft[i + d]] = [spDraft[i + d], spDraft[i]]; renderSpeakers(); };
+      return b;
+    };
+    const del = h('button', { type: 'button', className: 'b', ariaLabel: 'Quitar orador ' + (i + 1) }, '✕');
+    del.onclick = () => { spDraft.splice(i, 1); renderSpeakers(); };
+    return h('div', { className: 'st-sprow' }, name, role, move('↑', -1, 'Subir'), move('↓', 1, 'Bajar'), del);
+  }));
+}
+function initStage() {
+  stReady = true;
+  const url = new URL('stage.html', location.href).href;
+  $('st-link').href = url;
+  $('st-preview').src = url + '?preview=1';
+  $('st-prev').onclick = () => setStage({ scene: 'speaker', speaker: ST.speaker - 1 });
+  $('st-next').onclick = () => setStage({ scene: 'speaker', speaker: ST.speaker + 1 });
+  $('st-cue').onclick = async () => {
+    if (!confirm('¿Lanzar el momento WOW? Empieza en 6 segundos en los paneles y en el escenario.')) return;
+    if (await run(api.adminCue)) { toast('Momento WOW en 6 segundos'); loadStage(); }
+  };
+  $('st-prize').oninput = () => { prizeTouched = true; };
+  $('st-draw').onclick = async () => {
+    const prize = $('st-prize').value.trim();
+    if (!confirm(`¿Sortear ${prize ? '«' + prize + '»' : 'un premio sin nombre'} entre los acreditados?`)) return;
+    const w = await run(() => api.adminRaffle(prize));
+    if (!w) return;
+    toast('Ganador: ' + w.name);
+    prizeTouched = false;
+    loadStage();
+  };
+  $('st-add').onclick = () => { spDraft.push({ name: '', role: '' }); renderSpeakers(); $('st-speakers').lastChild.querySelector('input').focus(); };
+  $('st-save-sp').onclick = async () => {
+    const speakers = spDraft.map((x) => ({ name: x.name.trim(), role: x.role.trim() })).filter((x) => x.name);
+    if (await run(() => api.adminSetStage({ speakers }))) { toast('Oradores guardados'); loadStage(true); }
+  };
+  $('st-save').onclick = async () => {
+    const prizes = $('st-prize-list').value.split('\n').map((x) => x.trim()).filter(Boolean);
+    if (prizes.some((x) => x.length > 80)) return toast('Cada premio puede tener hasta 80 caracteres.', true);
+    if (await run(() => api.adminSetStage({ prizes, video: $('st-video').value.trim() }))) { toast('Premios y video guardados'); prizeTouched = false; loadStage(true); }
+  };
+}
+// Mixer refresh: every 3 s while the Escenario tab is open (another operator may switch plates too).
+setInterval(() => { if (current === 'stage' && !document.hidden && !$('app').hidden) loadStage(); }, 3000);
 
 // ---- Wiring
 async function boot() {

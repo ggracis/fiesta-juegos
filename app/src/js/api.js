@@ -43,6 +43,9 @@ export const adminRanking = call('adminRanking');
 export const adminRaffle = call('adminRaffle');
 export const adminHideRaffle = call('adminHideRaffle');
 export const adminWinners = call('adminWinners');
+export const adminStage = call('adminStage');
+export const adminSetStage = call('adminSetStage');
+export const adminCue = call('adminCue');
 export const attemptsCsvUrl = `${import.meta.env.BASE_URL}api/admin/attempts.csv`;
 
 // Per-screen id: venue panels share one public IP, so lockouts are keyed by this instead.

@@ -79,3 +79,21 @@ a.b { display: inline-flex; align-items: center; justify-self: start; text-decor
 .toast.bad { background: var(--red-deep); }
 
 @media (max-width: 560px) { .grid2 { grid-template-columns: 1fr; } }
+
+/* ---------- Escenario (LED wall mixer) ---------- */
+.st-now { margin: 0; font-weight: 800; font-size: 1.05rem; }
+.st-preview { width: 100%; aspect-ratio: 4 / 1; border: 0; border-radius: 8px; background: #000; pointer-events: none; }
+.mixer { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 8px; }
+.mx { display: grid; gap: 4px; align-content: start; min-height: 88px; padding: 12px; border: 2px solid rgba(43, 11, 18, .15); border-radius: 12px; text-align: left; font: inherit; color: var(--ink); background: #fff; cursor: pointer; }
+.mx strong { font-size: 1.05rem; }
+.mx span { font-size: .8rem; opacity: .75; overflow-wrap: anywhere; }
+.mx.on { color: #fff; background: var(--red); border-color: var(--red); box-shadow: 0 0 0 4px rgba(228, 0, 43, .25); }
+.st-nav { display: flex; align-items: center; justify-content: space-between; gap: 8px; flex-wrap: wrap; }
+.st-nav span { flex: 1; font-weight: 700; text-align: center; }
+.st-winners { margin: 0; padding-left: 1.4em; display: grid; gap: 6px; }
+.st-winners li.on { font-weight: 800; }
+.st-winners .b { min-height: 36px; margin-left: 8px; padding: 0 12px; }
+.st-speakers { display: grid; gap: 6px; }
+.st-sprow { display: grid; grid-template-columns: 1.3fr 1fr auto auto auto; gap: 6px; }
+.st-sprow .b { padding: 0 12px; }
+@media (max-width: 560px) { .st-sprow { grid-template-columns: 1fr 1fr; } }
