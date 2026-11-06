@@ -1,8 +1,9 @@
 // Server-keyed rounds for quiz and pixel. Pure: used by the server and the static demo.
+import { pixelPoints } from './scoring.js';
 export const ROUND_GAMES = ['quiz', 'pixel'];
-// game -> (correct: boolean, ms: number, params) => points. Empty on purpose: the quiz and pixel
-// sessions register their formulas here (until then answers store 0 points).
-export const ROUND_POINTS = {};
+// game -> (correct: boolean, ms: number, params) => points. Each round game registers its formula here
+// (a game without one stores 0 points).
+export const ROUND_POINTS = { pixel: pixelPoints };
 
 export function mulberry32(a) {
   return () => { a |= 0; a = (a + 0x6D2B79F5) | 0; let t = Math.imul(a ^ (a >>> 15), 1 | a); t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t; return ((t ^ (t >>> 14)) >>> 0) / 4294967296; };

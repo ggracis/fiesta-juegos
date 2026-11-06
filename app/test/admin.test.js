@@ -125,8 +125,9 @@ test('live: heartbeat, games, paused, attemptsLeft, raffle', async () => {
   assert.equal(live.paused, false);
   assert.deepEqual(live.transition, { on: false, text: '' });
   assert.equal(live.raffle, null);
-  assert.deepEqual(live.games.map((g) => g.id), ['distinto']);
-  assert.equal(live.games[0].attemptsLeft, undefined);
+  assert.deepEqual(live.games.map((g) => g.id), ['pixel', 'distinto']);
+  const dist = (l) => l.games.find((x) => x.id === 'distinto');
+  assert.equal(dist(live).attemptsLeft, undefined);
   assert.equal(app.db.prepare('SELECT game FROM screen WHERE id = ?').get(sid).game, 'menu');
   await app.inject(`/api/live?screenId=${sid}&game=distinto`);
   assert.equal(app.db.prepare('SELECT COUNT(*) AS n FROM screen').get().n, 1);
@@ -136,15 +137,15 @@ test('live: heartbeat, games, paused, attemptsLeft, raffle', async () => {
 
   const g = await guest(app, 1);
   live = (await app.inject(`/api/live?session=${g.session}`)).json();
-  assert.equal(live.games[0].attemptsLeft, 1);
+  assert.equal(dist(live).attemptsLeft, 1);
   await start(app, g.session);
   live = (await app.inject(`/api/live?session=${g.session}`)).json();
-  assert.equal(live.games[0].attemptsLeft, 0);
+  assert.equal(dist(live).attemptsLeft, 0);
 
   app.db.prepare("UPDATE setting SET value = 'true' WHERE key = 'paused'").run();
   assert.equal((await app.inject('/api/live')).json().paused, true);
   app.db.prepare("UPDATE game_config SET enabled = 0 WHERE game = 'distinto'").run();
-  assert.deepEqual((await app.inject('/api/live')).json().games, []);
+  assert.deepEqual((await app.inject('/api/live')).json().games.map((x) => x.id), ['pixel']);
   await app.close();
 });
 
