@@ -8,6 +8,7 @@ import { openDb } from '../server/db.ts';
 import { buildApp } from '../server/index.ts';
 import { GAMES } from '../src/shared/games.js';
 import { rafflePhase, reelIndex, LEAD_MS, SUSPENSE_MS, REEL_STEPS } from '../src/shared/raffle.js';
+import { leaderboards, shortName } from '../src/shared/leaderboard.js';
 
 const CSV = join(import.meta.dirname, '..', 'data', 'guests.csv');
 const tmpFile = () => join(mkdtempSync(join(tmpdir(), 'fiesta-')), 'test.db');
@@ -503,4 +504,36 @@ test('raffle timeline: phase from offset and drawnAt, reel lands on the winner',
   const changes = (a, b) => { let c = 0, prev = reelIndex(a, 40, 3); for (let t = a; t <= b; t += 10) { const i = reelIndex(t, 40, 3); if (i !== prev) c++; prev = i; } return c; };
   assert.ok(changes(0, 1000) > 3 * changes(SUSPENSE_MS - 1000, SUSPENSE_MS));
   assert.ok(changes(0, SUSPENSE_MS) <= REEL_STEPS);
+});
+
+test('leaderboards: best attempt per guest, short names, ties to the earliest', () => {
+  assert.equal(shortName('Ana Lucía Fernández (demo)'), 'Ana F.');
+  assert.equal(shortName('Cher'), 'Cher');
+  const rows = [
+    { guest: 1, name: 'Ana Fernández', game: 'memo', score: 80, at: 3 },
+    { guest: 1, name: 'Ana Fernández', game: 'quiz', score: 95, at: 4 },
+    { guest: 2, name: 'Bruno Díaz', game: 'memo', score: 80, at: 1 },
+    { guest: 3, name: 'Carla Ruiz', game: 'quiz', score: 60, at: 2 },
+  ];
+  const b = leaderboards(rows, ['memo', 'quiz', 'pixel'], 2);
+  assert.deepEqual(b.all, [{ name: 'Ana F.', game: 'quiz', score: 95 }, { name: 'Bruno D.', game: 'memo', score: 80 }]);
+  assert.deepEqual(b.byGame.memo.map((r) => r.name), ['Bruno D.', 'Ana F.']); // tie: Bruno scored first
+  assert.deepEqual(b.byGame.pixel, []);
+});
+
+test('live leaderboard: no private data, cached, skips no_prize plays', async () => {
+  const { app, db } = await adminApp();
+  const g = await guest(app, 1);
+  const a = (await start(app, g.session)).json();
+  await finish(app, db, a.attemptId, 77);
+  const res = await app.inject('/api/live');
+  const lb = res.json().leaderboard;
+  const full = db.prepare('SELECT name, dni, email FROM guest WHERE id = 1').get();
+  assert.equal(lb.all[0].score, 77);
+  assert.equal(lb.all[0].name, shortName(full.name));
+  assert.deepEqual(lb.byGame.distinto.map((r) => r.score), [77]);
+  const body = JSON.stringify(lb);
+  for (const secret of [g.pin, g.session, g.checkinToken, full.dni, full.email, full.name]) assert.ok(!body.includes(secret), secret);
+  db.prepare('UPDATE attempt SET score = 99, no_prize = 1').run();
+  assert.equal((await app.inject('/api/live')).json().leaderboard.all[0].score, 77); // still cached
 });

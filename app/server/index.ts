@@ -11,6 +11,7 @@ import { registerPanel } from './panel.ts';
 import { createRegistration, newToken, PIXEL_DIR } from './lib.ts';
 import { matchesName, verify, validDni, validEmail, dniDigits, normEmail, cleanDietary } from '../src/shared/identity.js';
 import { buildRounds, publicRounds, mulberry32, ROUND_GAMES, ROUND_POINTS } from '../src/shared/rounds.js';
+import { leaderboards } from '../src/shared/leaderboard.js';
 
 const ROOT = join(import.meta.dirname, '..');
 const DB_PATH = join(ROOT, 'data', 'fiesta.db');
@@ -216,6 +217,20 @@ export function buildApp(dbPath = DB_PATH, csvPath = CSV_PATH, opts: { adminPass
     return { correct, correctChoice, points };
   });
 
+  // Attract-screen boards. Every panel polls /api/live, so the result is cached for a few seconds.
+  // Over-max offline plays (no_prize) never rank.
+  let boardCache = { at: 0, key: '', value: null as unknown };
+  const boards = (gameIds: string[], now: number) => {
+    const key = gameIds.join(',');
+    if (now - boardCache.at > 5000 || boardCache.key !== key) {
+      const rows = db.prepare(
+        'SELECT a.guest_id AS guest, g.name, a.game, a.score, a.finished_at AS at FROM attempt a JOIN guest g ON g.id = a.guest_id WHERE a.score IS NOT NULL AND a.no_prize = 0'
+      ).all() as { guest: number; name: string; game: string; score: number; at: number }[];
+      boardCache = { at: now, key, value: leaderboards(rows, gameIds) };
+    }
+    return boardCache.value;
+  };
+
   app.get('/api/live', async (req) => {
     const q = req.query as { screenId?: string; game?: string; session?: string };
     const now = Date.now();
@@ -235,7 +250,8 @@ export function buildApp(dbPath = DB_PATH, csvPath = CSV_PATH, opts: { adminPass
     const raffle = r && state.getSetting('raffleHidden') !== r.id
       ? { id: r.id, name: r.name, drawnAt: r.drawn_at, showSeconds: settings.raffleShowSeconds, sample: JSON.parse(r.sample ?? '[]') as string[] } : null;
     // serverNow lets panels sync the raffle show to the server clock.
-    return { paused: settings.paused, transition: { on: settings.transition, text: settings.transitionText }, raffleMode: settings.raffleMode, games, raffle, serverNow: Date.now() };
+    return { paused: settings.paused, transition: { on: settings.transition, text: settings.transitionText }, raffleMode: settings.raffleMode, games, raffle, serverNow: Date.now(),
+      leaderboard: boards(games.map((g) => g.id), now) };
   });
 
   app.get('/api/checkin/:token', async (req, reply) => {

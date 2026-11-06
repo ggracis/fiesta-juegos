@@ -4,6 +4,7 @@ import demoContent from '../data/demo-content.json';
 import { GAMES, gameById } from '../shared/games.js';
 import { buildRounds, publicRounds, mulberry32, ROUND_GAMES, roundsTotal, ROUND_POINTS } from '../shared/rounds.js';
 import { VALIDATION_MODE } from '../shared/identity.js';
+import { leaderboards } from '../shared/leaderboard.js';
 import { lookupRoster, registerRoster, checkPin } from './demo-core.js';
 
 const mem = {};
@@ -88,7 +89,13 @@ export async function finishAttempt(id, score, durationMs) {
 
 export async function live() {
   const games = GAMES.filter((g) => g.ready).map((g) => ({ id: g.id, name: g.name, params: g.defaults.params, attemptsLeft: 99 }));
-  return { paused: false, transition: { on: false, text: '' }, raffleMode: false, games, raffle: null, serverNow: Date.now() };
+  // Boards from this browser's finished attempts (stored in play order, which stands in for finish time).
+  const rows = read('fiesta.demo.attempts', []).flatMap((a, at) => {
+    const g = a.finished && roster.find((x) => 'demo-' + x.id === a.session);
+    return g ? [{ guest: g.id, name: g.name, game: a.game, score: a.score, at }] : [];
+  });
+  return { paused: false, transition: { on: false, text: '' }, raffleMode: false, games, raffle: null, serverNow: Date.now(),
+    leaderboard: leaderboards(rows, games.map((g) => g.id)) };
 }
 
 export async function checkinInfo(token) {

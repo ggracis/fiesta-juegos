@@ -126,7 +126,7 @@ if (new URLSearchParams(location.search).has('setup') && !isDemo) {
 const screens = [...document.querySelectorAll('.screen')];
 let current = 'attract', idleTimer, gid = 0, session = null, attempt = null, playerName = '';
 let local = null, playerId = null; // local: offline session { offline, guestId, name } (PIN checked against the cached roster)
-let gameId = null, howStop = null, gameAbort = null, curIdle = null, topsTl = null, backTimer = null, holaSplit = null;
+let gameId = null, howStop = null, gameAbort = null, curIdle = null, backTimer = null, holaSplit = null;
 
 function show(name) {
   current = name;
@@ -165,32 +165,51 @@ function iris(fn) {
   });
 }
 
-// ---------- local top 3 (this screen only) ----------
+// ---------- local best (this screen only): drives "¡Superaste el puntaje!" on the result ----------
 const readTop = () => { try { return JSON.parse(localStorage.getItem('fiesta.top')) || []; } catch { return []; } };
 function saveTop(name, score) {
   const list = [...readTop(), { n: name, s: score }].sort((a, b) => b.s - a.s).slice(0, 3);
   try { localStorage.setItem('fiesta.top', JSON.stringify(list)); } catch {}
 }
-function renderTops() {
-  const top = readTop();
-  const box = $('#tops');
-  topsTl?.kill();
-  if (!top.length) { box.innerHTML = '<span style="opacity:1">Sé el primero en aparecer aquí</span>'; return; }
-  box.replaceChildren(document.createElement('span'), document.createElement('span'));
-  box.children[0].textContent = 'Mejores puntajes de esta pantalla';
-  top.forEach((t, i) => {
-    const el = document.createElement('i'), b = document.createElement('b');
-    el.style.fontStyle = 'normal'; b.textContent = t.s;
-    el.append(`${i + 1}. ${t.n} `, b);
-    box.children[1].append(el);
-  });
-  const [a, b] = box.children;
-  gsap.set(b, { opacity: 0 });
-  topsTl = gsap.timeline({ repeat: -1, repeatDelay: 0 })
-    .to(a, { opacity: 0, duration: 0.6 }, 3.4).to(b, { opacity: 1, duration: 0.6 }, 3.4)
-    .to(b, { opacity: 0, duration: 0.6 }, 7.4).to(a, { opacity: 1, duration: 0.6 }, 7.4)
-    .to({}, { duration: 0.6 });
+
+// ---------- attract leaderboards: the invitation and one board take turns every 8 s ----------
+// Boards come from /api/live (server-built, display names only): overall first, then one per enabled game.
+const SCENE_MS = 8000;
+let sceneTimer = null, boardIdx = 0;
+const boardSeen = new Map(); // board key -> row keys last shown, to highlight newcomers
+function boardList() {
+  const lb = liveState?.leaderboard;
+  if (!lb) return [];
+  return [{ key: 'all', title: 'Mejores puntajes generales', rows: lb.all },
+    ...liveState.games.map((g) => ({ key: g.id, title: 'Mejores en ' + g.name, rows: lb.byGame?.[g.id] ?? [] }))];
 }
+const gameName = (id) => liveState?.games.find((g) => g.id === id)?.name ?? id;
+function renderBoard(b) {
+  const el = (tag, cls, text) => Object.assign(document.createElement(tag), { className: cls, textContent: text ?? '' });
+  $('#board-title').textContent = b.title;
+  const prev = boardSeen.get(b.key), keys = new Set();
+  const rows = b.rows.map((r, i) => {
+    const k = `${r.name}|${r.game}|${r.score}`;
+    keys.add(k);
+    const li = el('li', prev && !prev.has(k) ? 'new' : '');
+    const chip = b.key === 'all' && el('span', 'chip', gameName(r.game));
+    if (chip) chip.dataset.game = r.game;
+    li.append(el('span', 'rk', String(i + 1)), el('span', 'nm', r.name), chip || '', el('span', 'sc', String(r.score)));
+    return li;
+  });
+  boardSeen.set(b.key, keys);
+  $('#board-rows').replaceChildren(...(rows.length ? rows : [el('li', 'empty', '¡Todavía nadie!\nSé el primero en aparecer aquí')]));
+}
+function nextScene() {
+  const a = $('#attract');
+  if (current !== 'attract') return;
+  const list = boardList();
+  if (a.classList.contains('show-board') || !list.length) a.classList.remove('show-board');
+  else { renderBoard(list[boardIdx++ % list.length]); a.classList.add('show-board'); }
+  sceneTimer = setTimeout(nextScene, SCENE_MS);
+}
+function stopScenes() { clearTimeout(sceneTimer); $('#attract').classList.remove('show-board'); }
+function renderTops() { stopScenes(); boardIdx = 0; sceneTimer = setTimeout(nextScene, SCENE_MS); }
 
 // ---------- attract ----------
 const FLOAT = [
@@ -207,7 +226,7 @@ FLOAT.forEach(([x, y, h, shape, acc, size], i) => {
 const oddOne = floaters.children[3].firstElementChild; // the visibly odd one winks every 6 s
 setInterval(() => { if (current === 'attract') { oddOne.classList.add('wink'); setTimeout(() => oddOne.classList.remove('wink'), 260); } }, 6000);
 
-tap($('#attract'), () => { goFullscreen(); pin = ''; renderDots(); setMsg(''); topsTl?.kill(); show('pin'); sfx.key(); });
+tap($('#attract'), () => { goFullscreen(); pin = ''; renderDots(); setMsg(''); stopScenes(); show('pin'); sfx.key(); });
 
 // ---------- PIN ----------
 let pin = '', locked = false, lockTimer;
