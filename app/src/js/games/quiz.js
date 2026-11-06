@@ -1,20 +1,14 @@
 import gsap from 'gsap';
 import { rounds as fetchRounds, answer } from '../api.js';
 import { RM, wait } from '../common.js';
+import { withRetry } from '../retry.js';
 import '../../css/quiz.css';
 
 // Client side of the server-keyed rounds: the key never reaches the panel, so feedback waits for POST /answer.
 const FEEDBACK_MS = 1200;
+const ANSWER_BUDGET_MS = 10_000; // then the answer counts as 0 on screen and the game moves on
 const LETTERS = 'ABCD';
 const abortError = () => new DOMException('aborted', 'AbortError');
-
-// ponytail: same 1/2/4 s backoff as finishWithRetry in play.js; only network errors retry.
-async function withRetry(fn, signal) {
-  for (let i = 0; ; i++) {
-    try { return await fn(); }
-    catch (e) { if (e.code !== 'network' || i === 3 || signal.aborted) throw e; await wait(1000 * 2 ** i); }
-  }
-}
 
 async function play(root, { attemptId, session, params, sfx, tap, idle, signal }) {
   const secs = Number(params.secondsPerQuestion) || 12;
@@ -30,7 +24,7 @@ async function play(root, { attemptId, session, params, sfx, tap, idle, signal }
     p.then(res, rej);
   });
 
-  const { rounds } = await race(withRetry(() => fetchRounds(attemptId, session), end.signal));
+  const { rounds } = await race(withRetry(() => fetchRounds(attemptId, session), { signal: end.signal }));
 
   // Own layer over the El Distinto markup; it stays under the result screen and goes when the panel leaves.
   root.querySelector('.qz')?.remove();
@@ -83,11 +77,15 @@ async function play(root, { attemptId, session, params, sfx, tap, idle, signal }
     for (let i = 0; i < rounds.length; i++) {
       const { choice, ms } = await race(ask(rounds[i], i));
       if (choice !== null) btns[choice].classList.add('pick');
-      let res = null;
-      try { res = await race(withRetry(() => answer(attemptId, session, i, choice, Math.round(ms)), end.signal)); }
-      catch (e) { if (end.signal.aborted) throw e; } // gave up: counts as 0
+      let res = null, recorded = false;
+      try { res = await race(withRetry(() => answer(attemptId, session, i, choice, Math.round(ms)), { signal: end.signal, budgetMs: ANSWER_BUDGET_MS })); }
+      catch (e) {
+        if (end.signal.aborted) throw e;
+        recorded = e.code === 'already_answered'; // a lost response whose retry hit 409: the server has it, we don't know the points
+      } // otherwise gave up: counts as 0 on screen
       btns.forEach((b, k) => b.classList.add(!res ? (k === choice ? 'pick' : 'off') : k === res.correctChoice ? 'ok' : k === choice ? 'bad' : 'off'));
-      if (!res) { msg.textContent = 'Sin conexión'; sfx.bad(); }
+      if (recorded) msg.textContent = 'Respuesta registrada';
+      else if (!res) { msg.textContent = 'Sin conexión'; sfx.bad(); }
       else if (res.correct) {
         score += res.points; ptsEl.textContent = score;
         msg.textContent = `¡Correcto! +${res.points}`; msg.classList.add('good'); sfx.good();
