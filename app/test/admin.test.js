@@ -362,3 +362,12 @@ test('csv import keeps a header-less first line', async () => {
   assert.equal(r.json().added, 2);
   await app.close();
 });
+
+test('round games stay hidden until their bank has content', async () => {
+  const app = buildApp(':memory:');
+  const ids = async () => (await app.inject('/api/live')).json().games.map((g) => g.id);
+  assert.ok(!(await ids()).includes('quiz'));
+  app.db.prepare("INSERT INTO quiz_question(question, correct, wrong1, wrong2, wrong3, category) VALUES ('q', 'a', 'b', 'c', 'd', 'demo')").run();
+  assert.ok((await ids()).includes('quiz'));
+  await app.close();
+});
