@@ -1,18 +1,38 @@
 const base = import.meta.env.BASE_URL;
 
+// Plan B: ?api=http://<notebook>:3000/ points every public call at the notebook (empty clears); ?token= is the PANEL_TOKEN
+// for staff-only panel calls (cookies don't cross origins). Both persist in localStorage and are stripped from the URL.
+const ls = { get: (k) => { try { return localStorage.getItem(k); } catch { return null; } },
+  set: (k, v) => { try { v ? localStorage.setItem(k, v) : localStorage.removeItem(k); } catch {} } };
+{
+  const q = new URLSearchParams(location.search);
+  const api = q.get('api');
+  if (api !== null) ls.set('fiesta.api', /^https?:\/\//.test(api) ? api.replace(/\/?$/, '/') : '');
+  if (q.has('token')) ls.set('fiesta.token', q.get('token'));
+  if (api !== null || q.has('token')) { q.delete('api'); q.delete('token'); history.replaceState(null, '', location.pathname + (q.size ? '?' + q : '') + location.hash); }
+}
+export const apiBase = () => ls.get('fiesta.api') || base;
+
 // body: object -> JSON, string -> text/csv. method defaults to POST with a body, else GET.
-async function call(path, body, method = body === undefined ? 'GET' : 'POST') {
+async function call(path, body, method = body === undefined ? 'GET' : 'POST', extra) {
   let r;
   const init = { method, signal: AbortSignal.timeout(8000) };
-  if (typeof body === 'string') { init.headers = { 'content-type': 'text/csv' }; init.body = body; }
-  else if (body !== undefined) { init.headers = { 'content-type': 'application/json' }; init.body = JSON.stringify(body); }
-  try { r = await fetch(base + path, init); } catch { throw Object.assign(new Error('network'), { code: 'network' }); }
+  if (extra) init.headers = extra;
+  if (typeof body === 'string') { init.headers = { ...extra, 'content-type': 'text/csv' }; init.body = body; }
+  else if (body !== undefined) { init.headers = { ...extra, 'content-type': 'application/json' }; init.body = JSON.stringify(body); }
+  const root = path.startsWith('api/admin') ? base : apiBase(); // staff pages stay same-origin (cookie)
+  try { r = await fetch(root + path, init); } catch { throw Object.assign(new Error('network'), { code: 'network' }); }
   const d = r.status === 204 ? {} : await r.json().catch(() => ({}));
   if (!r.ok) throw Object.assign(new Error(d.error || 'http'), { ...d, code: d.error || 'http', status: r.status });
   return d;
 }
 const e = encodeURIComponent;
 const notFound = (x) => x.catch((err) => { if (err.code === 'not_found') return null; throw err; });
+
+// Staff-only: the staff cookie (same origin) or, when a notebook is the API, the PANEL_TOKEN header.
+const staff = () => { const t = ls.get('fiesta.token'); return t ? { 'x-panel-token': t } : undefined; };
+export const panelRoster = () => call('api/panel/roster', undefined, 'GET', staff());
+export const panelSync = (items) => call('api/panel/sync', { items }, 'POST', staff());
 
 export const lookup = (name) => call('api/lookup', { name });
 export const register = (name, dni, email) => call('api/register', { name, dni, email });

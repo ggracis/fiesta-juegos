@@ -108,7 +108,7 @@ test('prize: respects stock, threshold and one per guest', async () => {
   const a2 = (await start(app, g1.session)).json();
   assert.equal((await finish(app, db, a2.attemptId, 90)).prizeWon, true);
   const replay = await post(app, `/api/attempts/${a2.attemptId}/result`, { score: 90, durationMs: 9000 });
-  assert.equal(replay.json().prizeWon, false);
+  assert.equal(replay.json().prizeWon, true); // replay reports the stored outcome: a lost response must not hide the prize
   const a3 = (await start(app, g1.session)).json();
   assert.equal((await finish(app, db, a3.attemptId, 95)).prizeWon, false); // already has one
   const b1 = (await start(app, g2.session)).json();
@@ -359,5 +359,14 @@ test('csv import keeps a header-less first line', async () => {
   const { app, h } = await adminApp();
   const r = await post(app, '/api/admin/guests/import', 'Sin Header Uno\nSin Header Dos\n', { ...h, 'content-type': 'text/csv' });
   assert.equal(r.json().added, 2);
+  await app.close();
+});
+
+test('round games stay hidden until their bank has content', async () => {
+  const app = buildApp(':memory:');
+  const ids = async () => (await app.inject('/api/live')).json().games.map((g) => g.id);
+  assert.ok(!(await ids()).includes('quiz'));
+  app.db.prepare("INSERT INTO quiz_question(question, correct, wrong1, wrong2, wrong3, category) VALUES ('q', 'a', 'b', 'c', 'd', 'demo')").run();
+  assert.ok((await ids()).includes('quiz'));
   await app.close();
 });

@@ -19,11 +19,17 @@ export function makeState(db: DatabaseSync) {
     prizeStock: Number(getSetting('prizeStock')) || 0,
     raffleShowSeconds: Number(getSetting('raffleShowSeconds')) || 15,
   });
+  // Round games are only ready with enough content to build rounds (same minimum as buildRounds),
+  // so an empty bank never shows the game on a panel or burns an attempt.
+  const hasContent = (id: string) =>
+    id === 'quiz' ? (db.prepare('SELECT COUNT(*) AS n FROM quiz_question').get() as { n: number }).n >= 1
+    : id === 'pixel' ? (db.prepare('SELECT COUNT(DISTINCT label) AS n FROM pixel_image').get() as { n: number }).n >= 4
+    : true;
   const fromRow = (id: string, row?: GameRow) => {
     const g = gameById(id);
     if (!g) return undefined;
     return {
-      id, name: g.name as string, ready: !!g.ready,
+      id, name: g.name as string, ready: !!g.ready && hasContent(id),
       enabled: row ? !!row.enabled : !!g.ready,
       sort: row?.sort ?? g.defaults.sort,
       threshold: row?.threshold ?? g.defaults.threshold,

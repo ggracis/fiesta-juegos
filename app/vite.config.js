@@ -11,7 +11,7 @@ export default defineConfig(({ mode }) => {
     envDir: '..',
     base: env.VITE_BASE || (isPages ? '/fiesta-juegos/' : '/'),
     define: isPages ?{ 'import.meta.env.VITE_DATA_MODE': JSON.stringify('static') } : undefined,
-    publicDir: false,
+    publicDir: isPages ? false : resolve(import.meta.dirname, 'public'), // app/public/sw.js -> dist/sw.js (server mode only)
     server: { proxy: { '/api': 'http://localhost:3000' } },
     build: {
       outDir: '../dist',
