@@ -137,14 +137,15 @@ test('live: heartbeat, games, paused, attemptsLeft, raffle', async () => {
 
   const g = await guest(app, 1);
   live = (await app.inject(`/api/live?session=${g.session}`)).json();
-  assert.equal(live.games[0].attemptsLeft, 1);
+  const distinto = (l) => l.games.find((x) => x.id === 'distinto');
+  assert.equal(distinto(live).attemptsLeft, 1);
   await start(app, g.session);
   live = (await app.inject(`/api/live?session=${g.session}`)).json();
-  assert.equal(live.games[0].attemptsLeft, 0);
+  assert.equal(distinto(live).attemptsLeft, 0);
 
   app.db.prepare("UPDATE setting SET value = 'true' WHERE key = 'paused'").run();
   assert.equal((await app.inject('/api/live')).json().paused, true);
-  app.db.prepare("UPDATE game_config SET enabled = 0 WHERE game = 'distinto'").run();
+  app.db.prepare('UPDATE game_config SET enabled = 0').run();
   assert.deepEqual((await app.inject('/api/live')).json().games, []);
   await app.close();
 });

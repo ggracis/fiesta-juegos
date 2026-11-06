@@ -107,20 +107,21 @@ test('answer: repeat, ms clamp, errors; result ignores client score', async () =
   assert.equal((await ans(99, 0)).json().error, 'bad_index');
   assert.equal((await ans(0, 5)).statusCode, 400);
   const r = await ans(0, key[0].answer, 999999);
-  assert.deepEqual(r.json(), { correct: true, correctChoice: key[0].answer, points: 0 }); // no formula registered
+  assert.deepEqual(r.json(), { correct: true, correctChoice: key[0].answer, points: 6 }); // clamped to the limit: no bonus
   assert.equal(app.db.prepare('SELECT ms FROM answer WHERE attempt_id = ? AND idx = 0').get(id).ms, 12000);
   assert.equal((await ans(0, 1)).json().error, 'already_answered');
   assert.equal((await ans(1, null)).json().correct, false);
   assert.equal((await ans(2, 0, 1, 'bad')).statusCode, 401);
 
+  const real = ROUND_POINTS.quiz;
   ROUND_POINTS.quiz = (c) => (c ? 10 : 0);
   try {
     assert.equal((await ans(2, key[2].answer)).json().points, 10);
     assert.equal((await ans(3, key[3].answer)).json().points, 10);
     const res = await post(app, `/api/attempts/${id}/result`, { score: 100, durationMs: 9000 });
-    assert.equal(res.json().score, 20);
+    assert.equal(res.json().score, 26); // 6 (answer 0) + 10 + 10
     assert.equal((await ans(4, 0)).json().error, 'finished');
-  } finally { delete ROUND_POINTS.quiz; }
+  } finally { ROUND_POINTS.quiz = real; }
   await app.close();
 });
 

@@ -7,5 +7,6 @@
 // howTo.art (optional): (el, setStep) -> stop() — renders the how-to illustration into `el`; setStep(i) highlights step i.
 import distinto from './distinto.js';
 import memo from './memo.js';
+import quiz from './quiz.js';
 
-export const GAME_MODULES = { distinto, memo };
+export const GAME_MODULES = { distinto, memo, quiz };
