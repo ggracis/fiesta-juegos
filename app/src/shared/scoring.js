@@ -20,3 +20,13 @@ export const pixelPoints = (correct, ms) => (correct ? Math.max(4, 12 - Math.max
 export const PIXEL_BONUS = 4;
 export const pixelTotal = (rounds, total) =>
   clampScore(rounds.reduce((s, r) => s + r.points, 0) + (total > 0 && rounds.length === total && rounds.every((r) => r.correct) ? PIXEL_BONUS : 0));
+
+// Memo Test. Finish: 100 - max(0, s - freeSeconds) - wrongPenalty * wrong, never below finishFloor
+// (so finishing beats any time-out). Time-out or idle: 5 per pair found.
+export const MEMO_PAIRS = 8;
+export const MEMO_MIN_MS = 8000; // 16 flips with animation can't be faster
+export function memoScore({ finished, ms = 0, wrong = 0, pairs = 0 }, { freeSeconds, wrongPenalty, finishFloor }) {
+  if (!finished) return clampScore(5 * Math.min(pairs, MEMO_PAIRS - 1));
+  const s = Math.floor(ms / 1000);
+  return clampScore(Math.max(finishFloor, 100 - Math.max(0, s - freeSeconds) - wrongPenalty * wrong));
+}
