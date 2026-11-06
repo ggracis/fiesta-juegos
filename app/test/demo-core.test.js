@@ -5,10 +5,21 @@ import { lookupRoster, registerRoster, checkPin, MAX_FAILS, LOCK_MS } from '../s
 
 const roster = JSON.parse(readFileSync(new URL('../src/data/demo-roster.json', import.meta.url), 'utf8'));
 
-test('static lookup: found / not found only', () => {
-  assert.deepEqual(lookupRoster(roster, 'ANA lucia'), { found: true });
-  assert.deepEqual(lookupRoster(roster, 'lucia'), { found: false }); // one token
-  assert.deepEqual(lookupRoster(roster, 'nadie aqui'), { found: false });
+test('static lookup: found / not found plus the mode, nothing else', () => {
+  const mode = 'name_dni_email';
+  assert.deepEqual(lookupRoster(roster, 'ANA lucia'), { found: true, mode });
+  assert.deepEqual(lookupRoster(roster, 'lucia'), { found: false, mode }); // one token
+  assert.deepEqual(lookupRoster(roster, 'nadie aqui'), { found: false, mode });
+  assert.equal(lookupRoster(roster, 'ana lucia', 'name_only').mode, 'name_only');
+});
+
+test('static register keeps the cleaned dietary text', () => {
+  const g = roster[0], ok = { name: 'ana fernandez', dni: g.dni, email: g.email };
+  assert.equal(registerRoster(roster, { ...ok, dietary: '  sin   gluten ' }).dietary, 'sin gluten');
+  assert.equal(registerRoster(roster, { ...ok, dietary: '  ' }).dietary, null);
+  assert.equal(registerRoster(roster, { ...ok, dietary: 'x'.repeat(300) }).dietary.length, 200);
+  assert.equal(registerRoster(roster, { ...ok, dni: '1', dietary: 'vegano' }).request.dietary, 'vegano'); // pending keeps it too
+  assert.equal(registerRoster(roster, { name: 'ana fernandez', dietary: 'vegano' }, 'name_only').status, 'registered'); // no dni/email
 });
 
 test('static register: match -> ticket (repeatable); mismatch -> pending request', () => {

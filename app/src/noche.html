@@ -103,14 +103,18 @@
         </button>
       </form>
       <form id="step-id" hidden novalidate>
-        <p class="found">Te encontramos en la lista. Para confirmar que eres tú, completa estos datos.</p>
-        <label class="fld" for="dni">DNI</label>
-        <div class="pill-input">
+        <p class="found" id="found">Te encontramos en la lista. Para confirmar que eres tú, completa estos datos.</p>
+        <label class="fld" for="dni" data-ident>DNI</label>
+        <div class="pill-input" data-ident>
           <input id="dni" type="text" inputmode="numeric" autocomplete="off" maxlength="10" placeholder="12.345.678">
         </div>
-        <label class="fld" for="email">Correo electrónico</label>
-        <div class="pill-input">
+        <label class="fld" for="email" data-ident>Correo electrónico</label>
+        <div class="pill-input" data-ident>
           <input id="email" type="email" autocomplete="email" autocapitalize="none" spellcheck="false" enterkeyhint="go" placeholder="tu@correo.com">
+        </div>
+        <label class="fld" for="diet">¿Tienes alguna restricción alimentaria? (opcional)</label>
+        <div class="pill-input">
+          <input id="diet" type="text" autocomplete="off" maxlength="200" enterkeyhint="go" placeholder="Ej.: vegetariano, celíaco, sin lactosa">
         </div>
         <div class="row">
           <button class="btn" type="submit"><span class="lbl">Confirmar inscripción</span>

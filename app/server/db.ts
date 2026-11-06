@@ -36,6 +36,7 @@ export function openDb(file: string, csvPath: string) {
   const migrate = !(db.prepare('PRAGMA table_info(guest)').all() as { name: string }[]).some((c) => c.name === 'dni');
   if (migrate) db.exec('ALTER TABLE guest ADD COLUMN dni TEXT; ALTER TABLE guest ADD COLUMN email TEXT');
   for (const c of ['checked_in_at', 'prize_won_at', 'prize_delivered_at']) addColumn(db, 'registration', c, 'INTEGER');
+  for (const t of ['registration', 'verification_request']) addColumn(db, t, 'dietary', 'TEXT'); // optional free text, NULL = none
   addColumn(db, 'verification_request', 'status', "TEXT NOT NULL DEFAULT 'pending'");
   for (const c of ['resolved_guest_id', 'resolved_at']) addColumn(db, 'verification_request', c, 'INTEGER');
   addColumn(db, 'attempt', 'game', "TEXT NOT NULL DEFAULT 'distinto'");

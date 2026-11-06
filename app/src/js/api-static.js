@@ -3,6 +3,7 @@ import roster from '../data/demo-roster.json';
 import demoContent from '../data/demo-content.json';
 import { GAMES, gameById } from '../shared/games.js';
 import { buildRounds, publicRounds, mulberry32, ROUND_GAMES, roundsTotal, ROUND_POINTS } from '../shared/rounds.js';
+import { VALIDATION_MODE } from '../shared/identity.js';
 import { lookupRoster, registerRoster, checkPin } from './demo-core.js';
 
 const mem = {};
@@ -15,9 +16,10 @@ export async function lookup(name) {
 }
 
 // Pending verification requests only live in this browser's localStorage.
-export async function register(name, dni, email) {
-  const r = registerRoster(roster, { name, dni, email });
+export async function register(name, dni, email, dietary) {
+  const r = registerRoster(roster, { name, dni, email, dietary }, VALIDATION_MODE);
   if (r.request) write('fiesta.demo.pending', [...read('fiesta.demo.pending', []), r.request]);
+  else if (r.dietary) write('fiesta.demo.dietary', { ...read('fiesta.demo.dietary', {}), [r.ticketToken]: r.dietary }); // by ticket; empty never erases
   return { status: r.status, ticketToken: r.ticketToken };
 }
 

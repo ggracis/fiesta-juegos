@@ -35,7 +35,7 @@ export const panelRoster = () => call('api/panel/roster', undefined, 'GET', staf
 export const panelSync = (items) => call('api/panel/sync', { items }, 'POST', staff());
 
 export const lookup = (name) => call('api/lookup', { name });
-export const register = (name, dni, email) => call('api/register', { name, dni, email });
+export const register = (name, dni, email, dietary) => call('api/register', { name, dni, email, dietary }); // undefined keys are dropped (name_only has no dni/email)
 export const ticket = (token) => notFound(call('api/ticket/' + e(token)));
 export const login = (pin, screenId) => call('api/login', { pin, screenId });
 export const startAttempt = (session, game) => call('api/attempts', { session, game });

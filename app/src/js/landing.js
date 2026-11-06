@@ -117,8 +117,10 @@ try {
 
 // ---------- registration: name -> DNI + email -> ticket (or pending verification) ----------
 const fName = $('#step-name'), fId = $('#step-id'), pend = $('#step-pending');
-const q = $('#q'), dni = $('#dni'), email = $('#email'), errEl = $('#err');
+const q = $('#q'), dni = $('#dni'), email = $('#email'), diet = $('#diet'), errEl = $('#err');
 const fields = [q, dni, email];
+const foundText = $('#found').textContent;
+let nameOnly = false; // server's validation mode for the matched name: no DNI/email, just the dietary field
 const showErr = (m, el) => {
   errEl.textContent = m || ''; errEl.hidden = !m;
   fields.forEach((f) => f.removeAttribute('aria-invalid'));
@@ -141,8 +143,13 @@ fName.addEventListener('submit', async (e) => {
   const b = $('button[type=submit]', fName);
   busy(b, true); showErr('');
   try {
-    const { found } = await lookup(q.value);
-    if (found) show(fId, dni);
+    const { found, mode } = await lookup(q.value);
+    if (found) {
+      nameOnly = mode === 'name_only';
+      $$('[data-ident]', fId).forEach((el) => { el.hidden = nameOnly; });
+      $('#found').textContent = nameOnly ? 'Te encontramos en la lista. Solo falta confirmar tu inscripción.' : foundText;
+      show(fId, nameOnly ? diet : dni);
+    }
     else showErr('No encontramos ese nombre. Escribe tu nombre y apellido tal como figuran en tu DNI e inténtalo de nuevo.', q);
   } catch (err) { showErr(netErr(err)); }
   busy(b, false);
@@ -150,16 +157,16 @@ fName.addEventListener('submit', async (e) => {
 
 dni.addEventListener('input', () => { dni.value = formatDni(dni.value); });
 $('#back').addEventListener('click', () => show(fName, q));
-$('#again').addEventListener('click', () => { [q, dni, email].forEach((f) => { f.value = ''; }); show(fName, q); });
+$('#again').addEventListener('click', () => { [q, dni, email, diet].forEach((f) => { f.value = ''; }); show(fName, q); });
 
 fId.addEventListener('submit', async (e) => {
   e.preventDefault();
-  if (!validDni(dni.value)) return showErr('Revisa tu DNI: debe tener 7 u 8 números.', dni);
-  if (!validEmail(email.value)) return showErr('Revisa tu correo electrónico: parece incompleto.', email);
+  if (!nameOnly && !validDni(dni.value)) return showErr('Revisa tu DNI: debe tener 7 u 8 números.', dni);
+  if (!nameOnly && !validEmail(email.value)) return showErr('Revisa tu correo electrónico: parece incompleto.', email);
   const b = $('button[type=submit]', fId);
   busy(b, true); showErr('');
   try {
-    const r = await register(q.value, dni.value, email.value);
+    const r = await register(q.value, nameOnly ? undefined : dni.value, nameOnly ? undefined : email.value, diet.value);
     if (r.status === 'pending') { busy(b, false); return show(pend, pend); }
     const href = ticketHref(r.ticketToken);
     try { localStorage.setItem('fiesta.ticket', href); } catch {}

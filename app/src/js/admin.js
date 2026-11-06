@@ -116,7 +116,7 @@ async function loadGuests() {
       if (await run(() => api.adminCheckinGuest(g.id))) { toast(`${g.name} acreditado`); loadGuests(); }
     };
     const tr = h('tr', { className: 'click' },
-      h('td', {}, g.name),
+      h('td', {}, g.name, g.dietary && h('div', { className: 'muted' }, 'Restricción: ' + g.dietary)),
       h('td', {},
         h('span', { className: 'badge' + (g.registered ? ' ok' : '') }, g.registered ? 'Confirmado' : 'Sin confirmar'),
         g.checkedInAt && h('span', { className: 'badge ok' }, 'Acreditado ' + time(g.checkedInAt)),
@@ -133,6 +133,7 @@ async function showDetail(id) {
   const box = $('detail'); clear(box); box.hidden = false;
   box.append(h('h2', {}, g.name),
     h('p', { className: 'muted' }, g.checkedInAt ? 'Acreditado a las ' + time(g.checkedInAt) : 'Sin acreditar'),
+    g.dietary && h('p', {}, 'Restricción alimentaria: ' + g.dietary),
     g.attempts.length
       ? h('table', {}, h('thead', {}, h('tr', {}, ...['Juego', 'Puntaje', 'Tiempo'].map((t) => h('th', {}, t)))),
         h('tbody', {}, ...g.attempts.map((a) => h('tr', {}, h('td', {}, a.game),

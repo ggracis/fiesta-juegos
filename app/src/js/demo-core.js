@@ -1,16 +1,17 @@
 // Pure helpers behind the static (demo) backend. No DOM, no storage: state is passed in.
-import { matchesName, verify, dniDigits, normEmail } from '../shared/identity.js';
+import { matchesName, verify, dniDigits, normEmail, cleanDietary, VALIDATION_MODE } from '../shared/identity.js';
 
 export const MAX_FAILS = 5;
 export const LOCK_MS = 30_000;
 
 // Same contracts as POST /api/lookup and POST /api/register; the caller stores pending requests.
-export const lookupRoster = (roster, name) => ({ found: roster.some((g) => matchesName(g.name, name)) });
+export const lookupRoster = (roster, name, mode = VALIDATION_MODE) => ({ found: roster.some((g) => matchesName(g.name, name)), mode });
 
-export function registerRoster(roster, { name, dni, email }, mode) {
+export function registerRoster(roster, { name, dni, email, dietary }, mode) {
   const r = verify(roster.filter((g) => matchesName(g.name, name)), { dni, email }, mode);
-  if (r.guest) return { status: 'registered', ticketToken: r.guest.ticketToken };
-  return { status: 'pending', request: { name: name.trim(), dni: dniDigits(dni), email: normEmail(email), candidates: r.pending, createdAt: Date.now() } };
+  const diet = cleanDietary(dietary);
+  if (r.guest) return { status: 'registered', ticketToken: r.guest.ticketToken, dietary: diet };
+  return { status: 'pending', request: { name: name.trim(), dni: dniDigits(dni), email: normEmail(email), candidates: r.pending, dietary: diet, createdAt: Date.now() } };
 }
 
 // fails: { [screenId]: { n, until } }, mutated in place. Same contract as POST /api/login.

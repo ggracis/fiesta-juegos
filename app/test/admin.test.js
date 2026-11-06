@@ -59,7 +59,8 @@ test('old-schema DB is migrated in place', () => {
   const db = openDb(f, CSV);
   assert.equal(db.prepare("SELECT game FROM attempt WHERE id = 'a1'").get().game, 'distinto');
   const cols = db.prepare('PRAGMA table_info(registration)').all().map((c) => c.name);
-  for (const c of ['checked_in_at', 'prize_won_at', 'prize_delivered_at']) assert.ok(cols.includes(c), c);
+  for (const c of ['checked_in_at', 'prize_won_at', 'prize_delivered_at', 'dietary']) assert.ok(cols.includes(c), c);
+  assert.ok(db.prepare('PRAGMA table_info(verification_request)').all().some((c) => c.name === 'dietary'));
   db.close();
 });
 
@@ -266,7 +267,7 @@ test('ranking and attempts csv', async () => {
   const csv = await app.inject({ url: '/api/admin/attempts.csv', headers: h });
   assert.match(csv.headers['content-type'], /text\/csv/);
   const lines = csv.body.trim().split('\n');
-  assert.equal(lines[0], 'name,game,score,duration_ms,started_at,finished_at');
+  assert.equal(lines[0], 'name,game,score,duration_ms,started_at,finished_at,dietary');
   assert.equal(lines.length, 4);
   assert.ok(csv.body.includes('"Perez, Ana",distinto,'));
   await app.close();
@@ -338,6 +339,20 @@ test('csv export neutralizes formulas', async () => {
   await start(app, g.session);
   const csv = await app.inject({ url: '/api/admin/attempts.csv', headers: h });
   assert.ok(csv.body.includes("\n'=cmd|x,distinto,"));
+  await app.close();
+});
+
+test('admin sees dietary in the guest list, detail and attempts csv', async () => {
+  const { app, db, h } = await adminApp();
+  const g = await guest(app, 1);
+  await post(app, '/api/register', { ...db.prepare('SELECT name, dni, email FROM guest WHERE id = 1').get(), dietary: 'vegano, =cmd' });
+  await start(app, g.session);
+  const list = (await app.inject({ url: '/api/admin/guests', headers: h })).json();
+  assert.equal(list.find((x) => x.id === 1).dietary, 'vegano, =cmd');
+  assert.equal(list.find((x) => x.id === 2).dietary, null);
+  assert.equal((await app.inject({ url: '/api/admin/guests/1', headers: h })).json().dietary, 'vegano, =cmd');
+  const csv = (await app.inject({ url: '/api/admin/attempts.csv', headers: h })).body;
+  assert.ok(csv.trim().split('\n')[1].endsWith(',"vegano, =cmd"')); // quoted comma; formula only neutralized when it leads
   await app.close();
 });
 

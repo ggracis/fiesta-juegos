@@ -9,7 +9,7 @@ import { registerAdmin } from './admin.ts';
 import { makeResults } from './results.ts';
 import { registerPanel } from './panel.ts';
 import { generatePin, newToken, PIXEL_DIR } from './lib.ts';
-import { matchesName, verify, validDni, validEmail, dniDigits, normEmail } from '../src/shared/identity.js';
+import { matchesName, verify, validDni, validEmail, dniDigits, normEmail, cleanDietary } from '../src/shared/identity.js';
 import { buildRounds, publicRounds, mulberry32, ROUND_GAMES, ROUND_POINTS } from '../src/shared/rounds.js';
 
 const ROOT = join(import.meta.dirname, '..');
@@ -47,6 +47,7 @@ export function buildApp(dbPath = DB_PATH, csvPath = CSV_PATH, opts: { adminPass
     app.register(fastifyStatic, { root: DIST });
     app.get('/play', (_, reply) => reply.redirect('/play.html'));
     app.get('/diag', (_, reply) => reply.redirect('/diag.html'));
+    app.get('/admin', (_, reply) => reply.redirect('/admin.html'));
     // Compatibility with the pilot's printed/sent links
     app.get('/t/:token', (req, reply) => reply.redirect('/ticket.html?t=' + encodeURIComponent((req.params as any).token)));
     app.get('/c/:token', (req, reply) => reply.redirect('/checkin.html?c=' + encodeURIComponent((req.params as any).token)));
@@ -55,36 +56,45 @@ export function buildApp(dbPath = DB_PATH, csvPath = CSV_PATH, opts: { adminPass
   mkdirSync(PIXEL_DIR, { recursive: true });
   app.register(fastifyStatic, { root: PIXEL_DIR, prefix: '/content/pixel/', decorateReply: false }); // fastify-static rejects path traversal
 
-  // Found / not found only: never echo roster data.
+  const validationMode = () => state.getSetting('registrationValidation') as 'name_only' | 'name_dni_email';
+
+  // Found / not found plus the active validation mode: never echo roster data.
   app.post('/api/lookup', {
     schema: { body: { type: 'object', required: ['name'], additionalProperties: false, properties: { name: { type: 'string', minLength: 3, maxLength: 100 } } } },
   }, async (req, reply) => {
     if (limited('lookup', req.ip, 30)) return reply.code(429).send({ error: 'rate_limited' });
-    return { found: roster().some((g) => matchesName(g.name, (req.body as any).name)) };
+    return { found: roster().some((g) => matchesName(g.name, (req.body as any).name)), mode: validationMode() };
   });
 
+  // dni/email are optional in the schema: name_dni_email mode still rejects them when missing or malformed (below).
+  // dietary: the schema only bounds the body, cleanDietary() trims, collapses whitespace and caps it at 200 chars.
   app.post('/api/register', {
-    schema: { body: { type: 'object', required: ['name', 'dni', 'email'], additionalProperties: false, properties: {
-      name: { type: 'string', minLength: 3, maxLength: 100 }, dni: { type: 'string', maxLength: 20 }, email: { type: 'string', maxLength: 120 } } } },
+    schema: { body: { type: 'object', required: ['name'], additionalProperties: false, properties: {
+      name: { type: 'string', minLength: 3, maxLength: 100 }, dni: { type: 'string', maxLength: 20 }, email: { type: 'string', maxLength: 120 },
+      dietary: { type: 'string', maxLength: 1000 } } } },
   }, async (req, reply) => {
     if (limited('register', req.ip, 10)) return reply.code(429).send({ error: 'rate_limited' });
-    const { name, dni, email } = req.body as { name: string; dni: string; email: string };
-    const mode = state.getSetting('registrationValidation') as 'name_only' | 'name_dni_email';
+    const { name, dni, email, dietary: rawDietary } = req.body as { name: string; dni?: string; email?: string; dietary?: string };
+    const dietary = cleanDietary(rawDietary);
+    const mode = validationMode();
     if (mode !== 'name_only' && (!validDni(dni) || !validEmail(email))) return reply.code(400).send({ error: 'invalid_input' });
     const r = verify(roster().filter((g) => matchesName(g.name, name)), { dni, email }, mode);
     if (!r.guest) {
-      db.prepare('INSERT INTO verification_request(name, dni, email, candidates, created_at) VALUES (?,?,?,?,?)')
-        .run(name.trim(), dniDigits(dni), normEmail(email), JSON.stringify(r.pending), Date.now());
+      db.prepare('INSERT INTO verification_request(name, dni, email, candidates, created_at, dietary) VALUES (?,?,?,?,?,?)')
+        .run(name.trim(), dniDigits(dni), normEmail(email), JSON.stringify(r.pending), Date.now(), dietary);
       return { status: 'pending' };
     }
     // Already registered with matching data: hand back the existing ticket (lost-ticket recovery).
     const done = db.prepare('SELECT ticket_token FROM registration WHERE guest_id = ?').get(r.guest.id) as { ticket_token: string } | undefined;
-    if (done) return { status: 'registered', ticketToken: done.ticket_token };
+    if (done) {
+      if (dietary) db.prepare('UPDATE registration SET dietary = ? WHERE guest_id = ?').run(dietary, r.guest.id); // empty never erases
+      return { status: 'registered', ticketToken: done.ticket_token };
+    }
     const taken = db.prepare('SELECT 1 FROM registration WHERE pin = ?');
     const pin = generatePin((p) => !!taken.get(p));
     const ticket = newToken();
-    db.prepare('INSERT INTO registration(guest_id, pin, ticket_token, checkin_token, created_at) VALUES (?,?,?,?,?)')
-      .run(r.guest.id, pin, ticket, newToken(), Date.now());
+    db.prepare('INSERT INTO registration(guest_id, pin, ticket_token, checkin_token, created_at, dietary) VALUES (?,?,?,?,?,?)')
+      .run(r.guest.id, pin, ticket, newToken(), Date.now(), dietary);
     return { status: 'registered', ticketToken: ticket };
   });
 

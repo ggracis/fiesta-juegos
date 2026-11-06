@@ -140,14 +140,14 @@ export function registerAdmin(app: FastifyInstance, db: DatabaseSync, state: Sta
   }, async (req) => {
     const q = normalize(String((req.query as any).q ?? ''));
     const rows = db.prepare(
-      `SELECT g.id, g.name, r.guest_id IS NOT NULL AS registered, r.checked_in_at, r.prize_won_at, r.prize_delivered_at,
+      `SELECT g.id, g.name, r.guest_id IS NOT NULL AS registered, r.checked_in_at, r.prize_won_at, r.prize_delivered_at, r.dietary,
          (SELECT COUNT(*) FROM attempt a WHERE a.guest_id = g.id) AS attempts
        FROM guest g LEFT JOIN registration r ON r.guest_id = g.id ORDER BY g.name`
     ).all() as any[];
     // ponytail: filter in JS for accent-insensitive match; fine for a few hundred guests
     return rows.filter((r) => !q || normalize(r.name).includes(q)).slice(0, 200).map((r) => ({
       id: r.id, name: r.name, registered: !!r.registered, checkedInAt: r.checked_in_at, prizeWonAt: r.prize_won_at,
-      prizeDeliveredAt: r.prize_delivered_at, attempts: r.attempts,
+      prizeDeliveredAt: r.prize_delivered_at, dietary: r.dietary, attempts: r.attempts,
     }));
   });
 
@@ -174,7 +174,7 @@ export function registerAdmin(app: FastifyInstance, db: DatabaseSync, state: Sta
 
   app.get('/api/admin/guests/:id', admin, async (req, reply) => {
     const g = db.prepare(
-      `SELECT g.id, g.name, r.checked_in_at AS checkedInAt, r.prize_won_at AS prizeWonAt, r.prize_delivered_at AS prizeDeliveredAt
+      `SELECT g.id, g.name, r.checked_in_at AS checkedInAt, r.prize_won_at AS prizeWonAt, r.prize_delivered_at AS prizeDeliveredAt, r.dietary
        FROM guest g LEFT JOIN registration r ON r.guest_id = g.id WHERE g.id = ?`
     ).get((req.params as any).id) as any;
     if (!g) return reply.code(404).send({ error: 'not_found' });
@@ -291,11 +291,11 @@ export function registerAdmin(app: FastifyInstance, db: DatabaseSync, state: Sta
 
   app.get('/api/admin/attempts.csv', admin, async (_req, reply) => {
     const rows = db.prepare(
-      `SELECT g.name, a.game, a.score, a.duration_ms, a.started_at, a.finished_at
-       FROM attempt a JOIN guest g ON g.id = a.guest_id ORDER BY a.started_at`
+      `SELECT g.name, a.game, a.score, a.duration_ms, a.started_at, a.finished_at, r.dietary
+       FROM attempt a JOIN guest g ON g.id = a.guest_id LEFT JOIN registration r ON r.guest_id = g.id ORDER BY a.started_at`
     ).all() as any[];
-    const lines = ['name,game,score,duration_ms,started_at,finished_at'];
-    for (const r of rows) lines.push([r.name, r.game, r.score, r.duration_ms, iso(r.started_at), iso(r.finished_at)].map(csvField).join(','));
+    const lines = ['name,game,score,duration_ms,started_at,finished_at,dietary'];
+    for (const r of rows) lines.push([r.name, r.game, r.score, r.duration_ms, iso(r.started_at), iso(r.finished_at), r.dietary].map(csvField).join(','));
     return reply.header('content-type', 'text/csv; charset=utf-8').header('content-disposition', 'attachment; filename="attempts.csv"').send(lines.join('\n') + '\n');
   });
 

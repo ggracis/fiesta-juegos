@@ -18,6 +18,7 @@ export const formatDni = (s) => dniDigits(s).slice(0, 8).replace(/\B(?=(\d{3})+(
 export const validDni = (s) => /^\d{7,8}$/.test(dniDigits(s));
 export const normEmail = (s) => String(s ?? '').trim().toLowerCase();
 export const validEmail = (s) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(normEmail(s));
+export const cleanDietary = (s) => String(s ?? '').replace(/\s+/g, ' ').trim().slice(0, 200).trimEnd() || null; // free text: collapsed, capped, '' -> null
 
 // rows: roster guests whose name matched. Returns { guest } to register, or { pending: candidate ids } for staff verification.
 export function verify(rows, { dni, email }, mode = VALIDATION_MODE) {

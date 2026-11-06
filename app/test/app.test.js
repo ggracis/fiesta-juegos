@@ -28,7 +28,7 @@ test('PIN format and uniqueness', () => {
   }
 });
 
-import { mkdtempSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdtempSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 
@@ -38,9 +38,10 @@ const ANA = ['ana lucia fernandez', '20.000.000', 'ana.lucia.fernandez@example.c
 
 test('lookup: found / not found, no roster data leaked', async () => {
   const app = buildApp(':memory:');
-  assert.deepEqual((await post(app, '/api/lookup', { name: 'ANA fernandez' })).json(), { found: true });
-  assert.deepEqual((await post(app, '/api/lookup', { name: 'ana' })).json(), { found: false }); // one token
-  assert.deepEqual((await post(app, '/api/lookup', { name: 'zzz yyy' })).json(), { found: false });
+  const mode = 'name_dni_email';
+  assert.deepEqual((await post(app, '/api/lookup', { name: 'ANA fernandez' })).json(), { found: true, mode });
+  assert.deepEqual((await post(app, '/api/lookup', { name: 'ana' })).json(), { found: false, mode }); // one token
+  assert.deepEqual((await post(app, '/api/lookup', { name: 'zzz yyy' })).json(), { found: false, mode });
   assert.equal((await post(app, '/api/lookup', { name: 'a' })).statusCode, 400);
   assert.equal((await app.inject('/api/guests/search?q=demo')).statusCode, 404); // old endpoint is gone
   await app.close();
@@ -76,6 +77,64 @@ test('register: pending request is persisted with candidate ids', async () => {
   assert.equal(db.prepare('SELECT COUNT(*) AS n FROM verification_request').get().n, 1);
   assert.deepEqual([row.name, row.dni, row.email, row.candidates], ['ana gomez', '1111111', 'b@x.com', '[1,2]']);
   db.close();
+});
+
+test('lookup returns the active validation mode', async () => {
+  const app = buildApp(':memory:');
+  app.db.prepare("UPDATE setting SET value = '\"name_only\"' WHERE key = 'registrationValidation'").run();
+  assert.deepEqual((await post(app, '/api/lookup', { name: 'ANA fernandez' })).json(), { found: true, mode: 'name_only' });
+  await app.close();
+});
+
+test('register: name_only needs no dni/email, name_dni_email still does', async () => {
+  const app = buildApp(':memory:');
+  const bare = { name: ANA[0] };
+  assert.equal((await post(app, '/api/register', bare)).statusCode, 400); // name_dni_email: dni/email required
+  assert.equal((await post(app, '/api/register', { ...bare, dni: ANA[1] })).statusCode, 400);
+  app.db.prepare("UPDATE setting SET value = '\"name_only\"' WHERE key = 'registrationValidation'").run();
+  const ok = (await post(app, '/api/register', { ...bare, dietary: 'celíaco' })).json();
+  assert.equal(ok.status, 'registered');
+  assert.equal(app.db.prepare('SELECT dietary FROM registration').get().dietary, 'celíaco');
+  assert.equal((await post(app, '/api/register', { name: 'zzz yyy' })).json().status, 'pending'); // unknown name: staff verify
+  assert.deepEqual({ ...app.db.prepare('SELECT dni, email FROM verification_request').get() }, { dni: '', email: '' });
+  await app.close();
+});
+
+test('register: dietary is stored on success, updated on repeat, null when empty, capped at 200', async () => {
+  const app = buildApp(':memory:');
+  const dietary = () => app.db.prepare('SELECT dietary FROM registration').get().dietary;
+  const withDiet = (d) => post(app, '/api/register', { name: ANA[0], dni: ANA[1], email: ANA[2], dietary: d });
+  const r1 = (await withDiet('  vegetariano \n  sin   lactosa ')).json();
+  assert.equal(dietary(), 'vegetariano sin lactosa'); // trimmed, whitespace collapsed
+  assert.deepEqual((await withDiet('')).json(), r1); // same ticket; empty never erases
+  assert.equal(dietary(), 'vegetariano sin lactosa');
+  assert.deepEqual((await withDiet('celíaco')).json(), r1); // non-empty updates, same ticket
+  assert.equal(dietary(), 'celíaco');
+  assert.equal((await withDiet('x'.repeat(300))).statusCode, 200);
+  assert.equal(dietary().length, 200); // capped
+  assert.equal((await withDiet('x'.repeat(1001))).statusCode, 400); // body guard in the schema
+  assert.equal((await post(app, '/api/register', { name: ANA[0], dni: ANA[1], email: ANA[2], other: 1 })).statusCode, 400); // still strict
+  await app.close();
+  const blank = buildApp(':memory:');
+  await post(blank, '/api/register', { name: ANA[0], dni: ANA[1], email: ANA[2], dietary: '   ' });
+  assert.equal(blank.db.prepare('SELECT dietary FROM registration').get().dietary, null); // empty -> null
+  await blank.close();
+});
+
+test('register: pending request keeps the dietary text', async () => {
+  const app = buildApp(':memory:');
+  assert.equal((await post(app, '/api/register', { name: ANA[0], dni: '20.000.001', email: ANA[2], dietary: ' sin gluten ' })).json().status, 'pending');
+  await post(app, '/api/register', { name: 'zzz yyy', dni: '12.345.678', email: 'a@b.co' });
+  assert.deepEqual(app.db.prepare('SELECT dietary FROM verification_request ORDER BY id').all().map((r) => r.dietary), ['sin gluten', null]);
+  await app.close();
+});
+
+test('/admin redirects to /admin.html', { skip: !existsSync(join(import.meta.dirname, '..', 'dist')) && 'dist not built' }, async () => { // routes exist only with a build
+  const app = buildApp(':memory:');
+  const r = await app.inject('/admin');
+  assert.equal(r.statusCode, 302);
+  assert.equal(r.headers.location, '/admin.html');
+  await app.close();
 });
 
 test('register endpoint is rate limited', async () => {
