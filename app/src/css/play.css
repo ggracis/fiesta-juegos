@@ -196,3 +196,7 @@ button.press, button.big:active { transform: scale(.94); }
 #rwin { font-size: 200px; line-height: 1; }
 #rwin div { display: inline-block; }
 #ov-trans h2 { font-size: 150px; line-height: 1.05; }
+
+/* ---------- idle notice (ctx.idle) ---------- */
+#ov-idle { position: absolute; z-index: 35; left: 50%; bottom: 56px; transform: translateX(-50%); padding: 18px 56px; border-radius: 999px; font: 800 52px var(--font); white-space: nowrap; color: var(--ink); background: var(--sun); box-shadow: var(--shadow-jelly); pointer-events: none; }
+#ov-idle[hidden] { display: none; }

@@ -54,16 +54,10 @@
   </section>
 
   <section id="howto" class="screen" hidden>
-    <h2>Así se juega</h2>
+    <h2 id="howtitle"></h2>
     <div class="howrow">
-      <div class="demo" id="demo">
-        <div class="halo" id="halo"></div>
-        <svg class="hand" id="dhand" viewBox="0 0 100 130" aria-hidden="true"><path d="M38 6a10 10 0 0 1 20 0v52l8-3c9-3 17 5 13 14l-12 40c-3 9-10 16-20 16H44c-10 0-18-6-24-14L6 88c-4-6 1-14 8-12l14 5V6a10 10 0 0 1 10 0z" fill="#fff"/></svg>
-        <b class="plus" id="dplus">+10</b>
-      </div>
-      <ol class="caps" id="caps">
-        <li>Mira</li><li>Encuentra</li><li>Toca</li>
-      </ol>
+      <div id="howart"></div>
+      <ol class="caps" id="caps"></ol>
     </div>
     <div class="startwrap">
       <svg class="ring" viewBox="0 0 520 170" aria-hidden="true"><rect id="howring" x="6" y="6" width="508" height="158" rx="79" pathLength="100"/></svg>
@@ -101,6 +95,7 @@
     <svg viewBox="0 0 32 32" aria-hidden="true"><path d="M4 12h6l8-6v20l-8-6H4z" fill="#fff"/><g class="waves"><path d="M22 11c2.500 2.500 2.500 7.500 0 10M25 7c4.500 4.500 4.500 13.500 0 18" fill="none" stroke="#fff" stroke-width="2.500" stroke-linecap="round"/></g><path class="slash" d="M5 5l22 22" stroke="#fff" stroke-width="3" stroke-linecap="round"/></svg>
   </button>
   <div id="iris" hidden></div>
+  <div id="ov-idle" hidden>¿Sigues ahí? Toca la pantalla</div>
   <div id="ov-pause" class="overlay" hidden><h2>Juegos en pausa</h2><p>Volvemos en un momento.</p></div>
   <div id="ov-trans" class="overlay" hidden><h2 id="ttext"></h2></div>
   <div id="ov-raffle" class="overlay" hidden><p class="kick" id="rkick">¡Sorteo!</p><h2 id="rwin"></h2><p id="rcong">¡Felicitaciones!</p></div>
