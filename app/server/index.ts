@@ -8,7 +8,7 @@ import { makeState } from './state.ts';
 import { registerAdmin } from './admin.ts';
 import { generatePin, newToken, PIXEL_DIR } from './lib.ts';
 import { matchesName, verify, validDni, validEmail, dniDigits, normEmail } from '../src/shared/identity.js';
-import { clampScore, MIN_TOTAL_MS } from '../src/shared/scoring.js';
+import { clampScore, MIN_TOTAL_MS, MEMO_MIN_MS } from '../src/shared/scoring.js';
 import { buildRounds, publicRounds, mulberry32, ROUND_GAMES, ROUND_POINTS } from '../src/shared/rounds.js';
 
 const ROOT = join(import.meta.dirname, '..');
@@ -150,7 +150,8 @@ export function buildApp(dbPath = DB_PATH, csvPath = CSV_PATH, opts: { adminPass
     if (a.finished_at) return { score: a.score, replay: true, prizeWon: false };
     const { score, durationMs } = req.body as { score: number; durationMs: number };
     const now = Date.now();
-    if (durationMs < MIN_TOTAL_MS || now - a.started_at < MIN_TOTAL_MS) return reply.code(400).send({ error: 'implausible_duration' });
+    const minMs = a.game === 'memo' ? MEMO_MIN_MS : MIN_TOTAL_MS;
+    if (durationMs < minMs || now - a.started_at < minMs) return reply.code(400).send({ error: 'implausible_duration' });
     // round games: the score is the sum of server-computed answer points, never the client's
     const final = ROUND_GAMES.includes(a.game)
       ? clampScore((db.prepare('SELECT COALESCE(SUM(points), 0) AS s FROM answer WHERE attempt_id = ?').get(id) as { s: number }).s)
