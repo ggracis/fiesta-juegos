@@ -1,0 +1,19 @@
+/* Memo Test cards. Theme tokens only (cream theme A and html.noche theme B); --gold falls back to the pilot's --sun. */
+.mcard { --m-gold: var(--gold, var(--sun)); position: relative; perspective: 1400px; touch-action: none; }
+.mcard .in { position: absolute; inset: 0; transform-style: preserve-3d; transition: transform 280ms var(--ease); }
+.mcard.open .in { transform: rotateY(180deg); }
+.mcard .back, .mcard .face { position: absolute; inset: 0; display: grid; place-items: center; border-radius: 24px; backface-visibility: hidden; }
+.mcard .back { background: var(--red); box-shadow: inset 0 0 0 5px var(--m-gold); }
+.mcard .back::after { content: ''; position: absolute; inset: 34%; transform: rotate(45deg); border: 4px solid var(--m-gold); border-radius: 6px; opacity: .8; }
+.mcard .face { transform: rotateY(180deg); color: var(--ink); background: var(--cream); box-shadow: inset 0 0 0 3px var(--m-gold); }
+.mcard .face.t1 { color: var(--red); }
+.mcard .face svg { width: 62%; height: 62%; pointer-events: none; }
+.mcard .face .f { fill: var(--m-gold); }
+.mcard.done .face { box-shadow: inset 0 0 0 8px var(--m-gold); }
+.mcard.no .face { box-shadow: inset 0 0 0 8px var(--red); }
+#game:has(.mcard) .score { visibility: hidden; } /* the score is only known at the end */
+.mdemo .mcard { height: 160px; }
+
+@media (prefers-reduced-motion: reduce) {
+  .mcard .in { transition: none; }
+}
