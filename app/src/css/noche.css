@@ -40,3 +40,6 @@
 .noche body.tk { background: radial-gradient(120% 80% at 50% 0, #2A1013, #0B0708 60%); }
 .noche .tap { color: var(--gold); }
 .noche .ticket { --cream: #F7F1E8; --ink: #2E2A28; --ink-soft: #6B6460; --red-deep: #9E1B22; --gold: #C9A45C; }
+@media (min-width: 900px) and (orientation: landscape) {
+  .noche body::before { background-image: url(../assets/gala/noche.jpg); opacity: .4; }
+}

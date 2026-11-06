@@ -1,5 +1,9 @@
 .page { --w: min(100vw, 520px); position: relative; max-width: 520px; margin: 0 auto; background: var(--cream); overflow-x: clip; box-shadow: 0 0 0 1px rgba(201, 164, 92, .28), 0 0 80px rgba(201, 164, 92, .12); }
 @media (min-width: 521px) { body { background: radial-gradient(90% 60% at 50% 0, #FBF7F0, #EFE6D6); } }
+/* wide screens (TV, desktop): fill the sides with the art, blurred */
+@media (min-width: 900px) and (orientation: landscape) {
+  body::before { content: ''; position: fixed; inset: -60px; z-index: -1; background: url(../assets/gala/background.jpg) center / cover; filter: blur(30px); opacity: .5; }
+}
 
 /* ---------- hero over the painted background (9:16, never stretched) ---------- */
 .hero {
