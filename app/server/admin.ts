@@ -456,7 +456,7 @@ export function registerAdmin(app: FastifyInstance, db: DatabaseSync, state: Sta
       speakers: { type: 'array', maxItems: 50, items: { type: 'object', required: ['name'], additionalProperties: false,
         properties: { name: { type: 'string', minLength: 1, maxLength: 60 }, role: text(60) } } },
       prizes: { type: 'array', maxItems: 50, items: text(80) },
-      // Same-origin path (media/intro.mp4) or an http(s) URL; it only ever becomes a <video src>.
+      // Same-origin path (media/intro.mp4) or an http(s) URL (a YouTube link included): it becomes a <video src>, or the stage builds the YouTube embed from the 11-char id.
       video: { type: 'string', maxLength: 300, pattern: /^(|https?:\/\/\S+|[\w/][\w./%-]*)$/.source },
     } } },
   }, async (req, reply) => {

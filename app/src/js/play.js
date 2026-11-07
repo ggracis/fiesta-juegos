@@ -413,7 +413,28 @@ function applyOverlays() {
   const trans = !mid && !plate && s.transition.on;
   if (trans) $('#ttext').textContent = s.transition.text || 'Un momento…';
   setOv('#ov-trans', trans);
-  setOv('#ov-pause', !mid && !plate && !trans && (s.paused || gone(s)));
+  const none = !mid && (s.paused || !s.games.length || gone(s));
+  setOv('#ov-pause', none && !plate && !trans); // stays under the stage iframe: only visible while it loads
+  stageIdle(none); // alive through plate/transition overlays (they sit above it), gone when games return
+}
+
+// Nothing to play (paused, or no game enabled): the panel shows the stage animations, 16:9 (stage.html?format=panel), following /api/live like the LED wall.
+// The iframe is made when the idle starts and removed when games return. It shares localStorage (theme, ?api=) with this page; DOM order keeps it under the raffle/transition overlays.
+const stageFrame = () => Object.assign(document.createElement('iframe'), { tabIndex: -1, title: 'Escenario',
+  src: new URL('stage.html?format=panel&theme=' + (document.documentElement.classList.contains('noche') ? 'noche' : 'amanecer'), location.href).href });
+let idleFrame = null;
+function stageIdle(on) {
+  if (!on) { idleFrame?.remove(); idleFrame = null; return; }
+  if (idleFrame) return;
+  idleFrame = Object.assign(stageFrame(), { id: 'ov-stage' });
+  $('#ov-trans').before(idleFrame);
+}
+// Loaded once off-screen so the service worker caches the idle screen (page, fonts, art) before an internet drop.
+function warmStage() {
+  const f = stageFrame();
+  f.style.cssText = 'position:absolute;left:-4000px;top:0;width:1920px;height:1080px;border:0;pointer-events:none';
+  f.onload = () => setTimeout(() => f.remove(), 6000);
+  document.body.append(f);
 }
 
 // Every panel runs the same timeline off the server clock (shared/raffle.js): wait -> ~8 s letter scramble -> winner -> back.
@@ -611,7 +632,7 @@ poll();
 // ---------- service worker (server mode, production only): caches the panel's own files for offline reloads ----------
 if (!isDemo && import.meta.env.PROD && 'serviceWorker' in navigator) {
   // The first load happened before the worker controlled the page: hand it the URLs this page already used.
-  const precache = (reg) => reg.active?.postMessage({ precache: [location.href, ...performance.getEntriesByType('resource').map((r) => r.name)] });
+  const precache = (reg) => { reg.active?.postMessage({ precache: [location.href, ...performance.getEntriesByType('resource').map((r) => r.name)] }); warmStage(); };
   navigator.serviceWorker.register(import.meta.env.BASE_URL + 'sw.js').then(() => navigator.serviceWorker.ready).then((reg) => {
     if (document.readyState === 'complete') precache(reg); else addEventListener('load', () => precache(reg));
   }).catch(() => {});

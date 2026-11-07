@@ -1,4 +1,5 @@
 /* Stage screen: one LED wall, 3328x832 (4:1). Designed at native size; #wall is scaled to fit and letterboxed in black.
+   ?format=panel (html.panel): the same plates on a 1920x1080 canvas for the game panels, see the last block.
    LED rules: black = pixels off (noche keeps #000), large high-contrast type, no hairlines or thin weights. */
 :root {
   --display: var(--hw);
@@ -9,6 +10,7 @@
   --art: url(../assets/gala/background.jpg);
   --band: linear-gradient(90deg, transparent, rgba(201, 164, 92, .55) 35%, #FFF3D6 50%, rgba(201, 164, 92, .55) 65%, transparent);
   --ease: cubic-bezier(.2, .8, .2, 1);
+  --wh: 832px; --gh: 320px; /* wall height, dragon glint height (keyframes below) */
 }
 .noche {
   /* noche (invitation option B): pure black so the wall is "off" around the content */
@@ -54,8 +56,8 @@ html, body { margin: 0; height: 100%; overflow: hidden; background: #000; cursor
   -webkit-mask: linear-gradient(transparent, #000 45%, #000 55%, transparent); mask: linear-gradient(transparent, #000 45%, #000 55%, transparent);
   animation: glint 9s linear infinite; }
 .glint .img { filter: brightness(2.4) saturate(1.3); animation: glint-img 9s linear infinite; }
-@keyframes glint { 0% { transform: translateY(832px); } 38%, 100% { transform: translateY(-320px); } }
-@keyframes glint-img { 0% { transform: translateY(-832px); } 38%, 100% { transform: translateY(320px); } }
+@keyframes glint { 0% { transform: translateY(var(--wh)); } 38%, 100% { transform: translateY(calc(var(--gh) * -1)); } }
+@keyframes glint-img { 0% { transform: translateY(calc(var(--wh) * -1)); } 38%, 100% { transform: translateY(var(--gh)); } }
 .noche .eye { display: block; position: absolute; left: 430px; top: 165px; width: 90px; height: 90px; border-radius: 50%; opacity: 0;
   background: radial-gradient(circle, #FFF6E0 0, #FF5A3C 22%, rgba(227, 40, 58, .5) 45%, transparent 70%); animation: eye 9s ease-out infinite; }
 @keyframes eye { 0%, 34% { opacity: 0; transform: scale(.6); } 41% { opacity: 1; transform: scale(1.25); } 60% { opacity: .55; transform: scale(1); } 100% { opacity: 0; transform: scale(.8); } }
@@ -165,6 +167,40 @@ html, body { margin: 0; height: 100%; overflow: hidden; background: #000; cursor
 #sweep { position: absolute; inset: 0; pointer-events: none; overflow: hidden; }
 #sweep i { position: absolute; top: -20%; left: 0; width: 560px; height: 140%; background: var(--band); opacity: 0; transform: translateX(-1000px) skewX(-18deg); }
 .ch { display: inline-block; }
+
+/* ---------- video: YouTube embed (16:9, centred like the file video; made and removed by stage.js) ---------- */
+#vi-yt { position: absolute; top: 0; left: 50%; height: 100%; aspect-ratio: 16 / 9; transform: translateX(-50%); border: 0; }
+[data-view="video"].yt #vi { display: none; }
+
+/* ---------- panel format (?format=panel): 1920x1080 for the game panels (iframe in play.html when there are no games) ----------
+   Same plates and animations recomposed for 16:9: 400 px of art on each side (blossom left, dragon or sun right), centred type scaled down
+   to fit the middle 1100 px, the video fills the canvas. Never black: stage.js shows the title instead. */
+.panel, .panel body { touch-action: none; }
+.panel { --wh: 1080px; --gh: 400px; }
+.panel #wall { width: 1920px; height: 1080px; }
+.panel .side, .panel .side .img { width: 400px; height: 1080px; }
+.panel .side .img { background-size: 1080px auto; } /* the painting at 1.2x: 400 px columns of it, full height */
+.panel .side.r .img { background-position: -680px 0; }
+.panel.noche .glint { width: 400px; height: var(--gh); }
+.panel.noche .eye { left: 121px; top: 237px; }
+.panel .embers i { left: calc(var(--x) * .45); }
+.panel .plate { padding: 0 400px; }
+.panel .logo { width: 220px; margin-bottom: 22px; }
+.panel .mark { width: 100px; }
+.panel .t-main { font-size: 270px; }
+.panel .t-sub { font-size: 50px; letter-spacing: .36em; margin-right: -.36em; }
+.panel .knot { width: 360px; height: 46px; margin: 22px 0; }
+.panel [data-m="oro"] .knot { width: 520px; height: 66px; margin: 0 0 24px; }
+.panel .role { font-size: 50px; }
+.panel .name { font-size: 190px; }
+.panel [data-view="raffle"] .name { font-size: 130px; }
+.panel .foot { font-size: 40px; }
+.panel [data-view="winner"] .role { font-size: 60px; }
+.panel .lema { font-size: 100px; }
+.panel .welcome { font-size: 110px; }
+.panel .year { font-size: 300px; }
+.panel .frame { width: 1920px; height: 1080px; }
+.panel .frame p { font-size: 70px; }
 
 /* ---------- operator chips (outside the design, bottom-right corner) ---------- */
 #sound, #status {

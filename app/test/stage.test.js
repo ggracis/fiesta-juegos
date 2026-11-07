@@ -1,7 +1,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { buildApp } from '../server/index.ts';
-import { DEFAULT_STAGE, CUE_LEAD_MS, CUE_STEP_MS, PANELS, cueDelay, cueMs } from '../src/shared/stage.js';
+import { DEFAULT_STAGE, CUE_LEAD_MS, CUE_STEP_MS, PANELS, cueDelay, cueMs, ytId } from '../src/shared/stage.js';
 
 const post = (app, url, payload, headers) => app.inject({ method: 'POST', url, payload, headers });
 const put = (app, url, payload, headers) => app.inject({ method: 'PUT', url, payload, headers });
@@ -49,7 +49,8 @@ test('stage: defaults in live, admin-only switching, merge and clamp', async () 
     { video: 'javascript:alert(1)' }, { video: '<x>' }, { winner: 99 }, { extra: 1 }]) {
     assert.equal((await put(app, '/api/admin/stage', bad, h)).statusCode, 400, JSON.stringify(bad));
   }
-  for (const ok of ['media/intro.mp4', '/media/intro.mp4', 'https://cdn.example.com/a b.mp4'.replace(' ', '%20'), '']) {
+  for (const ok of ['media/intro.mp4', '/media/intro.mp4', 'https://cdn.example.com/a b.mp4'.replace(' ', '%20'),
+    'https://www.youtube.com/watch?v=mIFULvJIFaU', 'https://youtu.be/mIFULvJIFaU?t=5', '']) {
     assert.equal((await put(app, '/api/admin/stage', { video: ok }, h)).statusCode, 200, ok);
   }
   await app.close();
@@ -105,4 +106,13 @@ test('cue timeline: panel 1 -> 4 then the stage, same frame whatever the local c
   assert.equal(cueMs(cueAt - 1, 0, cueAt, 1), -1);
   assert.equal(cueMs(cueAt + 2 * CUE_STEP_MS, 0, cueAt, 3), 0);
   assert.equal(cueMs(cueAt - 300, 300, cueAt, 2), cueMs(cueAt + 900, -900, cueAt, 2)); // clocks differ, same server instant
+});
+
+test('ytId: YouTube links give the video id, anything else gives none', () => {
+  const id = 'mIFULvJIFaU';
+  for (const u of [`https://www.youtube.com/watch?v=${id}`, `https://youtube.com/watch?v=${id}&t=9s`, `https://www.youtube.com/watch?list=x&v=${id}`,
+    `https://youtu.be/${id}`, `https://youtu.be/${id}?si=abc`, `https://www.youtube.com/shorts/${id}`, `https://www.youtube.com/embed/${id}`,
+    `https://m.youtube.com/watch?v=${id}`, `https://www.youtube-nocookie.com/embed/${id}`]) assert.equal(ytId(u), id, u);
+  for (const u of ['', null, undefined, 'media/intro.mp4', 'https://cdn.example.com/a.mp4', `https://evil.com/watch?v=${id}`,
+    `https://www.youtube.com.evil.com/watch?v=${id}`, 'https://www.youtube.com/watch?v=short', `https://www.youtube.com/watch?v=${id}x`, 'https://www.youtube.com/']) assert.equal(ytId(u), '', String(u));
 });

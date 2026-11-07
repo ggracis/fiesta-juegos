@@ -12,6 +12,10 @@ export const DEFAULT_STAGE = {
   prizes: [],
 };
 
+// YouTube link (watch?v=, youtu.be/, shorts/, embed/) -> its 11-character video id, '' for anything else (files, empty, null).
+export const ytId = (url) =>
+  /^https?:\/\/(?:www\.|m\.)?(?:youtube(?:-nocookie)?\.com\/(?:watch\?(?:[^#]*&)?v=|shorts\/|embed\/)|youtu\.be\/)([\w-]{11})(?![\w-])/.exec(url ?? '')?.[1] ?? '';
+
 // WOW cue: a gold sweep crosses panel 1 -> 4 and lands on the stage as the title appears, all off the server clock.
 export const PANELS = 4;
 export const CUE_LEAD_MS = 6500; // panels poll every 5 s outside raffle mode: every screen must see the cue before it fires

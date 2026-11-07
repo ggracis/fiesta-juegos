@@ -6,12 +6,12 @@
 <meta name="theme-color" content="#000000">
 <meta name="robots" content="noindex">
 <title>Pantalla de escenario</title>
-<script>/* theme: ?theme=amanecer|noche is remembered (same switch as the panels); default noche */try{var q=new URLSearchParams(location.search).get('theme');if(q==='amanecer'||q==='noche')localStorage.setItem('fiesta.theme',q);if(localStorage.getItem('fiesta.theme')!=='amanecer')document.documentElement.classList.add('noche')}catch(e){document.documentElement.classList.add('noche')}</script>
+<script>/* ?format=panel: 16:9 (1920x1080) for the game panels, see stage.css; theme: ?theme=amanecer|noche is remembered (same switch as the panels); default noche */try{if(new URLSearchParams(location.search).get('format')==='panel')document.documentElement.classList.add('panel')}catch(e){}try{var q=new URLSearchParams(location.search).get('theme');if(q==='amanecer'||q==='noche')localStorage.setItem('fiesta.theme',q);if(localStorage.getItem('fiesta.theme')!=='amanecer')document.documentElement.classList.add('noche')}catch(e){document.documentElement.classList.add('noche')}</script>
 <link rel="stylesheet" href="/css/fonts.css">
 <link rel="stylesheet" href="/css/stage.css">
 </head>
 <body>
-<!-- Fixed 3328x832 canvas (LED wall 10 m x 2.5 m, pitch 2.9 mm), scaled to fit and letterboxed in black. -->
+<!-- Fixed 3328x832 canvas (LED wall 10 m x 2.5 m, pitch 2.9 mm), or 1920x1080 with ?format=panel; scaled to fit and letterboxed in black. -->
 <div id="wall" aria-live="polite">
   <div class="art" aria-hidden="true">
     <div class="side l"><b class="img"></b></div>

@@ -222,6 +222,7 @@ button.press, button.big:active { transform: scale(.94); }
   background: radial-gradient(90% 60% at 50% 125%, rgba(255, 90, 77, .55), transparent 70%), var(--wine);
 }
 .overlay[hidden] { display: none; }
+#ov-stage { position: absolute; z-index: 40; inset: 0; width: 100%; height: 100%; border: 0; background: #000; } /* idle: stage animations in 16:9, see stageIdle() in play.js */
 .overlay p { font-size: 52px; font-weight: 600; }
 .overlay .kick { font: 800 96px var(--font-display); color: var(--sun); text-transform: uppercase; }
 #rwin { font-size: 200px; line-height: 1; }

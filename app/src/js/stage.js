@@ -4,19 +4,21 @@ import confetti from 'canvas-confetti';
 import { live, screenId, isDemo } from './api.js';
 import { $, RM, cleanName, mulberry32 } from './common.js';
 import { rafflePhase, scramble, SCRAMBLE_MS, LEAD_MS } from '../shared/raffle.js';
-import { PANELS, CUE_LEAD_MS, cueDelay, cueMs } from '../shared/stage.js';
+import { PANELS, CUE_LEAD_MS, cueDelay, cueMs, ytId } from '../shared/stage.js';
 
 gsap.registerPlugin(SplitText);
 
-// ---------- fixed 3328x832 canvas, scaled to fit (letterboxed in black) ----------
-const W = 3328, MAX_TEXT = 1900;
-const wall = $('#wall');
-let scale = 1;
-const fit = () => { scale = Math.min(innerWidth / W, innerHeight / 832); wall.style.transform = `translate(-50%, -50%) scale(${scale})`; };
-addEventListener('resize', fit); fit();
-
 const q = new URLSearchParams(location.search);
 const preview = q.has('preview'); // admin thumbnail: muted, no operator chips, not listed as a screen
+const panel = q.get('format') === 'panel'; // 16:9 for the game panels (iframe in play.html): muted, never black, the panel plays the WOW cue itself
+const quiet = preview || panel;
+
+// ---------- fixed canvas (3328x832 LED wall, or 1920x1080 panel), scaled to fit (letterboxed in black) ----------
+const W = panel ? 1920 : 3328, H = panel ? 1080 : 832, MAX_TEXT = panel ? 1200 : 1900;
+const wall = $('#wall');
+let scale = 1;
+const fit = () => { scale = Math.min(innerWidth / W, innerHeight / H); wall.style.transform = `translate(-50%, -50%) scale(${scale})`; };
+addEventListener('resize', fit); fit();
 const demo = isDemo || q.has('demo');
 const SLOT = PANELS + 1; // the stage plays the WOW cue after panel 4
 
@@ -35,11 +37,12 @@ addEventListener('mousemove', () => {
 const vid = $('#vi');
 let soundOn = false;
 const sound = $('#sound');
-sound.hidden = preview || demo;
+sound.hidden = quiet || demo;
 addEventListener('pointerdown', () => {
-  if (preview || soundOn) return;
+  if (quiet || soundOn) return;
   soundOn = true; sound.hidden = true;
   if (!vid.paused) vid.muted = false;
+  ytCmd('unMute');
 });
 
 // ---------- video: copied into memory once (blob), so it plays even if the connection drops later ----------
@@ -48,10 +51,12 @@ async function loadVideo(url) {
   if (url === vidUrl) return;
   vidUrl = url;
   if (vidObj) { URL.revokeObjectURL(vidObj); vidObj = null; }
-  $('[data-view="video"]').classList.toggle('empty', !url);
-  if (!url) { vid.removeAttribute('src'); vid.load(); return; }
+  const pl = $('[data-view="video"]');
+  pl.classList.toggle('empty', !url);
+  pl.classList.toggle('yt', !!ytId(url));
+  if (!url || ytId(url)) { vid.removeAttribute('src'); vid.load(); return; } // a YouTube link needs the internet: no local copy, its iframe is made when the scene starts
   const abs = new URL(url, location.href).href;
-  if (preview) { vid.src = abs; return; } // ponytail: the thumbnail streams, only the wall keeps a local copy
+  if (quiet) { vid.src = abs; return; } // ponytail: the thumbnail and the panels stream, only the wall keeps a local copy
   try {
     const r = await fetch(abs);
     if (!r.ok) throw new Error(String(r.status));
@@ -73,10 +78,24 @@ async function loadVideo(url) {
     setStatus('Video en streaming: sin copia local');
   }
 }
+// YouTube: a fresh iframe per scene start (plays from 0, nothing plays hidden). Starts muted; the wall's sound click unmutes it through the iframe API.
+const YT = 'https://www.youtube-nocookie.com';
+let yt = null;
+const ytCmd = (func) => yt?.contentWindow?.postMessage(JSON.stringify({ event: 'command', func, args: '' }), YT);
+const dropYt = () => { yt?.remove(); yt = null; };
+function playYt(id) {
+  dropYt();
+  const f = yt = Object.assign(document.createElement('iframe'), { id: 'vi-yt', title: 'Video', allow: 'autoplay; encrypted-media',
+    src: `${YT}/embed/${id}?autoplay=1&mute=1&controls=0&rel=0&playsinline=1&loop=1&playlist=${id}&enablejsapi=1&origin=${encodeURIComponent(location.origin)}` });
+  if (soundOn) f.onload = () => { for (const ms of [800, 2000]) setTimeout(() => yt === f && ytCmd('unMute'), ms); }; // ponytail: no onReady handshake, two timed tries
+  $('[data-view="video"]').append(f);
+}
 function playVideo() {
+  const id = ytId(vidUrl);
+  if (id) return playYt(id);
   if (!vid.getAttribute('src')) return;
   vid.currentTime = 0;
-  vid.muted = preview || !soundOn;
+  vid.muted = quiet || !soundOn;
   vid.play().catch(() => { vid.muted = true; vid.play().catch(() => {}); });
 }
 
@@ -87,7 +106,7 @@ async function poll() {
   inflight = true;
   const t0 = Date.now();
   try {
-    const l = await live(preview ? {} : { screenId: screenId(), game: 'stage' });
+    const l = await live(quiet ? {} : { screenId: screenId(), game: 'stage' }); // the panel's own poll already registers it as a screen
     offset = l.serverNow - (t0 + Date.now()) / 2;
     S = l.stage ?? null;
     if (S) loadVideo(S.video || null);
@@ -100,13 +119,14 @@ async function poll() {
 const DEMO_SPEAKERS = [{ name: 'Binbing Xiao', role: 'CEO' }, { name: 'Wilfred', role: 'Director' }, { name: 'Ignacio Dapena', role: 'Director de Energía Digital' }];
 const DEMO_NAMES = ['Lucía Fernández', 'Martín Gómez', 'Sofía Herrera', 'Diego Castro', 'Valentina Ruiz', 'Joaquín Paredes', 'Camila Ortega', 'Tomás Aguirre', 'Florencia Vidal', 'Agustín Molina', 'Julieta Sosa', 'Matías Romero'];
 const DEMO_PRIZES = ['Smart TV 55"', 'Notebook', 'Auriculares inalámbricos', 'Tablet', 'Reloj inteligente'];
+const DEMO_VIDEO = 'https://www.youtube.com/watch?v=mIFULvJIFaU';
 const DEMO_STEPS = [['title', 8000], ['ambient', 32000], ['speaker', 6000, 0], ['speaker', 6000, 1], ['speaker', 6000, 2], ['raffle', 6000], ['draw', 21000], ['video', 6000], ['cue', 9000]];
 const DEMO_CYCLE = DEMO_STEPS.reduce((a, s) => a + s[1], 0);
 const demoT0 = Date.now(), pin = q.get('scene'), pinnedTheme = q.has('theme');
 let demoRound = 0;
 function demoState(now) {
   const winner = (n, drawnAt) => ({ id: n + 1, name: DEMO_NAMES[(n * 5 + 3) % DEMO_NAMES.length], prize: DEMO_PRIZES[n % DEMO_PRIZES.length], drawnAt });
-  const base = { scene: 'title', at: 0, cueAt: 0, video: '', speaker: null, winner: null };
+  const base = { scene: 'title', at: 0, cueAt: 0, video: DEMO_VIDEO, speaker: null, winner: null };
   if (pin) {
     const sp = DEMO_SPEAKERS[Number(q.get('speaker')) || 0] ?? DEMO_SPEAKERS[0];
     if (pin === 'suspense') return { ...base, scene: 'winner', winner: winner(0, now - LEAD_MS - 5000) }; // reel frozen mid-way
@@ -132,20 +152,21 @@ function demoState(now) {
 
 // ---------- what to show now ----------
 const ARM_MS = 2600; // the wall fades to black this long before its part of the sweep (panels are sweeping meanwhile)
+const BLACK = panel ? { view: 'title', key: 'title' } : { view: 'black', key: 'black' }; // a panel never goes dark: the title stands in
 function desired(now) {
   const s = S;
-  if (!s) return { view: 'black', key: 'black' };
-  if (s.cueAt) {
+  if (!s) return BLACK;
+  if (s.cueAt && !panel) { // on a panel, play.html sweeps over this page itself
     const t = cueMs(now, offset, s.cueAt, SLOT);
-    if (t < 0 && t > -(CUE_LEAD_MS + cueDelay(SLOT) + 2000)) return t < -ARM_MS ? { keep: true } : { view: 'black', key: 'black' };
+    if (t < 0 && t > -(CUE_LEAD_MS + cueDelay(SLOT) + 2000)) return t < -ARM_MS ? { keep: true } : BLACK;
     if (t >= 0 && t < 4000 && s.scene === 'title') return { view: 'title', key: 'title', cue: true };
   }
   switch (s.scene) {
-    case 'speaker': return s.speaker ? { view: 'speaker', key: `speaker|${s.speaker.name}|${s.speaker.role}` } : { view: 'black', key: 'black' };
+    case 'speaker': return s.speaker ? { view: 'speaker', key: `speaker|${s.speaker.name}|${s.speaker.role}` } : BLACK;
     case 'raffle': return { view: 'raffle', key: 'raffle' };
     case 'ambient': return { view: 'ambient', key: 'ambient' };
     case 'video': return { view: 'video', key: `video|${s.at}` };
-    case 'black': return { view: 'black', key: 'black' };
+    case 'black': return BLACK;
     case 'winner': {
       const w = s.winner;
       if (!w) return { view: 'raffle', key: 'raffle' };
@@ -187,7 +208,7 @@ function show(d) {
   fill(d);
   wall.classList.toggle('off', d.view === 'black');
   for (const p of plates) p.classList.toggle('on', p.dataset.view === d.view);
-  if (prevView === 'video' && d.view !== 'video') setTimeout(() => { if (curView !== 'video') vid.pause(); }, 900);
+  if (prevView === 'video' && d.view !== 'video') setTimeout(() => { if (curView !== 'video') { vid.pause(); dropYt(); } }, 900);
   if (d.view === 'video') playVideo();
   if (d.view !== prevView) ambient(d.view === 'ambient');
   if (RM) return;
@@ -241,10 +262,11 @@ const MOMENTS = [...document.querySelectorAll('.amb')];
 const MOMENT_MS = demo && !pin ? 8000 : 20000;
 { // lanterns and sparks: fixed pseudo-random layout, built once
   const r = mulberry32(2026), el = (cls, vars) => Object.assign(document.createElement('i'), { className: cls, style: vars });
-  for (let i = 0; i < 16; i++) $('#lanterns').append(el('lantern', `--x:${Math.round(80 + (i / 16) * 3168 + r() * 120)}px;--k:${(0.55 + r() * 0.8).toFixed(2)};--t:${Math.round(16 + r() * 12)}s;--d:-${Math.round(r() * 24)}s;--dx:${Math.round(r() * 120 - 60)}px`));
+  for (let i = 0; i < 16; i++) $('#lanterns').append(el('lantern', `--x:${Math.round(80 + (i / 16) * (W - 160) + r() * 120)}px;--k:${(0.55 + r() * 0.8).toFixed(2)};--t:${Math.round(16 + r() * 12)}s;--d:-${Math.round(r() * 24)}s;--dx:${Math.round(r() * 120 - 60)}px`));
   for (let i = 0; i < 12; i++) $('.embers').append(el('', `--x:${Math.round(260 + r() * 540)}px;--t:${(3.5 + r() * 3).toFixed(1)}s;--d:-${(r() * 6).toFixed(1)}s;--dx:${Math.round(r() * 160 - 100)}px`));
-  for (let i = 0; i < 46; i++) $('#sparks').append(el('spark', `--x:${Math.round(300 + r() * 2728)}px;--y:${Math.round(40 + r() * 750)}px;--t:${(3 + r() * 4).toFixed(1)}s;--d:-${(r() * 7).toFixed(1)}s`));
+  for (let i = 0; i < 46; i++) $('#sparks').append(el('spark', `--x:${Math.round(300 + r() * (W - 600))}px;--y:${Math.round(40 + r() * (H - 82))}px;--t:${(3 + r() * 4).toFixed(1)}s;--d:-${(r() * 7).toFixed(1)}s`));
 }
+if (panel) document.querySelectorAll('.petals i').forEach((el, i) => { if (i > 2) el.style.setProperty('--x', [1250, 1520, 1790][i - 3] + 'px'); }); // the LED layout spreads them over 3328 px
 let ambTimer = null, ambIdx = -1;
 function ambient(on) {
   clearInterval(ambTimer); ambTimer = null;
@@ -277,12 +299,12 @@ function reel(now) {
   reelLast = step;
   const el = $('#su-name');
   el.textContent = RM ? '…' : scramble(t, name, w.id);
-  if (first) fitText(el, 230); // fit once: the scramble keeps the winner's shape all through the suspense
+  if (first) fitText(el, panel ? 150 : 230); // fit once: the scramble keeps the winner's shape all through the suspense
 }
 
 function tick() {
   const now = Date.now();
-  if (demo) S = demoState(now);
+  if (demo) { S = demoState(now); loadVideo(S.video || null); }
   const d = desired(now);
   if (!d.keep && d.key !== curKey) { curKey = d.key; reelLast = -1; show(d); }
   if (curView === 'suspense') reel(now);
