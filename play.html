@@ -1,0 +1,124 @@
+<!doctype html>
+<html lang="es" class="panel">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+<meta name="theme-color" content="#2A0610">
+<title>Juegos de la fiesta</title>
+<script>/* theme: ?theme=amanecer|noche is remembered; default noche (all of it lives under html.noche in play-noche.css) */try{var q=new URLSearchParams(location.search).get('theme');if(q==='amanecer'||q==='noche')localStorage.setItem('fiesta.theme',q);if(localStorage.getItem('fiesta.theme')!=='amanecer')document.documentElement.classList.add('noche')}catch(e){document.documentElement.classList.add('noche')}</script>
+  <script type="module" crossorigin src="/fiesta-juegos/assets/play-BUDkmGAE.js"></script>
+  <link rel="modulepreload" crossorigin href="/fiesta-juegos/assets/fonts-DSKCPq1g.js">
+  <link rel="modulepreload" crossorigin href="/fiesta-juegos/assets/gsap-BHS3Flg1.js">
+  <link rel="modulepreload" crossorigin href="/fiesta-juegos/assets/api-C-f0M67M.js">
+  <link rel="modulepreload" crossorigin href="/fiesta-juegos/assets/common-RkmuOKig.js">
+  <link rel="modulepreload" crossorigin href="/fiesta-juegos/assets/confetti.module-CAXNRs-2.js">
+  <link rel="modulepreload" crossorigin href="/fiesta-juegos/assets/stage-Mbh2zbTH.js">
+  <link rel="modulepreload" crossorigin href="/fiesta-juegos/assets/rounds-DkUpR400.js">
+  <link rel="modulepreload" crossorigin href="/fiesta-juegos/assets/games-BMr2VQbr.js">
+  <link rel="stylesheet" crossorigin href="/fiesta-juegos/assets/fonts-QAVa3Q6B.css">
+  <link rel="stylesheet" crossorigin href="/fiesta-juegos/assets/play-CcabM9pa.css">
+  <link rel="stylesheet" crossorigin href="/fiesta-juegos/assets/tokens-DGp9Qvlw.css">
+</head>
+<body>
+<div id="stage" data-screen="attract">
+
+  <section id="attract" class="screen">
+    <div class="gala-art" aria-hidden="true"></div>
+    <div class="gala-petals" aria-hidden="true"><i style="--x:60px;--s:22px;--t:24s;--d:-3s;--dx:60px;--r:300deg"></i><i style="--x:210px;--s:16px;--t:19s;--d:-17s;--dx:-40px;--r:180deg"></i><i style="--x:390px;--s:28px;--t:26s;--d:-9s;--dx:70px;--r:400deg"></i><i style="--x:560px;--s:18px;--t:22s;--d:-21s;--dx:-60px;--r:240deg"></i><i style="--x:760px;--s:24px;--t:17s;--d:-6s;--dx:50px;--r:350deg"></i><i style="--x:930px;--s:14px;--t:27s;--d:-13s;--dx:-30px;--r:200deg"></i><i style="--x:1150px;--s:26px;--t:21s;--d:-1s;--dx:80px;--r:380deg"></i><i style="--x:1340px;--s:20px;--t:25s;--d:-19s;--dx:-70px;--r:260deg"></i><i style="--x:1520px;--s:30px;--t:18s;--d:-11s;--dx:40px;--r:330deg"></i><i style="--x:1690px;--s:16px;--t:23s;--d:-7s;--dx:-50px;--r:150deg"></i><i style="--x:1830px;--s:22px;--t:20s;--d:-15s;--dx:60px;--r:420deg"></i><i style="--x:470px;--s:20px;--t:28s;--d:-24s;--dx:-20px;--r:280deg"></i></div>
+    <div class="gala">
+      <img class="glogo" src="/fiesta-juegos/assets/huawei-v-white-CeDiAoiC.png" width="720" height="736" alt="Huawei">
+      <p class="g1">GALA</p><p class="g3">DIGITAL POWER</p><p class="g4">2026</p>
+      <p class="gtag">Juegos de la noche</p>
+    </div>
+    <div class="sun"></div>
+    <div id="floaters"></div>
+    <h1>¿Encuentras<br>al distinto?</h1>
+    <div class="cta">
+      <div class="ripple"></div>
+      <div class="playpill">Toca para jugar</div>
+      <svg class="hand" viewBox="3 1.5 18 22.5" aria-hidden="true"><path d="M9 11.24V7.5C9 6.12 10.12 5 11.5 5S14 6.12 14 7.5v3.74c1.21-.81 2-2.18 2-3.74C16 5.01 13.99 3 11.5 3S7 5.01 7 7.5c0 1.56.79 2.93 2 3.74zm9.84 4.63l-4.54-2.26c-.17-.07-.35-.11-.54-.11H13v-6c0-.83-.67-1.5-1.5-1.5S10 6.67 10 7.5v10.74l-3.43-.72c-.08-.01-.15-.03-.24-.03-.31 0-.59.13-.79.33l-.79.8 4.94 4.94c.27.27.65.44 1.06.44h6.79c.75 0 1.33-.55 1.44-1.28l.75-5.27c.01-.07.02-.14.02-.2 0-.62-.38-1.16-.91-1.38z" fill="#fff" stroke="#2A0610" stroke-width=".7" stroke-linejoin="round" paint-order="stroke"/></svg>
+    </div>
+    <div class="board" id="board" aria-hidden="true"><h2 id="board-title"></h2><ol id="board-rows"></ol></div>
+  </section>
+
+  <section id="pin" class="screen" hidden>
+    <div class="glass pincard">
+      <h2>Escribe tu PIN</h2>
+      <div id="dots"></div>
+      <p id="pinmsg" class="msg" aria-live="polite">&nbsp;</p>
+      <div id="pad"></div>
+      <p class="hintline">Tu PIN está en tu entrada</p>
+    </div>
+  </section>
+
+  <section id="confirm" class="screen" hidden>
+    <div class="bigav" id="avatar"></div>
+    <h2 id="hola"></h2>
+    <p id="full" class="full"></p>
+    <div class="row">
+      <button class="big wide" id="yes" type="button">¡Soy yo, a jugar!</button>
+      <button class="big ghost narrow" id="no" type="button">No soy yo</button>
+    </div>
+  </section>
+
+  <section id="menu" class="screen" hidden>
+    <h2>¿A qué jugamos?</h2>
+    <div id="tiles"></div>
+    <p id="menumsg" class="msg" aria-live="polite">&nbsp;</p>
+    <button class="textkey" id="menuexit" type="button">Salir</button>
+  </section>
+
+  <section id="howto" class="screen" hidden>
+    <h2 id="howtitle"></h2>
+    <div class="howrow">
+      <div id="howart"></div>
+      <ol class="caps" id="caps"></ol>
+    </div>
+    <div class="startwrap">
+      <svg class="ring" viewBox="0 0 520 170" aria-hidden="true"><rect id="howring" x="6" y="6" width="508" height="158" rx="79" pathLength="100"/></svg>
+      <button class="big" id="start" type="button">EMPEZAR</button>
+    </div>
+    <button class="textkey" id="skip" type="button">Saltar</button>
+  </section>
+
+  <section id="game" class="screen" hidden>
+    <div class="hud">
+      <div class="pips" id="pips"></div>
+      <div class="timer"><div class="track"><i id="timebar"></i></div><b id="timenum">8</b></div>
+      <div class="score">Puntos <b id="scorenum">0</b></div>
+    </div>
+    <div id="grid"></div>
+    <div id="banner"><b id="bantxt"></b><em id="banbadge">¡Nivel experto!</em></div>
+  </section>
+
+  <section id="result" class="screen" hidden>
+    <h2 id="rtitle"></h2>
+    <div class="medal" id="medal">
+      <b id="rscore">0</b><span>de 100 puntos</span>
+      <em class="record" id="record" hidden>¡Récord de la pantalla!</em>
+    </div>
+    <p class="thanks" id="thanks">¡Gracias! Pásale la pantalla al siguiente.</p>
+    <p class="prize" id="rprize" hidden>¡Ganaste un premio! Retíralo con tu código QR.</p>
+    <p class="prize" id="rpending" hidden>¡Superaste el puntaje! Acércate a la acreditación para ver si ganaste un premio.</p>
+    <p id="rnote" class="msg">&nbsp;</p>
+    <div class="back">
+      <svg viewBox="0 0 60 60" aria-hidden="true"><circle cx="30" cy="30" r="26" class="bgc"/><circle cx="30" cy="30" r="26" pathLength="100" id="backring"/></svg>
+      <span id="backtxt">Volviendo en 5…</span>
+    </div>
+  </section>
+
+  <button id="snd" type="button" aria-pressed="false" aria-label="Activar sonido">
+    <svg viewBox="0 0 32 32" aria-hidden="true"><path d="M4 12h6l8-6v20l-8-6H4z" fill="#fff"/><g class="waves"><path d="M22 11c2.500 2.500 2.500 7.500 0 10M25 7c4.500 4.500 4.500 13.500 0 18" fill="none" stroke="#fff" stroke-width="2.500" stroke-linecap="round"/></g><path class="slash" d="M5 5l22 22" stroke="#fff" stroke-width="3" stroke-linecap="round"/></svg>
+  </button>
+  <div id="offline" hidden>Sin conexión</div>
+  <div id="setup" hidden><button type="button" id="setupbtn">Activar modo sin conexión</button><span id="setupinfo"></span></div>
+  <div id="iris" hidden></div>
+  <div id="ov-idle" hidden>¿Sigues ahí? Toca la pantalla</div>
+  <div id="ov-pause" class="overlay" hidden><h2>Juegos en pausa</h2><p>Volvemos en un momento.</p></div>
+  <div id="ov-trans" class="overlay" hidden><h2 id="ttext"></h2></div>
+  <div id="ov-plate" class="overlay" hidden><i class="glow" aria-hidden="true"></i><p class="kick">Sorteos</p><h2>¡Los sorteos están por comenzar!</h2><p>Atentos a las pantallas</p></div>
+  <div id="ov-cue" hidden aria-hidden="true"><i></i></div>
+  <div id="ov-raffle" class="overlay" hidden><i class="glow" aria-hidden="true"></i><p class="kick" id="rkick">¡Sorteo!</p><h2 id="rwin"></h2><p id="rfprize" hidden></p><p id="rcong">¡Felicitaciones!</p></div>
+</div>
+</body>
+</html>

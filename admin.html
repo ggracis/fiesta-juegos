@@ -1,0 +1,174 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="theme-color" content="#2A0610">
+<meta name="robots" content="noindex">
+<title>Panel de administración</title>
+  <script type="module" crossorigin src="/fiesta-juegos/assets/admin-Dj-QYxEf.js"></script>
+  <link rel="modulepreload" crossorigin href="/fiesta-juegos/assets/fonts-DSKCPq1g.js">
+  <link rel="modulepreload" crossorigin href="/fiesta-juegos/assets/api-C-f0M67M.js">
+  <link rel="modulepreload" crossorigin href="/fiesta-juegos/assets/games-BMr2VQbr.js">
+  <link rel="stylesheet" crossorigin href="/fiesta-juegos/assets/fonts-QAVa3Q6B.css">
+  <link rel="stylesheet" crossorigin href="/fiesta-juegos/assets/admin-D7XlJa_t.css">
+  <link rel="stylesheet" crossorigin href="/fiesta-juegos/assets/tokens-DGp9Qvlw.css">
+</head>
+<body class="ad dark">
+<p id="netbar" class="netbar" role="alert" hidden>Sin conexión con el servidor. Reintentando…</p>
+<p id="demo" class="note" hidden>El panel no está disponible en el modo demo</p>
+
+<main id="login" hidden>
+  <form class="card login" id="login-form">
+    <h1>Panel de administración</h1>
+    <label for="pw">Contraseña</label>
+    <input id="pw" type="password" autocomplete="current-password" required>
+    <button class="b primary" type="submit">Ingresar</button>
+  </form>
+</main>
+
+<div id="app" hidden>
+  <header class="top">
+    <h1>Gala · Admin</h1>
+    <span class="row"><button class="b" id="theme" type="button"></button><button class="b" id="logout" type="button">Salir</button></span>
+  </header>
+  <p class="strip" id="strip" aria-live="polite"></p>
+  <nav class="tabs" role="tablist" id="tabs" aria-label="Secciones"></nav>
+
+  <main>
+    <section id="t-guests" class="pane" role="tabpanel" hidden>
+      <div class="door-bar">
+        <input id="gq" type="search" autocomplete="off" enterkeyhint="search" placeholder="Buscar por nombre, DNI o email" aria-label="Buscar invitado">
+        <div class="chips" id="gfilters" role="group" aria-label="Filtrar invitados"></div>
+        <p class="sum" id="gsum" aria-live="polite"></p>
+      </div>
+      <button class="b primary newbar" id="verif-new" type="button" hidden></button>
+      <div class="card" id="verif-card" hidden>
+        <h2>Verificaciones pendientes</h2>
+        <p class="muted">Registros que no coincidieron con la lista. Confirma la identidad y elige el invitado.</p>
+        <div id="verifs"></div>
+        <p class="muted" id="verifs-empty" hidden>No hay verificaciones pendientes.</p>
+      </div>
+      <details class="card" id="add-box">
+        <summary>Agregar invitado</summary>
+        <form id="add-guest">
+          <p class="muted">Para quien no está en la lista: queda acreditado y recibe su PIN.</p>
+          <label for="ag-name">Nombre y apellido</label>
+          <input id="ag-name" required minlength="3" maxlength="120" autocomplete="off">
+          <div class="row"><input id="ag-dni" maxlength="20" placeholder="DNI (opcional)" inputmode="numeric" aria-label="DNI (opcional)" autocomplete="off">
+            <input id="ag-email" type="email" maxlength="120" placeholder="Email (opcional)" aria-label="Email (opcional)" autocomplete="off"></div>
+          <button class="b primary" type="submit">Agregar y dar entrada</button>
+        </form>
+      </details>
+      <div class="gcards" id="guests"></div>
+      <div class="note" id="guests-empty" hidden><p id="guests-empty-t"></p><button class="b primary" id="ag-from-q" type="button" hidden></button></div>
+      <div class="card" id="detail" hidden aria-live="polite"></div>
+    </section>
+
+    <section id="t-stage" class="pane" role="tabpanel" hidden>
+      <div class="card">
+        <p class="st-now" id="st-now" aria-live="polite"></p>
+        <iframe id="st-preview" class="st-preview" title="Vista previa de la pantalla de escenario" tabindex="-1"></iframe>
+      </div>
+      <div class="card">
+        <h2>Escenas</h2>
+        <div class="mixer" id="st-mixer"></div>
+        <div class="st-nav">
+          <button class="b" id="st-prev" type="button">‹ Mostrar orador anterior <kbd>←</kbd></button>
+          <span id="st-sp"></span>
+          <button class="b" id="st-next" type="button">Mostrar orador siguiente › <kbd>→</kbd></button>
+        </div>
+        <p class="muted">Atajos: teclas 1 a 7 para las escenas, flechas para el orador. Cada cambio sale al aire de inmediato.</p>
+      </div>
+      <div class="card center">
+        <button class="b primary big" id="st-cue" type="button">Momento WOW</button>
+        <p class="muted">Un barrido dorado cruza los 4 paneles y termina en el escenario con el título. Arranca 6 segundos después de tocarlo.</p>
+      </div>
+      <div class="card">
+        <h2>Sorteo</h2>
+        <label for="st-prize">Premio de este sorteo</label>
+        <div class="row"><input id="st-prize" list="st-prizes" maxlength="80" autocomplete="off"><button class="b primary" id="st-draw" type="button">Sortear ahora</button></div>
+        <datalist id="st-prizes"></datalist>
+        <p class="winner" id="winner" aria-live="polite"></p>
+        <button class="b" id="hide-raffle" type="button" hidden>Ocultar en pantallas</button>
+        <p class="muted">Las pantallas y el escenario muestran el suspenso y el ganador. Toca «Mostrar» para volver a poner un ganador anterior.</p>
+        <ol class="st-winners" id="st-winners"></ol>
+        <p class="muted" id="st-winners-empty" hidden>Todavía no hay ganadores.</p>
+      </div>
+      <div class="card">
+        <h2>Modo sorteo</h2>
+        <p class="muted" id="raffle-mode-info"></p>
+        <button class="b primary" id="raffle-mode" type="button"></button>
+      </div>
+      <div class="card"><p class="muted">La pantalla LED abre <a class="link" id="st-link" target="_blank" rel="noopener">stage.html</a> en pantalla completa (F11) y hace un clic para habilitar el sonido.</p></div>
+    </section>
+
+    <section id="t-live" class="pane" role="tabpanel" hidden>
+      <div class="card">
+        <label class="sw"><input type="checkbox" id="paused"> <span>Pausar los 4 paneles de juego</span></label>
+        <label class="sw"><input type="checkbox" id="trans"> <span>Mostrar mensaje en los paneles</span></label>
+        <label for="trans-text">Texto del mensaje</label>
+        <div class="row"><input id="trans-text" maxlength="200"><button class="b" id="trans-save" type="button">Guardar</button></div>
+      </div>
+      <div class="card"><h2>Juegos activos</h2><div id="live-games"></div><p class="muted" id="left-note"></p></div>
+      <div class="card"><h2>Pantallas</h2>
+        <div class="scroll"><table><thead><tr><th>Pantalla</th><th>Juego</th><th>Visto</th><th>Estado</th></tr></thead><tbody id="screens"></tbody></table></div>
+        <p class="muted" id="screens-empty" hidden>Ninguna pantalla conectada todavía.</p>
+      </div>
+    </section>
+
+    <section id="t-games" class="pane" role="tabpanel" hidden>
+      <div class="card">
+        <h2>Stock de premios</h2>
+        <p id="counters" class="muted"></p>
+        <label for="stock">Stock de premios</label>
+        <div class="row"><input id="stock" type="number" min="0" step="1"><button class="b" id="stock-save" type="button">Guardar</button></div>
+      </div>
+      <div id="game-cards"></div>
+    </section>
+
+    <section id="t-results" class="pane" role="tabpanel" hidden>
+      <div class="card">
+        <h2>Ranking</h2>
+        <label for="rank-game">Juego</label>
+        <select id="rank-game"></select>
+        <div class="scroll"><table><thead><tr><th>#</th><th>Nombre</th><th>Puntaje</th><th>Tiempo</th></tr></thead><tbody id="ranking"></tbody></table></div>
+        <p class="muted" id="ranking-empty" hidden>Todavía no hay resultados.</p>
+        <p><a id="csv-link" class="link">Exportar intentos (CSV)</a></p>
+      </div>
+      <div class="card">
+        <h2>Ganadores</h2>
+        <ol id="winners"></ol>
+        <p class="muted" id="winners-empty" hidden>Todavía no hay ganadores.</p>
+      </div>
+    </section>
+
+    <section id="t-setup" class="pane" role="tabpanel" hidden>
+      <div id="content-cards"></div>
+      <div class="card">
+        <h2>Lista de invitados</h2>
+        <label for="csv">Importar lista de invitados (CSV <code>name,dni,email</code>)</label>
+        <input id="csv" type="file" accept=".csv,text/csv">
+      </div>
+      <div class="card">
+        <h2>Oradores</h2>
+        <p class="muted">En el orden en que suben al escenario. Los nombres y cargos se pueden corregir en cualquier momento.</p>
+        <div class="st-speakers" id="st-speakers"></div>
+        <div class="row"><button class="b" id="st-add" type="button">Agregar orador</button><button class="b primary" id="st-save-sp" type="button">Guardar oradores</button></div>
+      </div>
+      <div class="card">
+        <h2>Premios y video</h2>
+        <label for="st-prize-list">Premios, uno por línea, en el orden en que se sortean</label>
+        <textarea id="st-prize-list" rows="10"></textarea>
+        <label for="st-video">Video</label>
+        <input id="st-video" maxlength="300" placeholder="https://www.youtube.com/watch?v=… o media/video.mp4" autocomplete="off">
+        <p class="muted">Pega un enlace de YouTube o de un archivo MP4. YouTube necesita internet en el lugar del evento.</p>
+        <button class="b primary" id="st-save" type="button">Guardar premios y video</button>
+      </div>
+    </section>
+  </main>
+</div>
+
+<div id="toast" class="toast" role="status" aria-live="polite" hidden></div>
+</body>
+</html>
