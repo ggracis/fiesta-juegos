@@ -1,6 +1,6 @@
 // Panel service worker: runtime cache so play.html and its assets survive an internet drop. Hand-written, no manifest.
 // Bump CACHE to drop everything cached by older versions (activate deletes other caches).
-const CACHE = 'fiesta-v1';
+const CACHE = 'fiesta-v2';
 const FONT_HOSTS = ['fonts.googleapis.com', 'fonts.gstatic.com'];
 const PLAY = new URL('play.html', self.registration.scope).href;
 

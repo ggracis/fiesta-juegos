@@ -3,6 +3,7 @@ import confetti from 'canvas-confetti';
 import QRCode from 'qrcode';
 import { ticket, checkinUrl } from './api.js';
 import { $, RM, demoBadge, cleanName, vibrate } from './common.js';
+import logoUrl from '../assets/brand/huawei-v.png'; // the ticket paper is cream in both themes: the black wordmark always
 
 demoBadge();
 
@@ -20,29 +21,34 @@ function save(blob, name) {
 }
 
 async function ticketPng(d, qr) {
-  try { await Promise.all([document.fonts.load('300 60px "Cormorant Garamond"'), document.fonts.load('600 60px "Cormorant Garamond"'), document.fonts.load('500 24px Montserrat')]); } catch {}
-  const W = 900, H = 1260, serif = '"Cormorant Garamond", Georgia, serif', sans = 'Montserrat, sans-serif';
+  try { await Promise.all(['300 60px', '400 22px', '500 24px', '700 60px'].map((f) => document.fonts.load(f + ' "Huawei Sans"'))); } catch {}
+  const W = 900, H = 1260, serif = '"Huawei Sans", "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif', sans = serif; // ponytail: one family, "serif" kept as the display slot
+  const logo = new Image(); // official logo, drawn at its native aspect ratio
+  logo.src = logoUrl;
   const c = Object.assign(document.createElement('canvas'), { width: W, height: H });
   const x = c.getContext('2d');
   x.fillStyle = '#F7F1E8'; x.fillRect(0, 0, W, H);
   x.strokeStyle = '#C9A45C'; x.lineWidth = 3; x.strokeRect(36, 36, W - 72, H - 72);
   x.lineWidth = 1.5; x.strokeRect(52, 52, W - 104, H - 104);
   x.textAlign = 'center';
-  x.fillStyle = '#C8102E'; x.font = `300 76px ${serif}`;
+  await logo.decode();
+  const lw = 102; x.drawImage(logo, (W - lw) / 2, 80, lw, Math.round(lw * logo.naturalHeight / logo.naturalWidth));
+  x.fillStyle = '#C8102E'; x.font = `300 54px ${serif}`;
   if ('letterSpacing' in x) x.letterSpacing = '12px';
-  x.fillText('GALA HUAWEI DIGITAL POWER 2026', W / 2 + 6, 170, W - 160);
+  x.fillText('GALA DIGITAL', W / 2 + 6, 255);
+  x.fillText('POWER 2026', W / 2 + 6, 318);
   if ('letterSpacing' in x) x.letterSpacing = '0px';
-  x.fillStyle = '#2E2A28'; x.font = `500 56px ${serif}`; x.fillText(cleanName(d.name), W / 2, 250, W - 160);
+  x.fillStyle = '#2E2A28'; x.font = `500 50px ${serif}`; x.fillText(cleanName(d.name), W / 2, 395, W - 160);
   const img = new Image();
   img.src = 'data:image/svg+xml;charset=utf-8,' + encodeURIComponent(qr.replace('<svg ', '<svg width="520" height="520" '));
   await img.decode();
-  x.fillStyle = '#F7F1E8'; x.fillRect(190, 300, 520, 520);
-  x.drawImage(img, 190, 300, 520, 520);
+  x.fillStyle = '#F7F1E8'; x.fillRect(230, 425, 440, 440);
+  x.drawImage(img, 230, 425, 440, 440);
   x.fillStyle = '#6B6460'; x.font = `500 24px ${sans}`;
   if ('letterSpacing' in x) x.letterSpacing = '8px';
-  x.fillText('TU PIN', W / 2 + 4, 890);
+  x.fillText('TU PIN', W / 2 + 4, 912);
   if ('letterSpacing' in x) x.letterSpacing = '14px';
-  x.fillStyle = '#9E1B22'; x.font = `600 140px ${serif}`; x.fillText(d.pin, W / 2 + 7, 1020);
+  x.fillStyle = '#9E1B22'; x.font = `700 130px ${serif}`; x.fillText(d.pin, W / 2 + 7, 1036);
   if ('letterSpacing' in x) x.letterSpacing = '0px';
   x.fillStyle = '#2E2A28'; x.font = `500 26px ${sans}`;
   x.fillText('Lunes 30 de noviembre de 2026 · 18:00 H', W / 2, 1090);
@@ -108,8 +114,8 @@ try {
 
   $('#reveal').hidden = false;
   $('#dl').addEventListener('click', async () => {
-    try { save(await ticketPng(d, qr), 'invitacion-gala-huawei-2026.png'); }
-    catch { save(new Blob([qr], { type: 'image/svg+xml' }), 'invitacion-gala-huawei-2026-qr.svg'); }
+    try { save(await ticketPng(d, qr), 'invitacion-gala-digital-power-2026.png'); }
+    catch { save(new Blob([qr], { type: 'image/svg+xml' }), 'invitacion-gala-digital-power-2026-qr.svg'); }
   });
 
   if (get(openedKey)) { // returning visitor: straight to the ticket

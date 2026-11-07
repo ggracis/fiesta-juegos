@@ -19,19 +19,20 @@ body.tk { min-height: 100svh; background: radial-gradient(120% 80% at 50% 0, #FB
   animation: breathe 2.8s ease-in-out infinite;
 }
 @keyframes breathe { 50% { transform: scale(1.07); } }
-.tap { margin: 26px 0 0; font: 500 1.35rem/1.2 var(--serif); color: var(--red-deep); }
+.tap { margin: 26px 0 0; font: 500 1.35rem/1.2 var(--display); color: var(--red-deep); }
 
 /* ---------- ticket: cream paper, thin gold frame ---------- */
 .ticket { position: relative; width: 100%; overflow: hidden; border-radius: 12px; background: #FBF7EF; box-shadow: 0 24px 44px -26px rgba(60, 30, 20, .55), 0 0 0 1px rgba(201, 164, 92, .8); }
 .ticket::before { content: ''; position: absolute; inset: 7px; border: 1px solid rgba(201, 164, 92, .65); border-radius: 7px; pointer-events: none; }
 .ticket header { padding: 34px 20px 18px; }
-.kicker { margin: 0; font: 300 1.5rem/1.15 var(--serif); letter-spacing: .12em; margin-right: -.12em; white-space: nowrap; color: var(--red); font-variant-numeric: lining-nums; }
-.ticket .who { margin: 12px 0 0; font: 500 1.45rem/1.2 var(--serif); color: var(--ink); }
+.ticket .logo { display: block; width: 62px; height: auto; margin: 0 auto 16px; }
+.kicker { margin: 0; font: 300 1.5rem/1.15 var(--display); letter-spacing: .12em; margin-right: -.12em; white-space: nowrap; color: var(--red); font-variant-numeric: lining-nums; }
+.ticket .who { margin: 12px 0 0; font: 500 1.45rem/1.2 var(--display); color: var(--ink); }
 .ticket .body { padding: 0 22px 30px; }
 .qr { width: min(100%, 220px); aspect-ratio: 1; margin: 4px auto 18px; padding: 8px; border-radius: 8px; background: var(--cream); box-shadow: inset 0 0 0 1px rgba(201, 164, 92, .8); }
 .qr svg { display: block; width: 100%; height: 100%; }
 .pin-label { margin: 0; font: 500 .65rem/1 var(--sans); letter-spacing: .3em; margin-right: -.3em; text-transform: uppercase; color: var(--ink-soft); }
-.pin { display: flex; justify-content: center; gap: .18em; margin: 8px 0 0; font: 600 3.1rem/1.1 var(--serif); color: var(--red-deep); font-variant-numeric: lining-nums tabular-nums; perspective: 400px; }
+.pin { display: flex; justify-content: center; gap: .18em; margin: 8px 0 0; font: 600 3.1rem/1.1 var(--display); color: var(--red-deep); font-variant-numeric: lining-nums tabular-nums; perspective: 400px; }
 .pin span { display: inline-block; min-width: .6em; }
 .when { margin: 18px 0 0; padding-top: 16px; border-top: 1px solid rgba(201, 164, 92, .6); font-size: .74rem; line-height: 1.7; color: var(--ink); }
 .help { margin: 12px 0 0; font-size: .78rem; line-height: 1.5; color: var(--ink-soft); }
@@ -39,7 +40,7 @@ body.tk { min-height: 100svh; background: radial-gradient(120% 80% at 50% 0, #FB
 .dl { margin-top: 22px; }
 
 .nf { max-width: 360px; padding: 32px 24px; border-radius: 12px; background: #FBF7EF; box-shadow: 0 0 0 1px rgba(201, 164, 92, .8); }
-.nf h1 { margin: 0 0 8px; font: 500 1.8rem/1.1 var(--serif); color: var(--red-deep); }
+.nf h1 { margin: 0 0 8px; font: 500 1.8rem/1.1 var(--display); color: var(--red-deep); }
 .nf p { margin: 0 0 20px; color: var(--ink-soft); line-height: 1.5; font-size: .9rem; }
 
 /* ---------- check-in (staff) ---------- */

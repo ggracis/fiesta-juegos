@@ -1,0 +1,7 @@
+/* Huawei Sans: the brand typeface, shared by every page. The woff2 files are licensed to the client and gitignored
+   (src/fonts/); when they are missing the fallback stack below takes over, so a build never fails because of them. */
+@font-face { font-family: 'Huawei Sans'; font-weight: 300; font-style: normal; font-display: swap; src: url(../fonts/HuaweiSans-Light.woff2) format('woff2'); }
+@font-face { font-family: 'Huawei Sans'; font-weight: 400; font-style: normal; font-display: swap; src: url(../fonts/HuaweiSans-Regular.woff2) format('woff2'); }
+@font-face { font-family: 'Huawei Sans'; font-weight: 500; font-style: normal; font-display: swap; src: url(../fonts/HuaweiSans-Medium.woff2) format('woff2'); }
+@font-face { font-family: 'Huawei Sans'; font-weight: 700; font-style: normal; font-display: swap; src: url(../fonts/HuaweiSans-Bold.woff2) format('woff2'); }
+:root { --hw: 'Huawei Sans', 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif; }

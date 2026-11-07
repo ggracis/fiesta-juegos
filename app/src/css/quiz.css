@@ -1,5 +1,5 @@
 /* Quiz Relámpago. Theme tokens only, so it follows both A (cream) and B (html.noche): surfaces are --cream, text --ink.
-   The panel page doesn't define --gold/--serif/--sans yet, hence the fallbacks to its own tokens. */
+   The panel page doesn't define --gold/--display/--sans yet, hence the fallbacks to its own tokens. */
 .qz {
   --qz-gold: var(--gold, var(--sun));
   --qz-line: color-mix(in srgb, var(--ink) 14%, transparent);
@@ -19,7 +19,7 @@
 
 .qz-q {
   align-self: center; max-width: 1640px; margin: 0 auto; text-align: center;
-  font: 600 76px/1.15 var(--serif, var(--font-display)); text-wrap: balance;
+  font: 600 76px/1.15 var(--display, var(--font-display)); text-wrap: balance;
 }
 
 .qz-opts { display: grid; grid-template-columns: 1fr 1fr; gap: 28px; }
@@ -30,7 +30,7 @@
 }
 .qz-opts button em {
   flex: none; display: grid; place-items: center; width: 92px; height: 92px; border-radius: 50%; border: 2px solid var(--qz-gold);
-  font: italic 600 54px/1 var(--serif, var(--font-display)); color: var(--qz-gold);
+  font: 600 54px/1 var(--display, var(--font-display)); color: var(--qz-gold);
 }
 .qz-opts button.pick { box-shadow: 0 0 0 8px var(--qz-gold); }
 .qz-opts button.ok { color: var(--cream); background: var(--ink); box-shadow: 0 0 0 8px var(--qz-gold); }

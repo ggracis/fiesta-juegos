@@ -389,7 +389,7 @@ function renderMixer(winners) {
     return b;
   };
   $('st-mixer').replaceChildren(
-    btn('title', 'Gala Huawei Digital Power 2026'),
+    btn('title', 'Gala Digital Power 2026'),
     btn('ambient', 'Animaciones suaves que rotan'),
     btn('speaker', sp ? sp.name + (sp.role ? ' · ' + sp.role : '') : 'Sin oradores'),
     btn('raffle', 'Placa de premios'),

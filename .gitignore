@@ -13,3 +13,6 @@ app/data/*.db*
 Thumbs.db
 desktop.ini
 .github/
+
+# Huawei corporate font: licensed to the client, never in the public repo (copy to the server by hand)
+app/src/fonts/

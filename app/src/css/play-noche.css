@@ -19,8 +19,8 @@ html.noche {
   --grad-btn: linear-gradient(180deg, #E3283A, #B3122B);
   --shadow-jelly: 0 0 0 1px rgba(212, 175, 106, .7), 0 10px 26px -10px rgba(227, 40, 58, .7);
   --shadow-card: 0 30px 80px -40px rgba(200, 16, 46, .55);
-  --font-display: 'Cormorant Garamond', Georgia, 'Times New Roman', serif;
-  --nx-sans: 'Montserrat', system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+  --font-display: var(--hw);
+  --nx-sans: var(--hw);
 }
 html.noche.panel, html.noche.panel body { color: var(--ink); background: #050303; }
 html.noche #stage { background: radial-gradient(90% 60% at 50% 125%, rgba(200, 16, 46, .22), transparent 70%), var(--wine); }
@@ -48,10 +48,10 @@ html.noche .gala {
 html.noche .gala p { margin: 0; white-space: nowrap; }
 html.noche .g1, html.noche .g4 { color: transparent; background: var(--gold-text); -webkit-background-clip: text; background-clip: text; }
 html.noche .g1 { font-weight: 500; font-size: 220px; line-height: .9; letter-spacing: .1em; margin-right: -.1em; }
-html.noche .g2 { font-weight: 500; font-size: 138px; line-height: 1; letter-spacing: .06em; margin-right: -.06em; color: var(--nx-red); }
-html.noche .g3 { margin-top: 10px; font-weight: 500; font-size: 60px; line-height: 1.2; letter-spacing: .24em; margin-right: -.24em; color: var(--ink); }
+html.noche .glogo { display: block; width: 137px; height: auto; margin: 0 0 22px; } /* official logo, white wordmark on the dark panel */
+html.noche .g3 { margin-top: 18px; font-weight: 500; font-size: 60px; line-height: 1.2; letter-spacing: .24em; margin-right: -.24em; color: var(--ink); }
 html.noche .g4 { margin-top: 6px; font-weight: 500; font-size: 112px; line-height: 1.1; letter-spacing: .36em; margin-right: -.36em; }
-html.noche .gtag { margin-top: 34px; padding-top: 26px; font: italic 500 50px/1 var(--font-display); letter-spacing: .04em; color: var(--ink-soft); position: relative; }
+html.noche .gtag { margin-top: 34px; padding-top: 26px; font: 500 50px/1 var(--font-display); letter-spacing: .04em; color: var(--ink-soft); position: relative; }
 html.noche .gtag::before { content: ""; position: absolute; left: 50%; top: 0; width: 120px; height: 2px; margin-left: -60px; background: var(--nx-red); }
 
 html.noche .gala-petals { display: block; position: absolute; z-index: 1; inset: 0; overflow: hidden; pointer-events: none; }
@@ -108,7 +108,7 @@ html.noche .board li:nth-child(2) .rk { color: var(--on-gold); background: linea
 html.noche .board li:nth-child(3) .rk { color: var(--on-gold); background: linear-gradient(160deg, #E8B48A, #B5764A 55%, #7A4527); box-shadow: none; }
 html.noche .board li .sc { font: 600 80px/1 var(--font-display); font-variant-numeric: lining-nums; color: var(--gold); }
 html.noche .board li .chip, html.noche .chip[data-game] { padding: 6px 24px; font: 500 28px var(--nx-sans); letter-spacing: .04em; color: var(--ink-soft); background: none; box-shadow: inset 0 0 0 1px rgba(212, 175, 106, .55); }
-html.noche .board li.empty { font: italic 500 56px/1.25 var(--font-display); color: var(--ink-soft); box-shadow: none; }
+html.noche .board li.empty { font: 500 56px/1.25 var(--font-display); color: var(--ink-soft); box-shadow: none; }
 html.noche #attract.show-board .board li.new { background: rgba(212, 175, 106, .1); box-shadow: inset 0 0 0 2px var(--gold); }
 
 /* ---------- PIN ---------- */

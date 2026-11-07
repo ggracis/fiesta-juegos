@@ -12,11 +12,11 @@
 /* ---------- hero ---------- */
 .noche .px-sun, .noche .fog, .noche .px-waves { display: none; }
 .noche .hero { padding-top: calc(var(--w) * .37); }
+.noche .hero > img.logo { top: calc(var(--w) * .1); }
 .noche .eyebrow { margin: 0 0 calc(var(--w) * .05); font: 500 calc(var(--w) * .028)/1 var(--sans); letter-spacing: .32em; margin-right: -.32em; color: var(--ink); }
 .noche .eyebrow::after { content: ''; display: block; width: calc(var(--w) * .1); height: 1px; margin: calc(var(--w) * .035) auto 0; background: var(--red); }
 .noche .title { font-weight: 500; }
 .noche .t1 .ch, .noche .t3 .ch { color: transparent; background: var(--gold-text); -webkit-background-clip: text; background-clip: text; }
-.noche .t2 { color: #E3283A; }
 .noche .t4 { color: var(--ink); font-weight: 400; }
 .noche .t3 { letter-spacing: .2em; margin-right: -.2em; font-size: calc(var(--w) * .11); line-height: 1.1; }
 .noche .tag { font: 400 calc(var(--w) * .036)/1.45 var(--sans); letter-spacing: .04em; color: var(--ink); }

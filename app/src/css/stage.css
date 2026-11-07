@@ -1,8 +1,8 @@
 /* Stage screen: one LED wall, 3328x832 (4:1). Designed at native size; #wall is scaled to fit and letterboxed in black.
    LED rules: black = pixels off (noche keeps #000), large high-contrast type, no hairlines or thin weights. */
 :root {
-  --serif: 'Cormorant Garamond', Georgia, 'Times New Roman', serif;
-  --sans: 'Montserrat', system-ui, 'Segoe UI', Roboto, sans-serif;
+  --display: var(--hw);
+  --sans: var(--hw);
   /* amanecer (invitation option A) */
   --bg: #F7F1E8; --ink: #2E2A28; --soft: #5E5752; --red: #C8102E; --red-deep: #9E1B22; --gold: #B38A3E;
   --title-a: var(--red); --title-b: var(--red-deep); --name: var(--ink); --win: var(--red-deep);
@@ -87,24 +87,22 @@ html, body { margin: 0; height: 100%; overflow: hidden; background: #000; cursor
 .plate.on { opacity: 1; visibility: visible; transition: opacity .9s var(--ease); }
 .plate > * { margin: 0; white-space: nowrap; }
 
-/* Logo: cut from the painting with a margin, edges feathered so the crop never shows as a box. */
-.logo { width: 280px; height: 256px; margin-bottom: 8px; background: var(--art) no-repeat; background-size: 1800px auto; background-position: -760px -196px;
-  -webkit-mask: linear-gradient(90deg, transparent, #000 12%, #000 88%, transparent), linear-gradient(transparent, #000 10%, #000 90%, transparent);
-  -webkit-mask-composite: source-in; mask: linear-gradient(90deg, transparent, #000 12%, #000 88%, transparent), linear-gradient(transparent, #000 10%, #000 90%, transparent); mask-composite: intersect; }
-:root:not(.noche) .logo { mix-blend-mode: multiply; } /* the painted paper around the logo melts into the cream */
-.noche .logo { width: 316px; height: 310px; margin-bottom: 0; background-size: 1620px auto; background-position: -652px -248px; }
+/* Official Huawei vertical logo (files as supplied, never recolored): black wordmark on the cream wall, white on the dark one. Width only, aspect ratio kept. */
+.logo, .mark { display: block; height: auto; }
+.dk, .noche .lt { display: none; }
+.noche .dk { display: block; }
+.logo { width: 240px; margin-bottom: 26px; }
+.mark { width: 120px; margin: 4px 0 16px; }
 .t-main, .year, .name { font-variant-numeric: lining-nums; }
-.t-main { font: 700 250px/.95 var(--serif); letter-spacing: .07em; margin-right: -.07em; }
-.t-main span:first-child { color: var(--title-a); }
-.t-main span:last-child { color: var(--title-b); }
-.noche .t-main span:first-child, .noche .gold { color: transparent; background: var(--gold-text); -webkit-background-clip: text; background-clip: text; }
-.noche .t-main span:last-child { color: var(--red); }
+.t-main { font: 700 250px/.95 var(--display); letter-spacing: .07em; margin-right: -.07em; }
+.t-main span { color: var(--title-a); }
+.noche .t-main span, .noche .gold { color: transparent; background: var(--gold-text); -webkit-background-clip: text; background-clip: text; }
 .t-sub { font: 600 66px/1 var(--sans); letter-spacing: .42em; margin-right: -.42em; color: var(--ink); }
 .knot { width: 440px; height: 56px; margin: 26px 0; stroke: var(--red); stroke-width: 3; }
 
 .role { font: 600 64px/1.1 var(--sans); letter-spacing: .14em; margin-right: -.14em; color: var(--red-deep); }
 .noche .role { color: var(--gold); }
-.name { font: 700 270px/1 var(--serif); letter-spacing: .02em; color: var(--name); padding-top: 8px; }
+.name { font: 700 270px/1 var(--display); letter-spacing: .02em; color: var(--name); padding-top: 8px; }
 .foot { font: 500 50px/1.2 var(--sans); letter-spacing: .08em; color: var(--soft); }
 [data-view="raffle"] .name { color: var(--red); }
 [data-view="winner"] .name, [data-view="suspense"] .name { color: var(--win); }
@@ -119,13 +117,13 @@ html, body { margin: 0; height: 100%; overflow: hidden; background: #000; cursor
 .amb > p { margin: 0; white-space: nowrap; }
 .sky { position: absolute; inset: 0; }
 
-.lema { font: 600 150px/1.15 var(--serif); color: var(--name); }
+.lema { font: 600 150px/1.15 var(--display); color: var(--name); }
 .lema + .lema { color: var(--gold); }
 .lema span { display: inline-block; opacity: 0; }
 .amb.run .lema span { animation: word 1.6s var(--ease) calc(var(--i) * .45s + .8s) forwards; }
 @keyframes word { from { opacity: 0; transform: translateY(40px); } to { opacity: 1; transform: none; } }
 
-.welcome { position: relative; font: 600 160px/1 var(--serif); color: var(--name); }
+.welcome { position: relative; font: 600 160px/1 var(--display); color: var(--name); }
 .lantern {
   position: absolute; left: var(--x); bottom: -160px; width: 72px; height: 94px; border-radius: 42% / 46%; opacity: 0;
   background: radial-gradient(circle at 50% 58%, #FFE3A1, #F2683C 38%, #C41E32 70%, #6E0A16);
@@ -144,7 +142,7 @@ html, body { margin: 0; height: 100%; overflow: hidden; background: #000; cursor
   100% { transform: translate3d(0, -1100px, 0) scale(var(--k)); opacity: 0; }
 }
 
-.year { font: 700 400px/.9 var(--serif); letter-spacing: .04em; color: var(--red-deep); padding-bottom: 20px; }
+.year { font: 700 400px/.9 var(--display); letter-spacing: .04em; color: var(--red-deep); padding-bottom: 20px; }
 .noche .year { color: transparent; background: var(--gold-text); -webkit-background-clip: text; background-clip: text; }
 #wall.m-dragon .side { transform: scale(1.14); transition: transform 24s linear; }
 .side { transition: transform 3s var(--ease); }
@@ -159,7 +157,7 @@ html, body { margin: 0; height: 100%; overflow: hidden; background: #000; cursor
 /* ---------- video: 16:9 sits centred (1479x832) between the art; a 4:1 file fills the wall ---------- */
 #vi { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: contain; }
 .frame { display: none; width: 1479px; height: 832px; align-items: center; justify-content: center; box-shadow: inset 0 0 0 8px var(--gold); }
-.frame p { font: 600 90px var(--serif); color: var(--soft); }
+.frame p { font: 600 90px var(--display); color: var(--soft); }
 [data-view="video"].empty .frame { display: flex; }
 [data-view="video"].empty #vi { display: none; }
 

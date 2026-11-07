@@ -7,9 +7,7 @@
 <meta name="robots" content="noindex">
 <title>Pantalla de escenario</title>
 <script>/* theme: ?theme=amanecer|noche is remembered (same switch as the panels); default noche */try{var q=new URLSearchParams(location.search).get('theme');if(q==='amanecer'||q==='noche')localStorage.setItem('fiesta.theme',q);if(localStorage.getItem('fiesta.theme')!=='amanecer')document.documentElement.classList.add('noche')}catch(e){document.documentElement.classList.add('noche')}</script>
-<link rel="preconnect" href="https://fonts.googleapis.com">
-<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@600;700&family=Montserrat:wght@500;600;700&display=swap">
+<link rel="stylesheet" href="/css/fonts.css">
 <link rel="stylesheet" href="/css/stage.css">
 </head>
 <body>
@@ -22,8 +20,8 @@
   </div>
 
   <section class="plate" data-view="title">
-    <div class="logo" aria-hidden="true"></div>
-    <h1 class="t-main"><span>GALA</span> <span>HUAWEI</span></h1>
+    <img class="logo lt" src="/assets/brand/huawei-v.png" width="720" height="736" alt="Huawei"><img class="logo dk" src="/assets/brand/huawei-v-white.png" width="720" height="736" alt="Huawei">
+    <h1 class="t-main"><span>GALA</span></h1>
     <svg class="knot" viewBox="0 0 220 28" fill="none" aria-hidden="true"><path d="M0 14h88M132 14h88"/><circle cx="110" cy="14" r="9.5"/><path d="M110 5.5 118.5 14 110 22.5 101.5 14z"/></svg>
     <p class="t-sub">DIGITAL POWER 2026</p>
   </section>
@@ -32,11 +30,12 @@
     <p class="role" id="sp-role"></p>
     <h1 class="name" id="sp-name"></h1>
     <svg class="knot" viewBox="0 0 220 28" fill="none" aria-hidden="true"><path d="M0 14h88M132 14h88"/><circle cx="110" cy="14" r="9.5"/><path d="M110 5.5 118.5 14 110 22.5 101.5 14z"/></svg>
-    <p class="foot">Gala Huawei Digital Power 2026</p>
+    <img class="mark lt" src="/assets/brand/huawei-v.png" width="720" height="736" alt="Huawei"><img class="mark dk" src="/assets/brand/huawei-v-white.png" width="720" height="736" alt="Huawei">
+    <p class="foot">Gala Digital Power 2026</p>
   </section>
 
   <section class="plate" data-view="raffle">
-    <p class="role">Gala Huawei Digital Power 2026</p>
+    <p class="role">Gala Digital Power 2026</p>
     <h1 class="name">Premios y sorteos</h1>
     <svg class="knot" viewBox="0 0 220 28" fill="none" aria-hidden="true"><path d="M0 14h88M132 14h88"/><circle cx="110" cy="14" r="9.5"/><path d="M110 5.5 118.5 14 110 22.5 101.5 14z"/></svg>
     <p class="foot" id="rf-count">Atentos: en instantes conocemos a los ganadores</p>
@@ -62,7 +61,7 @@
       <p class="lema"><span style="--i:4">Imaginemos</span> <span style="--i:5">lo</span> <span style="--i:6">que</span> <span style="--i:7">viene.</span></p>
     </div>
     <div class="amb" data-m="faroles"><div class="sky" id="lanterns"></div><p class="welcome">Bienvenidos a la gala</p></div>
-    <div class="amb" data-m="dragon"><p class="year">2026</p><p class="t-sub">GALA HUAWEI DIGITAL POWER</p></div>
+    <div class="amb" data-m="dragon"><p class="year">2026</p><p class="t-sub">GALA DIGITAL POWER</p></div>
     <div class="amb" data-m="oro"><div class="sky" id="sparks"></div>
       <svg class="knot" viewBox="0 0 220 28" fill="none" aria-hidden="true"><path d="M0 14h88M132 14h88"/><circle cx="110" cy="14" r="9.5"/><path d="M110 5.5 118.5 14 110 22.5 101.5 14z"/></svg>
       <p class="t-sub">DIGITAL POWER 2026</p></div>

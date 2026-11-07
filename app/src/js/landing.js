@@ -46,6 +46,7 @@ function intro() {
     .from('.art img', { opacity: 0, scale: 1.08, transformOrigin: '50% 0', duration: 1.6, ease: 'power2.out', ...CP }, t)
     .from('.px-sun', { opacity: 0, duration: 1.4, ...CP }, t + 0.2)
     .from('.px-petals', { opacity: 0, duration: 1.6, ...CP }, t + 0.6)
+    .from('.logo', { opacity: 0, duration: 1, ...CP }, t + 0.1)
     .from($$('.eyebrow'), { y: 12, opacity: 0, duration: 0.8, ...CP }, t + 0.2)
     .from($$('.title .ch'),{ y: 40, opacity: 0, duration: 1, stagger: 0.07, ...CP }, t + 0.35)
     .from('.tag', { y: 18, opacity: 0, duration: 0.9, ...CP }, t + 1.0)

@@ -3,11 +3,11 @@
 export const SCENES = ['title', 'ambient', 'speaker', 'raffle', 'winner', 'video', 'black'];
 export const DEFAULT_STAGE = {
   scene: 'title', speaker: 0, winner: 0, video: '', cueAt: 0, at: 0,
-  // Names come from a voice note: placeholders until the client confirms spelling and running order.
+  // Confirmed by the client; Wilfred's surname is still pending.
   speakers: [
-    { name: 'Bin Bin', role: 'Presidente' },
+    { name: 'Binbing Xiao', role: 'CEO' },
     { name: 'Wilfred', role: 'Director' },
-    { name: 'Nacho da Pena', role: 'Vicepresidente' },
+    { name: 'Ignacio Dapena', role: 'Director de Energía Digital' },
   ],
   prizes: [],
 };

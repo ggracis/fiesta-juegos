@@ -97,7 +97,7 @@ async function poll() {
 }
 
 // Demo: every plate in turn with fake data; the theme flips after each round unless ?theme= pins it.
-const DEMO_SPEAKERS = [{ name: 'Bin Bin', role: 'Presidente' }, { name: 'Wilfred', role: 'Director' }, { name: 'Nacho da Pena', role: 'Vicepresidente' }];
+const DEMO_SPEAKERS = [{ name: 'Binbing Xiao', role: 'CEO' }, { name: 'Wilfred', role: 'Director' }, { name: 'Ignacio Dapena', role: 'Director de Energía Digital' }];
 const DEMO_NAMES = ['Lucía Fernández', 'Martín Gómez', 'Sofía Herrera', 'Diego Castro', 'Valentina Ruiz', 'Joaquín Paredes', 'Camila Ortega', 'Tomás Aguirre', 'Florencia Vidal', 'Agustín Molina', 'Julieta Sosa', 'Matías Romero'];
 const DEMO_PRIZES = ['Smart TV 55"', 'Notebook', 'Auriculares inalámbricos', 'Tablet', 'Reloj inteligente'];
 const DEMO_STEPS = [['title', 8000], ['ambient', 32000], ['speaker', 6000, 0], ['speaker', 6000, 1], ['speaker', 6000, 2], ['raffle', 6000], ['draw', 21000], ['video', 6000], ['cue', 9000]];
@@ -207,10 +207,9 @@ function sweep(ms) {
 // The gold band arrives from panel 4 and "paints" the title as it crosses: each letter appears when the band reaches it.
 function cueIntro() {
   const p = plate('title'), SWEEP = 1600;
-  const parts = [p.querySelector('.logo'), p.querySelector('.knot')];
+  const parts = [[...p.querySelectorAll('.logo')].find((e) => e.offsetParent), p.querySelector('.knot')]; // the logo variant of the current theme
   // Split letters lose their parent's background-clip gradient: the gold ones get .gold themselves.
-  const [gala, huawei] = p.querySelectorAll('.t-main span');
-  splits = [SplitText.create(gala, { type: 'chars', charsClass: 'ch gold' }), SplitText.create(huawei, { type: 'chars', charsClass: 'ch' }),
+  splits = [SplitText.create(p.querySelector('.t-main span'), { type: 'chars', charsClass: 'ch gold' }),
     SplitText.create(p.querySelector('.t-sub'), { type: 'chars', charsClass: 'ch' })];
   for (const el of [...parts, ...splits.flatMap((x) => x.chars)]) {
     gsap.fromTo(el, { opacity: 0, y: 24 }, { opacity: 1, y: 0, duration: 0.55, ease: 'power2.out', delay: (xOf(el) / W) * SWEEP * 0.001 * 0.9 });

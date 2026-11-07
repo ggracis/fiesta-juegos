@@ -86,7 +86,7 @@ function frame() {
   ctx.lineWidth = 3; ctx.lineCap = 'round'; ctx.globalAlpha = .45;
   for (const d of done) { ctx.strokeStyle = COLORS[d.type] ?? '#fff'; path(d.trail); }
   ctx.globalAlpha = 1;
-  ctx.font = '600 14px Outfit, sans-serif';
+  ctx.font = "700 14px 'Huawei Sans', 'Segoe UI', Roboto, Arial, sans-serif";
   const lines = [];
   for (const [id, p] of active) {
     const col = COLORS[p.type] ?? '#fff';

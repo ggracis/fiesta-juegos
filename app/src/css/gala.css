@@ -1,4 +1,4 @@
-/* Gala Huawei Digital Power 2026: shared tokens + base for landing and ticket only (panel pages keep tokens.css). */
+/* Gala Digital Power 2026: shared tokens + base for landing and ticket only (panel pages keep tokens.css). */
 :root {
   --red: #C8102E;
   --red-deep: #9E1B22;
@@ -7,9 +7,9 @@
   --ink: #2E2A28;
   --ink-soft: #6B6460;
   --pink: #F2A7B0;
-  --serif: 'Cormorant Garamond', 'Cormorant', Georgia, 'Times New Roman', serif;
-  --sans: 'Montserrat', system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
-  --cjk: 'Noto Serif SC', 'Songti SC', serif;
+  --display: var(--hw);
+  --sans: var(--hw);
+  --cjk: 'Noto Sans SC', 'PingFang SC', 'Microsoft YaHei', var(--hw);
   --ease: cubic-bezier(.2, .8, .2, 1);
 }
 * { box-sizing: border-box; }
