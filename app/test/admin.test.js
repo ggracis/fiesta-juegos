@@ -570,6 +570,7 @@ test('door list: search by name/DNI/email, filters with counts, pending flag', a
   assert.deepEqual((await list('q=' + encodeURIComponent('30.444.5'))).guests.map((g) => g.name), ['José Núñez Zarzuelo']); // DNI with dots
   assert.deepEqual((await list('q=444555')).guests.map((g) => g.dni), ['30444555']);
   assert.deepEqual((await list('q=EMPRESA.COM')).guests.map((g) => g.name), ['José Núñez Zarzuelo']);
+  assert.deepEqual((await list('q=EMPRESA.COM')).guests.map((g) => g.email), ['jose@empresa.com']); // the verification search tells homonyms apart by DNI/email
 
   const jose = db.prepare("SELECT id FROM guest WHERE name = 'José Núñez Zarzuelo'").get().id;
   const paz = db.prepare("SELECT id FROM guest WHERE name = 'Josefina Paz Zarzuelo'").get().id;
