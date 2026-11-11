@@ -51,7 +51,7 @@ async function ticketPng(d, qr) {
   x.fillStyle = '#9E1B22'; x.font = `700 130px ${serif}`; x.fillText(d.pin, W / 2 + 7, 1036);
   if ('letterSpacing' in x) x.letterSpacing = '0px';
   x.fillStyle = '#2E2A28'; x.font = `500 26px ${sans}`;
-  x.fillText('Lunes 30 de noviembre de 2026 · 18:00 H', W / 2, 1090);
+  x.fillText('Lunes 30 de noviembre de 2026 · 18:30 H', W / 2, 1090);
   x.fillText('Puerto Salguero, Costanera Rafael Obligado 1221, CABA', W / 2, 1130, W - 160);
   x.fillStyle = '#6B6460'; x.font = `400 22px ${sans}`;
   x.fillText('Muestra este QR al llegar. Tu PIN es tu llave para los juegos.', W / 2, 1180, W - 160);
