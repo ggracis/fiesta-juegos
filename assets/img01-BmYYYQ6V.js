@@ -1,0 +1,1 @@
+var e=`/fiesta-juegos/assets/img01-BCcHfpNa.jpg`;export{e as default};
