@@ -59,8 +59,8 @@ html, body { margin: 0; height: 100%; overflow: hidden; background: #000; cursor
 @keyframes glint { 0% { transform: translateY(var(--wh)); } 38%, 100% { transform: translateY(calc(var(--gh) * -1)); } }
 @keyframes glint-img { 0% { transform: translateY(calc(var(--wh) * -1)); } 38%, 100% { transform: translateY(var(--gh)); } }
 .noche .eye { display: block; position: absolute; left: 430px; top: 165px; width: 90px; height: 90px; border-radius: 50%; opacity: 0;
-  background: radial-gradient(circle, #FFFFFF 0, #FFF1CF 20%, rgba(212, 175, 106, .5) 45%, transparent 70%); animation: eye 9s ease-out infinite; }
-@keyframes eye { 0%, 34% { opacity: 0; transform: scale(.6); } 41% { opacity: 1; transform: scale(1.25); } 60% { opacity: .55; transform: scale(1); } 100% { opacity: 0; transform: scale(.8); } }
+  background: radial-gradient(circle, rgba(255, 246, 224, .9) 0, rgba(240, 222, 180, .4) 25%, rgba(212, 175, 106, .15) 45%, transparent 65%); animation: eye 9s ease-in-out infinite; }
+@keyframes eye { 0%, 32% { opacity: 0; transform: scale(.8); } 45% { opacity: .45; transform: scale(1); } 62% { opacity: .25; } 100% { opacity: 0; transform: scale(.9); } }
 /* Motes of light drifting around the dragon (no fire: the client asked for nothing that reads as flames). */
 .noche .motes { display: block; position: absolute; inset: 0; }
 .motes i { position: absolute; left: var(--x); top: var(--y); width: 7px; height: 7px; border-radius: 50%; opacity: 0;
