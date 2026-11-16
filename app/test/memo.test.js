@@ -33,12 +33,13 @@ test('memoScore: finish formula, floor and time-out', () => {
   assert.equal(memoScore({ finished: true, ms: 15_000, wrong: 0 }, P), 100); // inside the free seconds
   assert.equal(memoScore({ finished: true, ms: 85_000, wrong: 10 }, P), 20); // 15 by formula -> floor
   assert.equal(memoScore({ finished: true, ms: 85_000, wrong: 10 }, { ...P, finishFloor: 0 }), 15);
-  assert.equal(memoScore({ finished: false, pairs: 7 }, P), 35);
+  assert.equal(memoScore({ finished: false, pairs: 3 }, P), 15);
+  assert.equal(memoScore({ finished: false, pairs: 7 }, P), 19); // capped below the floor
   assert.equal(memoScore({ finished: false, pairs: 0 }, P), 0);
-  // finishing never scores below the floor, which beats a time-out with 3 pairs or fewer
+  // finishing never scores below the floor, which beats any time-out
   for (let s = 0; s <= 90; s += 5) for (let w = 0; w <= 30; w += 3) {
     const f = memoScore({ finished: true, ms: s * 1000, wrong: w }, P);
-    assert.ok(f >= P.finishFloor && f > memoScore({ finished: false, pairs: 3 }, P));
+    assert.ok(f >= P.finishFloor && f > memoScore({ finished: false, pairs: 7 }, P));
   }
 });
 
