@@ -103,8 +103,41 @@ async function play(root, { attemptId, session, params, sfx, tap, idle, signal }
   return { score: Math.min(100, score), durationMs: Math.round(performance.now() - t0) };
 }
 
+const HAND = '<svg class="hand" viewBox="0 0 100 130" aria-hidden="true"><path d="M38 6a10 10 0 0 1 20 0v52l8-3c9-3 17 5 13 14l-12 40c-3 9-10 16-20 16H44c-10 0-18-6-24-14L6 88c-4-6 1-14 8-12l14 5V6a10 10 0 0 1 10 0z" fill="#fff" stroke="#2A0610" stroke-width="3"/></svg>';
+
+// How-to illustration: sample question and 4 answers, the bar draining, a tap on the right one (+10), then fast vs slow points.
+function art(el, setStep) {
+  const opts = ['Venus', 'Mercurio', 'Marte', 'Tierra'];
+  el.innerHTML = `<div class="qdemo"><div class="qd-track"><i></i></div><p class="qd-q">¿Qué planeta está más cerca del Sol?</p>
+    <div class="qd-opts">${opts.map((o, i) => `<span><em>${LETTERS[i]}</em>${o}</span>`).join('')}</div>
+    <div class="qd-pts"><b class="fast">Rápido +10</b><b class="slow">Lento +6</b></div>${HAND}<b class="qd-plus">+10</b></div>`;
+  const q = (s) => el.querySelector(s), bar = q('.qd-track i'), hand = q('.hand'), plus = q('.qd-plus'), chips = [...el.querySelectorAll('.qd-pts b')];
+  const [, right] = [...el.querySelectorAll('.qd-opts span')], rest = [...el.querySelectorAll('.qd-opts span')].filter((s) => s !== right);
+  const hx = right.offsetLeft + 90, hy = right.offsetTop + 30; // fingertip lands on the right answer
+  if (RM) { right.classList.add('ok'); gsap.set([bar], { scaleX: 0.6 }); setStep(2); return () => {}; }
+  gsap.set(hand, { x: hx + 300, y: hy + 220, opacity: 0 });
+  const tl = gsap.timeline({ repeat: -1, repeatDelay: 0.5 })
+    .call(() => { right.classList.remove('ok'); setStep(0); }, [], 0)
+    .set(bar, { scaleX: 1 }, 0).set(chips, { opacity: 0, y: 12 }, 0).set(plus, { opacity: 0 }, 0)
+    .fromTo(q('.qd-q'), { opacity: 0, y: 20 }, { opacity: 1, y: 0, duration: 0.4 }, 0)
+    .fromTo(q('.qd-opts').children, { opacity: 0, y: 24 }, { opacity: 1, y: 0, duration: 0.3, stagger: 0.12 }, 0.5)
+    .to(bar, { scaleX: 0.78, duration: 2.2, ease: 'none' }, 0.5)
+    .call(setStep, [1], 2.6)
+    .to(hand, { opacity: 1, x: hx, y: hy, duration: 0.6, ease: 'power2.out' }, 2.6)
+    .to(hand, { scale: 0.88, duration: 0.1, yoyo: true, repeat: 1 }, 3.3)
+    .call(() => right.classList.add('ok'), [], 3.35)
+    .to(rest, { opacity: 0.35, duration: 0.2 }, 3.35)
+    .fromTo(plus, { opacity: 1, x: hx + 160, y: hy - 20 }, { opacity: 0, y: hy - 120, duration: 0.9, ease: 'power1.out' }, 3.4)
+    .to(hand, { opacity: 0, duration: 0.3 }, 3.9)
+    .call(setStep, [2], 4.4)
+    .to(chips, { opacity: 1, y: 0, duration: 0.4, stagger: 0.35, ease: 'back.out(2)' }, 4.4)
+    .to(rest, { opacity: 1, duration: 0.2 }, 7.2)
+    .to({}, { duration: 0.1 }, 7.4);
+  return () => tl.kill();
+}
+
 export default {
   id: 'quiz',
-  howTo: { title: 'Así se juega', steps: ['Lee la pregunta', 'Toca la respuesta', 'Más rápido, más puntos'] },
+  howTo: { title: 'Así se juega', steps: ['Lee la pregunta', 'Toca la respuesta', 'Rápido, más puntos'], art },
   play,
 };

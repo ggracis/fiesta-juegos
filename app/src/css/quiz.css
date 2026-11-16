@@ -43,3 +43,18 @@
 .qz-msg { min-height: 64px; text-align: center; font: 700 56px/64px var(--sans, var(--font)); }
 .qz-msg.good { color: var(--ink); }
 .qz-msg.bad { color: var(--red); }
+
+/* How-to illustration: a sample question, the draining bar, a tap on the right answer and the speed bonus. */
+.qdemo { --qz-gold: var(--gold, var(--sun)); position: relative; width: 760px; padding: 28px 32px 32px; border-radius: var(--r3, 40px); text-align: left; color: var(--ink); background: var(--cream); box-shadow: inset 0 0 0 3px var(--qz-gold); font-family: var(--sans, var(--font)); }
+.qd-track { height: 18px; border-radius: 99px; overflow: hidden; background: color-mix(in srgb, var(--ink) 14%, transparent); }
+.qd-track i { display: block; height: 100%; border-radius: 99px; background: var(--qz-gold); transform-origin: left; }
+.qd-q { margin: 22px 0; text-align: center; font: 600 44px/1.15 var(--display, var(--font-display)); }
+.qd-opts { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+.qd-opts span { display: flex; align-items: center; gap: 16px; height: 84px; padding: 0 20px; border: 3px solid var(--qz-gold); border-radius: 24px; font: 600 34px var(--sans, var(--font)); background: color-mix(in srgb, var(--ink) 5%, var(--cream)); }
+.qd-opts em { flex: none; display: grid; place-items: center; width: 48px; height: 48px; border-radius: 50%; border: 2px solid var(--qz-gold); font: 600 28px/1 var(--display, var(--font-display)); font-style: normal; color: var(--qz-gold); }
+.qd-opts span.ok { color: var(--cream); background: var(--ink); box-shadow: 0 0 0 6px var(--qz-gold); }
+.qd-pts { display: flex; justify-content: center; gap: 24px; margin-top: 24px; }
+.qd-pts b { padding: 8px 28px; border-radius: 99px; font: 700 36px var(--sans, var(--font)); border: 3px solid var(--qz-gold); }
+.qd-pts b.fast { color: #fff; background: var(--red); border-color: var(--red); }
+.qdemo .hand { right: auto; left: 0; top: 0; width: 100px; z-index: 5; }
+.qd-plus { position: absolute; left: 0; top: 0; z-index: 4; font: 800 64px var(--font-display); color: var(--red); opacity: 0; }

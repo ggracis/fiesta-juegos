@@ -141,7 +141,6 @@ button.press, button.big:active { transform: scale(.94); }
 .ring { position: absolute; inset: 0; width: 100%; height: 100%; overflow: visible; }
 .ring rect { fill: none; stroke: var(--sun); stroke-width: 8; stroke-linecap: round; stroke-dasharray: 100; animation: drain 10s linear forwards; }
 @keyframes drain { from { stroke-dashoffset: 0; } to { stroke-dashoffset: 100; } }
-#skip { margin-top: 6px; }
 
 /* ---------- game ---------- */
 .hud { position: absolute; top: 34px; left: 60px; right: 60px; display: flex; align-items: center; justify-content: space-between; gap: 40px; }
@@ -207,11 +206,21 @@ button.press, button.big:active { transform: scale(.94); }
   display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 16px; width: 520px; height: 520px; padding: 24px; border: 0; border-radius: var(--r3);
   font: 800 64px/1.05 var(--font-display); color: #fff; text-shadow: 0 2px 0 rgba(143, 10, 36, .5); background: var(--grad-btn); box-shadow: var(--shadow-jelly); transition: transform 90ms var(--ease);
 }
-#tiles button .mz { width: 260px; height: 260px; flex: none; }
+#tiles .gicon { --ic: #fff; --ac: var(--sun); --gd: #fff; width: 240px; height: 240px; flex: none; color: var(--ic); }
+#tiles .gicon .f { fill: var(--ac); }
+#tiles .gicon .g { stroke: var(--gd); }
+#tiles .gicon .gf { fill: var(--gd); stroke: var(--gd); }
+#tiles.compact button { height: 350px; padding: 16px; gap: 10px; }
+#tiles.compact .gicon { width: 170px; height: 170px; }
+#tiles.two { max-width: 1328px; }
+#tiles.two button { width: 640px; }
 #tiles button small { font: 600 40px var(--font); text-shadow: none; opacity: .9; }
 #tiles button:disabled { background: var(--glass); box-shadow: inset 0 0 0 3px var(--glass-line); text-shadow: none; opacity: .6; }
 #tiles .none { width: auto; height: auto; padding: 40px 80px; font: 600 52px var(--font); background: var(--glass); box-shadow: inset 0 0 0 3px var(--glass-line); text-shadow: none; }
 #menumsg { margin-top: 32px; }
+
+/* ---------- no attempts left ---------- */
+.bigmsg { margin-top: 32px; max-width: 1400px; font: 600 64px/1.2 var(--font); }
 
 /* ---------- result prize ---------- */
 .prize { padding: 18px 48px; border-radius: 999px; font: 800 52px var(--font); color: var(--ink); background: var(--sun); box-shadow: var(--shadow-jelly); }
@@ -254,7 +263,9 @@ button.press, button.big:active { transform: scale(.94); }
   #ov-plate .glow { opacity: .4; }
 }
 
-/* ---------- idle notice (ctx.idle) ---------- */
+/* ---------- idle notice (ctx.idle) and "can't start yet" notice (above the overlays) ---------- */
+#ov-block { position: absolute; z-index: 50; left: 50%; bottom: 56px; transform: translateX(-50%); max-width: 1700px; padding: 22px 64px; border-radius: 999px; font: 800 56px/1.15 var(--font); text-align: center; color: var(--ink); background: var(--sun); box-shadow: var(--shadow-jelly); pointer-events: none; }
+#ov-block[hidden] { display: none; }
 #ov-idle { position: absolute; z-index: 35; left: 50%; bottom: 56px; transform: translateX(-50%); padding: 18px 56px; border-radius: 999px; font: 800 52px var(--font); white-space: nowrap; color: var(--ink); background: var(--sun); box-shadow: var(--shadow-jelly); pointer-events: none; }
 #ov-idle[hidden] { display: none; }
 
@@ -269,3 +280,21 @@ button.press, button.big:active { transform: scale(.94); }
 #ov-cue[hidden] { display: none; }
 #ov-cue i { position: absolute; top: -20%; left: 0; width: 700px; height: 140%; transform: translateX(-800px) skewX(-18deg);
   background: linear-gradient(90deg, transparent, rgba(212, 175, 106, .55) 35%, #FFF1CF 50%, rgba(212, 175, 106, .55) 65%, transparent); }
+
+/* ---------- win: stays until "Continuar" ---------- */
+#result.hold .back, #result.hold .thanks { display: none; }
+#result.hold #cont { margin-top: 28px; min-width: 520px; }
+.winglow { display: none; position: absolute; z-index: -1; left: 50%; top: 50%; width: 2400px; height: 2400px; margin: -1200px 0 0 -1200px; pointer-events: none;
+  background: repeating-conic-gradient(rgba(255, 193, 77, .3) 0 7deg, transparent 7deg 18deg); -webkit-mask-image: radial-gradient(circle, #000 12%, transparent 56%); mask-image: radial-gradient(circle, #000 12%, transparent 56%);
+  animation: spin 30s linear infinite; will-change: transform; }
+@keyframes spin { to { transform: rotate(360deg); } }
+#result.win { isolation: isolate; }
+#result.win .winglow { display: block; }
+#result.win #rtitle { font-size: 270px; line-height: 1; text-transform: uppercase; color: transparent; -webkit-background-clip: text; background-clip: text;
+  background-image: var(--gold-text, linear-gradient(var(--sun), var(--sun))); }
+#result.win .medal { width: 360px; height: 360px; margin: 16px 0 14px; }
+#result.win .medal b { font-size: 180px; }
+#result.win .medal span { font-size: 34px; }
+#result.win .record { right: -190px; top: 20px; }
+#result.win .prize { font-size: 48px; padding: 18px 48px; max-width: 1760px; }
+@media (prefers-reduced-motion: reduce) { .winglow { animation: none; } }

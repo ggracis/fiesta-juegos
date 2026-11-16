@@ -3,20 +3,42 @@ import assert from 'node:assert/strict';
 import { memoScore } from '../src/shared/scoring.js';
 import { gameById } from '../src/shared/games.js';
 import { buildApp } from '../server/index.ts';
+import { mkdtempSync, rmSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
 
 const P = gameById('memo').defaults.params;
+
+test('memo finishFloor defaults to 20 and an untouched old default (40) migrates once', async () => {
+  assert.equal(P.finishFloor, 20);
+  const dir = mkdtempSync(join(tmpdir(), 'fiesta-'));
+  const file = join(dir, 'a.db');
+  const floor = (app) => JSON.parse(app.db.prepare("SELECT params FROM game_config WHERE game = 'memo'").get().params).finishFloor;
+  const reopen = async (fn) => { const app = buildApp(file); try { return await fn(app); } finally { await app.close(); } };
+  await reopen((app) => { // pilot DB: old default stored, migration not yet run
+    app.db.prepare("UPDATE game_config SET params = json_set(params, '$.finishFloor', 40) WHERE game = 'memo'").run();
+    app.db.prepare("DELETE FROM setting WHERE key = 'rebalance_v1'").run();
+  });
+  await reopen((app) => {
+    assert.equal(floor(app), 20);
+    app.db.prepare("UPDATE game_config SET params = json_set(params, '$.finishFloor', 40) WHERE game = 'memo'").run(); // admin picks 40 on purpose
+  });
+  await reopen((app) => assert.equal(floor(app), 40));
+  rmSync(dir, { recursive: true, force: true });
+});
 
 test('memoScore: finish formula, floor and time-out', () => {
   assert.equal(memoScore({ finished: true, ms: 35_000, wrong: 4 }, P), 77); // client example
   assert.equal(memoScore({ finished: true, ms: 35_900, wrong: 4 }, P), 77); // whole seconds
   assert.equal(memoScore({ finished: true, ms: 15_000, wrong: 0 }, P), 100); // inside the free seconds
-  assert.equal(memoScore({ finished: true, ms: 85_000, wrong: 10 }, P), 40); // 15 by formula -> floor
+  assert.equal(memoScore({ finished: true, ms: 85_000, wrong: 10 }, P), 20); // 15 by formula -> floor
   assert.equal(memoScore({ finished: true, ms: 85_000, wrong: 10 }, { ...P, finishFloor: 0 }), 15);
   assert.equal(memoScore({ finished: false, pairs: 7 }, P), 35);
   assert.equal(memoScore({ finished: false, pairs: 0 }, P), 0);
-  // finishing never scores less than the best time-out
+  // finishing never scores below the floor, which beats a time-out with 3 pairs or fewer
   for (let s = 0; s <= 90; s += 5) for (let w = 0; w <= 30; w += 3) {
-    assert.ok(memoScore({ finished: true, ms: s * 1000, wrong: w }, P) > memoScore({ finished: false, pairs: 7 }, P));
+    const f = memoScore({ finished: true, ms: s * 1000, wrong: w }, P);
+    assert.ok(f >= P.finishFloor && f > memoScore({ finished: false, pairs: 3 }, P));
   }
 });
 

@@ -68,6 +68,12 @@ export function openDb(file: string, csvPath: string) {
     const merged = JSON.stringify({ ...g.defaults.params, ...JSON.parse(params) });
     if (merged !== params) setParams.run(merged, g.id);
   }
+  // One-time rebalance: a memo finishFloor still at the old default (40) follows the new one (20); later edits stay.
+  if (db.prepare("INSERT OR IGNORE INTO setting(key, value) VALUES ('rebalance_v1', 'true')").run().changes) {
+    const { params } = db.prepare("SELECT params FROM game_config WHERE game = 'memo'").get() as { params: string };
+    const p = JSON.parse(params);
+    if (p.finishFloor === 40) setParams.run(JSON.stringify({ ...p, finishFloor: 20 }), 'memo');
+  }
   const seedSetting =db.prepare('INSERT OR IGNORE INTO setting(key, value) VALUES (?,?)');
   const defaults: Record<string, unknown> = { paused: false, transition: false, transitionText: '', prizeStock: 0, raffleShowSeconds: 15, raffleHidden: 0, registrationValidation: 'name_dni_email' };
   for (const [k, v] of Object.entries(defaults)) seedSetting.run(k, JSON.stringify(v));

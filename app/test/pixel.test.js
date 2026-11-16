@@ -6,17 +6,23 @@ import { buildApp } from '../server/index.ts';
 import { PIXEL_DIR } from '../server/lib.ts';
 import { pixelPoints, pixelTotal } from '../src/shared/scoring.js';
 import { buildRounds, mulberry32, ROUND_POINTS } from '../src/shared/rounds.js';
+import { gameById } from '../src/shared/games.js';
 import demo from '../src/data/demo-content.json' with { type: 'json' };
 
 const manifest = readFileSync(join(PIXEL_DIR, 'manifest.csv'), 'utf8').trim().split(/\r?\n/).slice(1).map((l) => l.split(','));
 
-test('pixelPoints: 12 within 2 s, −1 per started second, min 4, wrong = 0', () => {
+test('pixelPoints: 12 within 2 s, −1 per started second, min 6 (minPoints param), wrong = 0', () => {
   assert.equal(pixelPoints(true, 0), 12);
   assert.equal(pixelPoints(true, 2000), 12);
   assert.equal(pixelPoints(true, 2001), 11);
   assert.equal(pixelPoints(true, 5000), 9);
-  assert.equal(pixelPoints(true, 10000), 4);
-  assert.equal(pixelPoints(true, 60000), 4);
+  assert.equal(pixelPoints(true, 8000), 6);
+  assert.equal(pixelPoints(true, 10000), 6);
+  assert.equal(pixelPoints(true, 60000), 6);
+  assert.equal(pixelPoints(true, 60000, { minPoints: 4 }), 4);
+  assert.equal(pixelPoints(true, 60000, { minPoints: 9 }), 9);
+  assert.equal(pixelPoints(true, 500, { minPoints: 9 }), 12);
+  assert.equal(gameById('pixel').defaults.params.minPoints, 6);
   assert.equal(pixelPoints(false, 500), 0);
   assert.equal(ROUND_POINTS.pixel, pixelPoints);
 });
@@ -83,7 +89,7 @@ test('pixel rounds endpoint: no answer key in the response; answers score with p
   const key = JSON.parse(app.db.prepare('SELECT content FROM attempt WHERE id = ?').get(att.attemptId).content);
   const ans = (index, choice, ms) => app.inject({ method: 'POST', url: `/api/attempts/${att.attemptId}/answer`, payload: { session, index, choice, ms } });
   assert.equal((await ans(0, key[0].answer, 1500)).json().points, 12);
-  assert.equal((await ans(1, key[1].answer, 99999)).json().points, 4); // clamped to revealSeconds
+  assert.equal((await ans(1, key[1].answer, 99999)).json().points, 6); // clamped to revealSeconds, floor = minPoints
   assert.equal((await ans(2, (key[2].answer + 1) % 4, 1000)).json().points, 0);
   assert.equal((await ans(3, null, 10000)).json().correct, false);
   await app.close();

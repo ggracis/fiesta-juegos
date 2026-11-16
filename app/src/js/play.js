@@ -13,7 +13,7 @@ gsap.registerPlugin(SplitText);
 injectSprite();
 demoBadge();
 
-const IDLE_MS = 20_000, HOWTO_MS = 10_000, BACK_S = 5;
+const IDLE_MS = 20_000, HOWTO_MS = 10_000, BACK_S = 5, ALLDONE_MS = 6000;
 const stage = $('#stage');
 
 // ---------- kiosk touch hygiene (panel only) ----------
@@ -134,6 +134,7 @@ function show(name) {
   stage.dataset.screen = name;
   for (const s of screens) s.hidden = !(s.id === name || (name === 'result' && s.id === 'game'));
   $('#game').classList.toggle('dim', name === 'result');
+  if (name !== 'howto') $('#ov-block').hidden = true;
   bump();
   applyOverlays();
 }
@@ -145,7 +146,7 @@ addEventListener('pointerdown', bump, true);
 
 function toAttract() {
   gid++; session = null; local = null; playerId = null; attempt = null; gameId = null; pin = ''; renderDots();
-  clearTimeout(howTimer); picking = false;
+  clearTimeout(howTimer); picking = false; endWin();
   liveState?.games.forEach((g) => { delete g.attemptsLeft; });
   gameAbort?.abort(); gameAbort = null; curIdle?.stop(); curIdle = null; howStop?.(); howStop = null; clearInterval(backTimer);
   gsap.killTweensOf('#grid, #banner, .float, .spark');
@@ -323,12 +324,29 @@ async function claim() {
   await inflight; // re-poll with the session so attemptsLeft is known
   await poll();
   if (myGid !== gid) return;
+  const games = menuGames();
+  if (games.length && games.every((g) => g.attemptsLeft === 0)) { // nothing left to play: say so instead of a menu of greyed tiles
+    show('alldone');
+    setTimeout(() => { if (myGid === gid && current === 'alldone') toAttract(); }, ALLDONE_MS);
+    return;
+  }
   menuMsg(''); renderMenu(); show('menu');
 }
+tap($('#alldone'), toAttract);
 
 // ---------- menu ----------
 const tiles = $('#tiles');
 const menuMsg = (t) => { $('#menumsg').textContent = t || ' '; };
+// One inline icon per game (stroke = --ic, .f = accent fill, .g = gold line, .gf = gold fill); unknown games get a star.
+const px = (rows) => rows.flatMap((r, y) => [...r].map((c, x) => `<rect${c === '.' ? '' : ` class="${c === 'g' ? 'gf' : 'f'}"`} x="${8 + x * 26}" y="${8 + y * 26}" width="22" height="22" rx="4"/>`)).join('');
+const GAME_ICONS = {
+  memo: '<g transform="rotate(-10 26 59)"><rect class="f" x="4" y="26" width="44" height="66" rx="9"/><path class="g" d="M26 46l9 13-9 13-9-13z"/></g><g transform="rotate(10 94 51)"><rect x="72" y="18" width="44" height="66" rx="9"/><path class="f" d="M99 30 84 55h10l-4 17 16-25H96z"/></g>',
+  quiz: '<path d="M16 16h88a8 8 0 0 1 8 8v52a8 8 0 0 1-8 8H58l-24 22V84H16a8 8 0 0 1-8-8V24a8 8 0 0 1 8-8z"/><path class="g" d="M28 38a14 14 0 1 1 20 12c-4 2-6 4-6 9M42 71v.01"/><path class="f" d="M86 30 70 56h12l-5 18 20-28H84z"/>',
+  pixel: px(['....', '..g.', '.ff.', 'ffff']),
+  distinto: '<circle cx="14" cy="14" r="7"/><circle cx="38" cy="14" r="7"/><circle cx="14" cy="38" r="7"/><circle cx="66" cy="66" r="30"/><path d="M88 88l24 24" stroke-width="9"/><circle cx="54" cy="54" r="6"/><circle cx="78" cy="54" r="6"/><circle cx="54" cy="78" r="6"/><path class="f" d="M78 70l9 8-9 8-9-8z"/>',
+};
+const icon = (id) => `<svg class="gicon" viewBox="0 0 120 120" fill="none" stroke="currentColor" stroke-width="5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${GAME_ICONS[id] ?? '<path class="f" d="M60 12l14 30 33 4-24 23 6 33-29-16-29 16 6-33-24-23 33-4z"/>'}</svg>`;
+
 // Offline: round games can't be played (their answer key lives on the server); an offline session counts attempts locally.
 function menuGames() {
   let list = liveState?.games ?? (roster?.games ?? []).map(({ id, name, params }) => ({ id, name, params }));
@@ -344,10 +362,11 @@ function renderMenu() {
     tiles.append(d);
     return;
   }
-  games.forEach((g, i) => {
+  tiles.className = games.length > 3 ? 'compact' + (games.length === 4 ? ' two' : '') : ''; // 4 games: 2x2; 5+: three per row, shorter tiles
+  games.forEach((g) => {
     const b = document.createElement('button');
     b.type = 'button'; b.dataset.id = g.id;
-    b.insertAdjacentHTML('afterbegin', mascot({ h: [350, 22, 38, 330][i % 4], shape: ['round', 'tall', 'box'][i % 3], acc: ['hat', 'bow', 'antenna'][i % 3] }));
+    b.insertAdjacentHTML('afterbegin', icon(g.id));
     b.append(g.name);
     if (g.attemptsLeft === 0) { b.disabled = true; const s = document.createElement('small'); s.textContent = 'Ya jugaste'; b.append(s); }
     tiles.append(b);
@@ -398,7 +417,12 @@ setInterval(() => { if (liveState?.raffleMode || raffleOn || ++ticks % 5 === 0) 
 
 const setOv = (id, on) => { $(id).hidden = !on; };
 const gone = (s) => !!gameId && !s.games.some((g) => g.id === gameId);
-const blocked = () => !!liveState && (raffleOn || liveState.raffleMode || liveState.transition.on || liveState.paused || gone(liveState));
+// Why a round can't start yet (null = it can). Shown above the overlays, so a tap on EMPEZAR is never silently ignored.
+const blockReason = () => !liveState ? null
+  : raffleOn || liveState.raffleMode ? 'Los sorteos están por comenzar. Espera un momento.'
+  : liveState.transition.on ? 'Hay un aviso en pantalla. Espera un momento.'
+  : liveState.paused ? 'Los juegos están en pausa. Espera un momento.'
+  : gone(liveState) ? 'Este juego no está disponible ahora. Espera un momento.' : null;
 const showMsOf = (r) => Math.max(3, r.showSeconds || 15) * 1000;
 // Priority raffle > raffle-mode plate > transition > pause. Nothing interrupts a running round; they show once it ends.
 function applyOverlays() {
@@ -504,7 +528,6 @@ function startHowto() {
 }
 let howTimer;
 tap($('#start'), () => startGame());
-tap($('#skip'), () => startGame());
 
 // ---------- idle notice (ctx.idle for game modules) ----------
 function makeIdle(params) {
@@ -536,7 +559,8 @@ function countTo(el, from, to, dur) {
 async function startGame() {
   clearTimeout(howTimer);
   if (current !== 'howto' || !attempt) return;
-  if (blocked()) { howTimer = setTimeout(startGame, 1000); return; }
+  const why = blockReason();
+  if (why) { $('#ov-block').textContent = why; $('#ov-block').hidden = false; howTimer = setTimeout(startGame, 1000); return; }
   howStop?.(); howStop = null;
   const myGid = ++gid;
   const { attemptId, seed, offline } = attempt;
@@ -568,6 +592,7 @@ function showResult(score, answer) {
   $('#rtitle').textContent = score > 70 ? '¡Increíble!' : score >= 40 ? '¡Muy bien!' : '¡Buen intento!';
   $('#rscore').textContent = '0';
   $('#rnote').textContent = ' ';
+  endWin();
   $('#record').hidden = !record;
   $('#rprize').hidden = true; $('#rpending').hidden = true; $('#thanks').hidden = false;
   show('result');
@@ -586,9 +611,9 @@ function showResult(score, answer) {
     if (!RM) gsap.from(el, { scale: 0.5, opacity: 0, duration: 0.6, ease: 'back.out(2)' });
   };
   let answered = false;
-  answer.then(async (won) => { answered = true; if (won) { await counted; $('#rpending').hidden = true; reveal($('#rprize')); } });
+  answer.then(async (won) => { answered = true; if (won) { await counted; $('#rpending').hidden = true; reveal($('#rprize')); hold(myGid, true); } });
   // No answer in time (offline / slow): never award locally, just tell them to ask at the desk if they cleared the threshold.
-  wait(2000).then(() => { if (!answered && threshold !== undefined && score >= threshold) reveal($('#rpending')); });
+  wait(2000).then(() => { if (!answered && threshold !== undefined && score >= threshold) { reveal($('#rpending')); hold(myGid, false); } });
   let left = BACK_S;
   const ring = $('#backring');
   ring.style.animation = 'none'; void ring.getBoundingClientRect();
@@ -602,6 +627,41 @@ function showResult(score, answer) {
     $('#backtxt').textContent = `Volviendo en ${left}…`;
   }, 1000);
 }
+
+// A prize result stays on screen until someone taps "Continuar" (no auto-return). `won`: the server confirmed the prize;
+// otherwise it is the offline "ask at the desk" case, which also waits but keeps the normal headline.
+const BURST_COLORS = ['#FFC14D', '#FF8A3D', '#FF5A4D', '#FF2D8A', '#FFF7F3'];
+let winFx = null;
+function hold(myGid, won) {
+  if (myGid !== gid || current !== 'result') return;
+  clearInterval(backTimer);
+  const res = $('#result');
+  res.classList.add('hold');
+  $('#cont').hidden = false;
+  if (!won) return;
+  res.classList.add('win');
+  $('#rtitle').textContent = '¡GANASTE!';
+  sfx.fan();
+  if (RM) return;
+  gsap.timeline()
+    .fromTo('#rtitle', { scale: 0.2, rotation: -8, opacity: 0 }, { scale: 1, rotation: 0, opacity: 1, duration: 0.8, ease: 'elastic.out(1, 0.5)' })
+    .to('#rtitle', { scale: 1.06, duration: 0.6, yoyo: true, repeat: -1, ease: 'sine.inOut' });
+  gsap.from('#cont', { y: 60, opacity: 0, duration: 0.5, delay: 1.2, ease: 'back.out(2)' });
+  const burst = () => {
+    for (const x of [0.15, 0.5, 0.85]) confetti({ particleCount: 70, spread: 90, startVelocity: 55, origin: { x, y: 0.85 }, zIndex: 100, disableForReducedMotion: true, colors: BURST_COLORS });
+    sfx.good();
+  };
+  burst();
+  winFx = setInterval(burst, 1800);
+}
+function endWin() {
+  clearInterval(winFx); winFx = null;
+  $('#result').classList.remove('hold', 'win');
+  $('#cont').hidden = true;
+  gsap.killTweensOf('#rtitle, #cont');
+  gsap.set('#rtitle, #cont', { clearProps: 'all' });
+}
+tap($('#cont'), () => { iris(toAttract); });
 
 // ---------- WOW cue: this panel's part of one gold sweep that travels panel 1 -> 4 and lands on the stage screen ----------
 // ?panel=1..4 (remembered) is this panel's place in the row; unset panels sweep with panel 1. Overlay only: never interrupts a game.
