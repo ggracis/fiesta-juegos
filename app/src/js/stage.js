@@ -257,13 +257,13 @@ function revealWinner() {
   setTimeout(() => { shot(0.2, 65); shot(0.8, 115); }, 700);
 }
 
-// ---------- ambient: soft moments take turns (lema, faroles, dragón, oro) ----------
+// ---------- ambient: soft moments take turns (lema, luces, dragón, oro) ----------
 const MOMENTS = [...document.querySelectorAll('.amb')];
 const MOMENT_MS = demo && !pin ? 8000 : 20000;
-{ // lanterns and sparks: fixed pseudo-random layout, built once
+{ // light orbs, motes and sparks: fixed pseudo-random layout, built once
   const r = mulberry32(2026), el = (cls, vars) => Object.assign(document.createElement('i'), { className: cls, style: vars });
-  for (let i = 0; i < 16; i++) $('#lanterns').append(el('lantern', `--x:${Math.round(80 + (i / 16) * (W - 160) + r() * 120)}px;--k:${(0.55 + r() * 0.8).toFixed(2)};--t:${Math.round(16 + r() * 12)}s;--d:-${Math.round(r() * 24)}s;--dx:${Math.round(r() * 120 - 60)}px`));
-  for (let i = 0; i < 12; i++) $('.embers').append(el('', `--x:${Math.round(260 + r() * 540)}px;--t:${(3.5 + r() * 3).toFixed(1)}s;--d:-${(r() * 6).toFixed(1)}s;--dx:${Math.round(r() * 160 - 100)}px`));
+  for (let i = 0; i < 16; i++) $('#orbs').append(el('orb', `--x:${Math.round(80 + (i / 16) * (W - 160) + r() * 120)}px;--k:${(0.55 + r() * 0.8).toFixed(2)};--t:${Math.round(16 + r() * 12)}s;--d:-${Math.round(r() * 24)}s;--dx:${Math.round(r() * 120 - 60)}px`));
+  for (let i = 0; i < 14; i++) $('.motes').append(el('', `--x:${Math.round(200 + r() * 600)}px;--y:${Math.round(80 + r() * 640)}px;--t:${(4 + r() * 4).toFixed(1)}s;--d:-${(r() * 8).toFixed(1)}s;--dx:${Math.round(r() * 60 - 30)}px`));
   for (let i = 0; i < 46; i++) $('#sparks').append(el('spark', `--x:${Math.round(300 + r() * (W - 600))}px;--y:${Math.round(40 + r() * (H - 82))}px;--t:${(3 + r() * 4).toFixed(1)}s;--d:-${(r() * 7).toFixed(1)}s`));
 }
 if (panel) document.querySelectorAll('.petals i').forEach((el, i) => { if (i > 2) el.style.setProperty('--x', [1250, 1520, 1790][i - 3] + 'px'); }); // the LED layout spreads them over 3328 px

@@ -10,7 +10,7 @@ export const DEFAULT_STAGE = {
     { name: 'Ignacio Dapena', role: 'Director de Energía Digital' },
   ],
   prizes: [],
-  // Ambient phrases, cycled through the ambient moments (lema, faroles, dragón, oro) in that order.
+  // Ambient phrases, cycled through the ambient moments (lema, luces, dragón, oro) in that order.
   ambient: ['Celebremos lo logrado.', 'Bienvenidos a la gala', '2026', 'Digital Power 2026', 'Imaginemos lo que viene.'],
 };
 

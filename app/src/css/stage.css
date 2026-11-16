@@ -51,7 +51,7 @@ html, body { margin: 0; height: 100%; overflow: hidden; background: #000; cursor
 
 /* The dragon comes alive (noche): a pulse of light climbs its body to the head, then the eye flares. One 9 s loop, all in step.
    The glint is a moving window over a brightened copy of the same crop (window and copy move in opposite directions). */
-.glint, .eye, .embers { display: none; }
+.glint, .eye, .motes { display: none; }
 .noche .glint { display: block; position: absolute; left: 0; top: 0; width: 832px; height: 320px; overflow: hidden;
   -webkit-mask: linear-gradient(transparent, #000 45%, #000 55%, transparent); mask: linear-gradient(transparent, #000 45%, #000 55%, transparent);
   animation: glint 9s linear infinite; }
@@ -59,12 +59,13 @@ html, body { margin: 0; height: 100%; overflow: hidden; background: #000; cursor
 @keyframes glint { 0% { transform: translateY(var(--wh)); } 38%, 100% { transform: translateY(calc(var(--gh) * -1)); } }
 @keyframes glint-img { 0% { transform: translateY(calc(var(--wh) * -1)); } 38%, 100% { transform: translateY(var(--gh)); } }
 .noche .eye { display: block; position: absolute; left: 430px; top: 165px; width: 90px; height: 90px; border-radius: 50%; opacity: 0;
-  background: radial-gradient(circle, #FFF6E0 0, #FF5A3C 22%, rgba(227, 40, 58, .5) 45%, transparent 70%); animation: eye 9s ease-out infinite; }
+  background: radial-gradient(circle, #FFFFFF 0, #FFF1CF 20%, rgba(212, 175, 106, .5) 45%, transparent 70%); animation: eye 9s ease-out infinite; }
 @keyframes eye { 0%, 34% { opacity: 0; transform: scale(.6); } 41% { opacity: 1; transform: scale(1.25); } 60% { opacity: .55; transform: scale(1); } 100% { opacity: 0; transform: scale(.8); } }
-.noche .embers { display: block; position: absolute; inset: 0; }
-.embers i { position: absolute; left: var(--x); bottom: 40px; width: 9px; height: 9px; border-radius: 50%; opacity: 0;
-  background: #FFB070; box-shadow: 0 0 14px 5px rgba(255, 90, 50, .6); animation: ember var(--t) ease-out var(--d) infinite; }
-@keyframes ember { 0% { opacity: 0; transform: translate3d(0, 0, 0); } 15% { opacity: 1; } 100% { opacity: 0; transform: translate3d(var(--dx), -520px, 0); } }
+/* Motes of light drifting around the dragon (no fire: the client asked for nothing that reads as flames). */
+.noche .motes { display: block; position: absolute; inset: 0; }
+.motes i { position: absolute; left: var(--x); top: var(--y); width: 7px; height: 7px; border-radius: 50%; opacity: 0;
+  background: #FFFFFF; box-shadow: 0 0 12px 4px rgba(240, 222, 180, .55); animation: mote var(--t) ease-in-out var(--d) infinite; }
+@keyframes mote { 0%, 100% { opacity: 0; transform: translate3d(0, 0, 0) scale(.5); } 50% { opacity: .9; transform: translate3d(var(--dx), -40px, 0) scale(1); } }
 
 .petals i {
   position: absolute; left: var(--x); top: -60px; width: var(--s); height: calc(var(--s) * .72); opacity: 0;
@@ -126,16 +127,14 @@ html, body { margin: 0; height: 100%; overflow: hidden; background: #000; cursor
 @keyframes word { from { opacity: 0; transform: translateY(40px); } to { opacity: 1; transform: none; } }
 
 .welcome { position: relative; font: 600 160px/1 var(--display); color: var(--name); }
-.lantern {
-  position: absolute; left: var(--x); bottom: -160px; width: 72px; height: 94px; border-radius: 42% / 46%; opacity: 0;
-  background: radial-gradient(circle at 50% 58%, #FFE3A1, #F2683C 38%, #C41E32 70%, #6E0A16);
-  box-shadow: 0 0 70px 22px rgba(255, 96, 60, .32);
-  transform: scale(var(--k));
+/* Soft out-of-focus orbs of light (bokeh) floating up behind the welcome. */
+.orb {
+  position: absolute; left: var(--x); bottom: -160px; width: 90px; height: 90px; border-radius: 50%; opacity: 0;
+  background: radial-gradient(circle, rgba(255, 255, 255, .85), rgba(240, 222, 180, .45) 45%, rgba(212, 175, 106, .12) 68%, transparent 72%);
+  filter: blur(2px); transform: scale(var(--k));
 }
-.lantern::before, .lantern::after { content: ''; position: absolute; left: 26%; width: 48%; height: 9px; border-radius: 3px; background: var(--gold); }
-.lantern::before { top: -5px; }
-.lantern::after { bottom: -5px; }
-.amb.run .lantern { animation: rise var(--t) linear var(--d) infinite; }
+.orb:nth-child(3n) { background: radial-gradient(circle, rgba(255, 220, 226, .8), rgba(200, 16, 46, .35) 50%, transparent 72%); }
+.amb.run .orb { animation: rise var(--t) linear var(--d) infinite; }
 @keyframes rise {
   0% { transform: translate3d(0, 0, 0) scale(var(--k)); opacity: 0; }
   10% { opacity: .95; }
@@ -183,7 +182,7 @@ html, body { margin: 0; height: 100%; overflow: hidden; background: #000; cursor
 .panel .side.r .img { background-position: -680px 0; }
 .panel.noche .glint { width: 400px; height: var(--gh); }
 .panel.noche .eye { left: 121px; top: 237px; }
-.panel .embers i { left: calc(var(--x) * .45); }
+.panel .motes i { left: calc(var(--x) * .45); }
 .panel .plate { padding: 0 400px; }
 .panel .logo { width: 220px; margin-bottom: 22px; }
 .panel .mark { width: 100px; }
@@ -210,7 +209,7 @@ html, body { margin: 0; height: 100%; overflow: hidden; background: #000; cursor
 #status { bottom: 60px; pointer-events: none; }
 
 @media (prefers-reduced-motion: reduce) {
-  .petals, .sky, .noche .glint, .noche .embers { display: none; }
+  .petals, .sky, .noche .glint, .noche .motes { display: none; }
   .side.l .img, .noche .eye { animation: none; }
   .lema span { opacity: 1; }
   .plate, .plate.on, .art, #wall { transition-duration: .01s; }
