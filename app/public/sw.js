@@ -25,7 +25,7 @@ self.addEventListener('fetch', (e) => {
   if (req.method !== 'GET' || !cacheable(u)) return; // /api/* and anything foreign: network only, untouched
   if (req.mode === 'navigate') return void e.respondWith(page(req, u));
   e.respondWith(caches.match(req).then((hit) => hit || fetch(req).then((r) => {
-    if (r.ok || r.type === 'opaque') { const copy = r.clone(); caches.open(CACHE).then((c) => c.put(req, copy)); } // hashed assets, content/*, fonts: cache-first
+    if (r.status === 200 || r.type === 'opaque') { const copy = r.clone(); caches.open(CACHE).then((c) => c.put(req, copy)); } // hashed assets, content/*, media/*, fonts: cache-first (a 206 range reply is never stored: cache.put rejects partial responses)
     return r;
   })));
 });

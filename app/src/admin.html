@@ -83,11 +83,11 @@
       <div class="card">
         <h2>Sorteo</h2>
         <label for="st-prize">Premio de este sorteo</label>
-        <div class="row"><input id="st-prize" list="st-prizes" maxlength="80" autocomplete="off"><button class="b primary" id="st-draw" type="button">Sortear ahora</button></div>
-        <datalist id="st-prizes"></datalist>
+        <div class="row"><select id="st-prize"></select><button class="b primary" id="st-draw" type="button">Sortear ahora</button></div>
+        <input id="st-prize-other" maxlength="80" placeholder="Nombre del premio" aria-label="Nombre del premio" autocomplete="off" hidden>
         <p class="winner" id="winner" aria-live="polite"></p>
-        <button class="b" id="hide-raffle" type="button" hidden>Ocultar en pantallas</button>
-        <p class="muted">Las pantallas y el escenario muestran el suspenso y el ganador. Toca «Mostrar» para volver a poner un ganador anterior.</p>
+        <button class="b" id="hide-raffle" type="button">Limpiar</button>
+        <p class="muted">Las pantallas y el escenario muestran el suspenso y el ganador. «Limpiar» deja la placa de premios sin nombre hasta el próximo sorteo. «Mostrar» vuelve a poner un ganador anterior; si el ganador no está, usa «Anular y volver a sortear».</p>
         <ol class="st-winners" id="st-winners"></ol>
         <p class="muted" id="st-winners-empty" hidden>Todavía no hay ganadores.</p>
       </div>
@@ -133,9 +133,11 @@
         <p><a id="csv-link" class="link">Exportar intentos (CSV)</a></p>
       </div>
       <div class="card">
-        <h2>Ganadores</h2>
-        <ol id="winners"></ol>
+        <h2>Ganadores de premios</h2>
+        <div class="scroll"><table><thead><tr><th>Nombre</th><th>Premio</th><th>Cuándo</th><th>Entrega</th></tr></thead><tbody id="winners"></tbody></table></div>
         <p class="muted" id="winners-empty" hidden>Todavía no hay ganadores.</p>
+        <p class="muted">Incluye los premios de los juegos y los de los sorteos (sin los sorteos anulados). Los premios de los juegos se entregan desde la ficha de la puerta.</p>
+        <p><a id="winners-csv" class="link">Exportar ganadores (CSV)</a></p>
       </div>
     </section>
 
@@ -153,6 +155,13 @@
         <div class="row"><button class="b" id="st-add" type="button">Agregar orador</button><button class="b primary" id="st-save-sp" type="button">Guardar oradores</button></div>
       </div>
       <div class="card">
+        <h2>Frases de ambiente</h2>
+        <label for="st-ambient">Frases, una por línea</label>
+        <textarea id="st-ambient" rows="6" maxlength="1700"></textarea>
+        <p class="muted">Se muestran una tras otra en la escena Ambiente, con animaciones distintas. Hasta 20 frases de 80 caracteres. Si la dejas vacía se usan las frases por defecto.</p>
+        <button class="b primary" id="st-save-amb" type="button">Guardar frases</button>
+      </div>
+      <div class="card">
         <h2>Premios y video</h2>
         <label for="st-prize-list">Premios, uno por línea, en el orden en que se sortean</label>
         <textarea id="st-prize-list" rows="10"></textarea>
@@ -160,6 +169,10 @@
         <input id="st-video" maxlength="300" placeholder="https://www.youtube.com/watch?v=… o media/video.mp4" autocomplete="off">
         <p class="muted">Pega un enlace de YouTube o de un archivo MP4. YouTube necesita internet en el lugar del evento.</p>
         <button class="b primary" id="st-save" type="button">Guardar premios y video</button>
+        <label for="st-file">Subir un MP4 (hasta 500 MB)</label>
+        <div class="row"><input id="st-file" type="file" accept="video/mp4,.mp4"><button class="b" id="st-upload" type="button">Subir video</button></div>
+        <progress id="st-progress" max="100" value="0" hidden></progress>
+        <p class="muted" id="st-upload-msg" role="status" aria-live="polite"></p>
       </div>
     </section>
   </main>

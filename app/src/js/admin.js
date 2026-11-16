@@ -19,7 +19,7 @@ const ERRORS = {
   not_registered: 'Ese invitado todavía no confirmó su asistencia.', no_candidates: 'No quedan invitados acreditados para sortear.',
   unknown_game: 'Juego desconocido.', not_found: 'No encontrado.', csv_required: 'Selecciona un archivo CSV.',
   guest_exists: 'Ya existe un invitado con ese nombre: búscalo en la lista.',
-  already_resolved: 'Esa verificación ya fue resuelta.', http: 'Error del servidor.', already_checked_in: 'Ya estaba acreditado.', demo_unavailable: 'No disponible en el modo demo.',
+  already_voided: 'Ese sorteo ya estaba anulado.', already_resolved: 'Esa verificación ya fue resuelta.', http: 'Error del servidor.', already_checked_in: 'Ya estaba acreditado.', demo_unavailable: 'No disponible en el modo demo.',
 };
 let toastTimer;
 function toast(msg, bad) {
@@ -412,14 +412,21 @@ async function renderResults() {
   const sel = $('rank-game');
   if (!sel.options.length) for (const g of S.games) sel.append(h('option', { value: g.id }, g.name));
   $('csv-link').href = api.attemptsCsvUrl;
-  const [rows, winners] = await Promise.all([run(() => api.adminRanking(sel.value)), run(api.adminWinners)]);
+  $('winners-csv').href = api.winnersCsvUrl;
+  const [rows, winners] = await Promise.all([run(() => api.adminRanking(sel.value)), run(api.adminPrizeWinners)]);
   if (rows) {
     const body = $('ranking'); clear(body);
     rows.forEach((r, i) => body.append(h('tr', {}, h('td', {}, i + 1), h('td', {}, r.name), h('td', {}, r.score), h('td', {}, (r.durationMs / 1000).toFixed(1) + ' s'))));
     $('ranking-empty').hidden = rows.length > 0;
   }
   if (winners) {
-    $('winners').replaceChildren(...winners.map((w) => h('li', {}, w.name + (w.prize ? ' · ' + w.prize : '') + ' · ' + time(w.drawnAt))));
+    $('winners').replaceChildren(...winners.map((w) => {
+      const what = w.kind === 'game' ? 'Premio de juegos' + (w.prize ? ' (' + (gameById(w.prize)?.name ?? w.prize) + ')' : '') : w.prize || 'Sorteo (sin nombre)';
+      const done = w.deliveredAt ? 'Entregado ' + time(w.deliveredAt) : 'Pendiente';
+      const mark = w.kind === 'raffle' && !w.deliveredAt && h('button', { type: 'button', className: 'b' }, 'Marcar entregado');
+      if (mark) mark.onclick = async () => { if (await run(() => api.adminDeliverRaffle(w.id))) renderResults(); };
+      return h('tr', {}, h('td', {}, w.name), h('td', {}, what), h('td', {}, time(w.at)), h('td', {}, done, mark && ' ', mark));
+    }));
     $('winners-empty').hidden = winners.length > 0;
   }
 }
@@ -427,7 +434,8 @@ async function renderResults() {
 // ---- Escenario: the LED wall behind the stage, driven like a vision mixer (plus the draw)
 const SCENE_LABELS = { title: 'Título', ambient: 'Ambiente', speaker: 'Orador', raffle: 'Premios y sorteos', winner: 'Ganador', video: 'Video', black: 'Negro' };
 const MIX = ['title', 'ambient', 'speaker', 'raffle', 'winner', 'video', 'black']; // keys 1-7 follow this order
-let ST = null, stReady = false, spDraft = [], prizeTouched = false, stPending = 0;
+let ST = null, stReady = false, spDraft = [], prizeTouched = false, stPending = 0, prizeOpts = [];
+const OTHER = 'other';
 async function loadStage(full) {
   if (!stReady) initStage();
   const [st, winners] = await Promise.all([run(api.adminStage), run(api.adminWinners)]);
@@ -436,7 +444,7 @@ async function loadStage(full) {
   renderMixer(winners);
   renderRaffleMode();
   renderStrip();
-  if (full) { spDraft = ST.speakers.map((x) => ({ ...x })); renderSpeakers(); $('st-prize-list').value = ST.prizes.join('\n'); $('st-video').value = ST.video; }
+  if (full) { spDraft = ST.speakers.map((x) => ({ ...x })); renderSpeakers(); $('st-prize-list').value = ST.prizes.join('\n'); $('st-ambient').value = ST.ambient.join('\n'); $('st-video').value = ST.video; }
 }
 // Resolves true when the server accepted the change; the mixer is refreshed afterwards.
 const setStage = async (patch) => {
@@ -449,7 +457,7 @@ const markOn = (scene) => {
   $('st-now').textContent = 'En pantalla: ' + SCENE_LABELS[scene] + (scene === 'speaker' && sp ? ` (${sp.name})` : '');
 };
 function renderMixer(winners) {
-  const sp = ST.speakers[ST.speaker], w = winners.find((x) => x.id === ST.winner);
+  const sp = ST.speakers[ST.speaker], w = winners.find((x) => x.id === ST.winner && !x.voidedAt);
   const subs = {
     title: 'Gala Digital Power 2026', ambient: 'Animaciones suaves que rotan', speaker: sp ? sp.name + (sp.role ? ' · ' + sp.role : '') : 'Sin oradores',
     raffle: 'Placa de premios', winner: w ? w.name + (w.prize ? ' · ' + w.prize : '') : 'Todavía no hay sorteos', video: ST.video || 'Sin video configurado', black: 'Pantalla apagada',
@@ -470,19 +478,53 @@ function renderMixer(winners) {
   $('st-sp').textContent = sp ? `${ST.speaker + 1} de ${ST.speakers.length}: ${sp.name}` : 'Sin oradores';
   $('st-prev').disabled = ST.speaker <= 0;
   $('st-next').disabled = ST.speaker >= ST.speakers.length - 1;
-  if (changed('pz', ST.prizes)) $('st-prizes').replaceChildren(...ST.prizes.map((p) => h('option', { value: p })));
-  if (!prizeTouched && document.activeElement !== $('st-prize')) $('st-prize').value = ST.prizes[winners.length] ?? ''; // next prize in the list
+  renderPrizes(winners.filter((x) => !x.voidedAt));
   if (changed('win', winners)) {
     $('st-winners').replaceChildren(...winners.map((x) => {
+      const text = x.name + (x.prize ? ' · ' + x.prize : '') + ' · ' + time(x.drawnAt);
+      if (x.voidedAt) return h('li', {}, h('s', {}, text), ' · anulado');
       const show = h('button', { type: 'button', className: 'b' }, 'Mostrar');
       show.onclick = () => setStage({ scene: 'winner', winner: x.id });
-      const li = h('li', {}, x.name + (x.prize ? ' · ' + x.prize : '') + ' · ' + time(x.drawnAt), show);
+      const redo = h('button', { type: 'button', className: 'b' }, 'Anular y volver a sortear');
+      redo.onclick = async () => {
+        if (!confirm(`¿Anular el sorteo de ${x.name}${x.prize ? ' («' + x.prize + '»)' : ''}? Queda fuera de los próximos sorteos y el premio vuelve a estar disponible.`)) return;
+        if (!(await run(() => api.adminVoidRaffle(x.id)))) return;
+        toast('Sorteo anulado. Toca «Sortear ahora» para repetirlo.');
+        loadRaffle(); prizeTouched = true;
+        await loadStage();
+        selectPrize(x.prize);
+      };
+      const li = h('li', {}, text, show, redo);
       li.dataset.id = x.id;
       return li;
     }));
   }
   for (const li of $('st-winners').children) li.classList.toggle('on', Number(li.dataset.id) === ST.winner);
   $('st-winners-empty').hidden = winners.length > 0;
+}
+// Prize picker: the configured list, awarded ones marked (a prize listed twice is awarded once per active winner); defaults to the first not yet awarded.
+function renderPrizes(active) {
+  const left = {};
+  for (const w of active) left[w.prize] = (left[w.prize] || 0) + 1;
+  const opts = ST.prizes.map((p) => { const done = left[p] > 0; if (done) left[p]--; return { p, done }; });
+  const sel = $('st-prize'), cur = sel.value;
+  if (changed('pz', opts)) {
+    prizeOpts = opts;
+    sel.replaceChildren(...opts.map((o, i) => h('option', { value: String(i) }, o.p + (o.done ? ' (ya sorteado)' : ''))), h('option', { value: OTHER }, 'Otro premio…'));
+    if (prizeTouched && [...sel.options].some((o) => o.value === cur)) sel.value = cur;
+  }
+  if (!prizeTouched && document.activeElement !== sel) {
+    const next = opts.findIndex((o) => !o.done);
+    sel.value = next < 0 ? OTHER : String(next);
+  }
+  $('st-prize-other').hidden = sel.value !== OTHER;
+}
+const prizeName = () => ($('st-prize').value === OTHER ? $('st-prize-other').value : prizeOpts[Number($('st-prize').value)]?.p ?? '').replace(/\s+/g, ' ').trim();
+function selectPrize(prize) { // the voided prize is free again: pick it so the redraw is one click
+  const i = prizeOpts.findIndex((o) => o.p === prize && !o.done);
+  if (i >= 0) $('st-prize').value = String(i);
+  else { $('st-prize').value = OTHER; $('st-prize-other').value = prize; }
+  $('st-prize-other').hidden = $('st-prize').value !== OTHER;
 }
 function renderSpeakers() {
   $('st-speakers').replaceChildren(...spDraft.map((x, i) => {
@@ -501,7 +543,7 @@ function renderSpeakers() {
   }));
 }
 // Sorteo: the winner line mirrors what the panels are showing; "Ocultar" takes it off the screens.
-const showRaffle = (name) => { $('winner').textContent = name || ''; $('hide-raffle').hidden = !name; };
+const showRaffle = (name) => { $('winner').textContent = name || ''; };
 async function loadRaffle() {
   const l = await run(() => api.live());
   if (l) showRaffle(l.raffle?.name);
@@ -531,9 +573,9 @@ function initStage() {
     }, 1000);
     b.textContent = 'WOW en 6…';
   };
-  $('st-prize').oninput = () => { prizeTouched = true; };
+  $('st-prize').onchange = () => { prizeTouched = true; $('st-prize-other').hidden = $('st-prize').value !== OTHER; if (!$('st-prize-other').hidden) $('st-prize-other').focus(); };
   $('st-draw').onclick = async () => {
-    const prize = $('st-prize').value.trim();
+    const prize = prizeName();
     if (!confirm(`¿Sortear ${prize ? '«' + prize + '»' : 'un premio sin nombre'}? La pantalla LED y los 4 paneles empiezan el sorteo ahora.`)) return;
     const b = $('st-draw'); b.disabled = true;
     const w = await run(() => api.adminRaffle(prize));
@@ -543,12 +585,34 @@ function initStage() {
     prizeTouched = false;
     refresh(); loadStage();
   };
-  $('hide-raffle').onclick = async () => { if (await run(api.adminHideRaffle)) { toast('Ocultado en las pantallas'); showRaffle(''); } };
+  $('hide-raffle').onclick = async () => { if (await run(api.adminClearRaffle)) { toast('Pantallas limpias: placa de premios sin nombre'); showRaffle(''); loadStage(); } };
   $('raffle-mode').onclick = async () => { if (await setting({ raffleMode: !S.settings.raffleMode })) renderRaffleMode(); };
   $('st-add').onclick = () => { spDraft.push({ name: '', role: '' }); renderSpeakers(); $('st-speakers').lastChild.querySelector('input').focus(); };
   $('st-save-sp').onclick = async () => {
     const speakers = spDraft.map((x) => ({ name: x.name.trim(), role: x.role.trim() })).filter((x) => x.name);
     if (await run(() => api.adminSetStage({ speakers }))) { toast('Oradores guardados'); loadStage(true); }
+  };
+  $('st-save-amb').onclick = async () => {
+    const ambient = $('st-ambient').value.split('\n').map((x) => x.replace(/\s+/g, ' ').trim()).filter(Boolean);
+    if (ambient.length > 20) return toast('Máximo 20 frases.', true);
+    if (ambient.some((x) => x.length > 80)) return toast('Cada frase puede tener hasta 80 caracteres.', true);
+    if (await run(() => api.adminSetStage({ ambient }))) { toast('Frases guardadas'); $('st-ambient').value = ambient.join('\n'); loadStage(); }
+  };
+  $('st-upload').onclick = async () => {
+    const f = $('st-file').files[0], msg = $('st-upload-msg'), bar = $('st-progress'), b = $('st-upload');
+    if (!f) return toast('Elige primero un archivo MP4.', true);
+    if (f.size > 500 * 1024 * 1024) { msg.textContent = 'El archivo supera 500 MB.'; return toast(msg.textContent, true); }
+    b.disabled = true; bar.hidden = false; bar.value = 0; msg.textContent = 'Subiendo… 0 %';
+    try {
+      const r = await api.adminUploadMedia(f, (p) => { bar.value = Math.round(p * 100); msg.textContent = `Subiendo… ${Math.round(p * 100)} %`; });
+      msg.textContent = `Video subido (${(r.size / 1e6).toFixed(1)} MB) y puesto en la escena de video.`;
+      toast('Video subido'); $('st-video').value = r.video; $('st-file').value = ''; loadStage();
+    } catch (e) {
+      if (e.code === 'unauthorized') { toast('Sesión vencida', true); showLogin(); }
+      msg.textContent = e.code === 'unauthorized' ? '' : e.status === 413 || e.code === 'too_large' ? 'El archivo supera 500 MB.'
+        : e.code === 'invalid_mp4' ? 'El archivo no es un MP4 válido.' : e.code === 'network' ? 'Se cortó la conexión durante la subida. Inténtalo de nuevo.' : 'No se pudo subir el video.';
+      if (msg.textContent) toast(msg.textContent, true);
+    } finally { b.disabled = false; bar.hidden = true; }
   };
   $('st-save').onclick = async () => {
     const prizes = $('st-prize-list').value.split('\n').map((x) => x.trim()).filter(Boolean);

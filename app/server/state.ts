@@ -52,10 +52,10 @@ export function makeState(db: DatabaseSync) {
   // Public stage payload for /api/live: only what the LED wall shows (names, roles, prize), never guest data beyond the winner's name.
   const stageView = () => {
     const s = stage();
-    const w = s.winner ? db.prepare('SELECT r.id, g.name, r.prize, r.drawn_at FROM raffle r JOIN guest g ON g.id = r.guest_id WHERE r.id = ?').get(s.winner) as
+    const w = s.winner ? db.prepare('SELECT r.id, g.name, r.prize, r.drawn_at FROM raffle r JOIN guest g ON g.id = r.guest_id WHERE r.id = ? AND r.voided_at IS NULL').get(s.winner) as
       { id: number; name: string; prize: string | null; drawn_at: number } | undefined : undefined;
     return {
-      scene: s.scene, at: s.at, cueAt: s.cueAt, video: s.video,
+      scene: s.scene, at: s.at, cueAt: s.cueAt, video: s.video, ambient: s.ambient,
       speaker: s.speakers[s.speaker] ?? null, speakerIndex: s.speaker, speakerCount: s.speakers.length,
       winner: w ? { id: w.id, name: w.name, prize: w.prize ?? '', drawnAt: w.drawn_at } : null,
     };

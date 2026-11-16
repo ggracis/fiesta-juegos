@@ -22,6 +22,7 @@ export function createRegistration(db: DatabaseSync, guestId: number, dietary: s
   return ticket;
 }
 
+export const MEDIA_DIR = join(import.meta.dirname, '..', 'data', 'media'); // uploaded stage videos: outside dist, so a rebuild never wipes them
 export const PIXEL_DIR = join(import.meta.dirname, '..', 'data', 'content', 'pixel');
 
 // One CSV line -> cells. Quoted fields may hold commas and "" escapes (no multi-line fields).

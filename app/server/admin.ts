@@ -1,9 +1,11 @@
 import type { FastifyInstance, FastifyReply, FastifyRequest } from 'fastify';
 import type { DatabaseSync } from 'node:sqlite';
-import { createHash, randomInt, timingSafeEqual } from 'node:crypto';
-import { existsSync } from 'node:fs';
+import { createHash, randomBytes, randomInt, timingSafeEqual } from 'node:crypto';
+import { createWriteStream, existsSync, renameSync, rmSync } from 'node:fs';
+import { Transform, type Readable } from 'node:stream';
+import { pipeline } from 'node:stream/promises';
 import { join } from 'node:path';
-import { newToken, csvLine, PIXEL_DIR, createRegistration } from './lib.ts';
+import { newToken, csvLine, PIXEL_DIR, MEDIA_DIR, createRegistration } from './lib.ts';
 import { nameTokens, dniDigits, normEmail } from '../src/shared/identity.js';
 import { gameById, PARAM_INFO } from '../src/shared/games.js';
 import { SCENES, CUE_LEAD_MS } from '../src/shared/stage.js';
@@ -437,13 +439,64 @@ export function registerAdmin(app: FastifyInstance, db: DatabaseSync, state: Sta
     return { id, name, drawnAt, prize: prize ?? '' };
   });
 
+  // Every draw, voided ones included (voidedAt set): the admin shows them struck through.
   app.get('/api/admin/raffle', admin, async () =>
-    db.prepare("SELECT r.id, g.name, r.drawn_at AS drawnAt, COALESCE(r.prize, '') AS prize FROM raffle r JOIN guest g ON g.id = r.guest_id ORDER BY r.id").all());
-  app.post('/api/admin/raffle/hide', admin, async (req, reply) => {
+    db.prepare("SELECT r.id, g.name, r.drawn_at AS drawnAt, COALESCE(r.prize, '') AS prize, r.voided_at AS voidedAt, r.delivered_at AS deliveredAt FROM raffle r JOIN guest g ON g.id = r.guest_id ORDER BY r.id").all());
+  const hideLast = () => {
     const last = db.prepare('SELECT MAX(id) AS id FROM raffle').get() as { id: number | null };
     state.setSetting('raffleHidden', last.id ?? 0);
+  };
+  app.post('/api/admin/raffle/hide', admin, async (req, reply) => {
+    hideLast();
     audit(roleIn(req), 'raffle_hide');
     return reply.code(204).send();
+  });
+  // "Limpiar": the stage goes back to the clean raffle plate and no screen shows the last winner until the next draw.
+  app.post('/api/admin/raffle/clear', admin, async (req, reply) => {
+    state.tx(() => {
+      hideLast();
+      state.setSetting('stage', { ...state.stage(), scene: 'raffle', winner: 0, at: Date.now() });
+      audit(roleIn(req), 'raffle_clear');
+    });
+    return reply.code(204).send();
+  });
+  // Absent winner: the draw is void (the guest stays out of later draws, the prize frees up) and no screen shows them any more.
+  app.post('/api/admin/raffle/:id/void', admin, async (req, reply) => {
+    const id = Number((req.params as any).id);
+    const row = db.prepare('SELECT voided_at FROM raffle WHERE id = ?').get(id) as { voided_at: number | null } | undefined;
+    if (!row) return reply.code(404).send({ error: 'not_found' });
+    if (row.voided_at) return reply.code(409).send({ error: 'already_voided' });
+    state.tx(() => {
+      const now = Date.now(), s = state.stage();
+      db.prepare('UPDATE raffle SET voided_at = ? WHERE id = ?').run(now, id);
+      if (s.winner === id) state.setSetting('stage', { ...s, scene: s.scene === 'winner' ? 'raffle' : s.scene, winner: 0, at: now });
+      audit(roleIn(req), 'raffle_void', { id });
+    });
+    return reply.code(204).send();
+  });
+  app.post('/api/admin/raffle/:id/deliver', admin, async (req, reply) => {
+    const id = Number((req.params as any).id);
+    const r = db.prepare('UPDATE raffle SET delivered_at = COALESCE(delivered_at, ?) WHERE id = ? AND voided_at IS NULL').run(Date.now(), id);
+    if (!r.changes) return reply.code(404).send({ error: 'not_found' });
+    audit(roleIn(req), 'raffle_deliver', { id });
+    return reply.code(204).send();
+  });
+
+  // Everyone who won a prize: game prizes (score threshold) and raffle prizes (voided draws excluded).
+  const prizeWinners = () => {
+    const game = db.prepare(
+      `SELECT g.name, r.prize_won_at AS at, r.prize_delivered_at AS deliveredAt, COALESCE((SELECT a.game FROM attempt a WHERE a.guest_id = g.id AND a.prize_won = 1 LIMIT 1), '') AS prize
+       FROM registration r JOIN guest g ON g.id = r.guest_id WHERE r.prize_won_at IS NOT NULL`).all() as any[];
+    const raffle = db.prepare(
+      `SELECT r.id, g.name, COALESCE(r.prize, '') AS prize, r.drawn_at AS at, r.delivered_at AS deliveredAt
+       FROM raffle r JOIN guest g ON g.id = r.guest_id WHERE r.voided_at IS NULL`).all() as any[];
+    return [...game.map((r) => ({ kind: 'game', ...r })), ...raffle.map((r) => ({ kind: 'raffle', ...r }))].sort((a, b) => a.at - b.at);
+  };
+  app.get('/api/admin/winners', admin, async () => prizeWinners());
+  app.get('/api/admin/winners.csv', admin, async (_req, reply) => {
+    const lines = ['type,name,prize,won_at,delivered_at'];
+    for (const r of prizeWinners()) lines.push([r.kind, r.name, r.prize, iso(r.at), iso(r.deliveredAt)].map(csvField).join(','));
+    return reply.header('content-type', 'text/csv; charset=utf-8').header('content-disposition', 'attachment; filename="winners.csv"').send(lines.join('\n') + '\n');
   });
 
   // ---- Stage (LED wall): a vision mixer. Partial patches merge into the stored state; `at` marks every change.
@@ -456,18 +509,49 @@ export function registerAdmin(app: FastifyInstance, db: DatabaseSync, state: Sta
       speakers: { type: 'array', maxItems: 50, items: { type: 'object', required: ['name'], additionalProperties: false,
         properties: { name: { type: 'string', minLength: 1, maxLength: 60 }, role: text(60) } } },
       prizes: { type: 'array', maxItems: 50, items: text(80) },
+      ambient: { type: 'array', maxItems: 20, items: text(80) },
       // Same-origin path (media/intro.mp4) or an http(s) URL (a YouTube link included): it becomes a <video src>, or the stage builds the YouTube embed from the 11-char id.
       video: { type: 'string', maxLength: 300, pattern: /^(|https?:\/\/\S+|[\w/][\w./%-]*)$/.source },
     } } },
   }, async (req, reply) => {
     const p = req.body as Partial<ReturnType<State['stage']>>;
-    if (p.winner && !db.prepare('SELECT 1 FROM raffle WHERE id = ?').get(p.winner)) return reply.code(400).send({ error: 'unknown_winner' });
+    if (p.winner && !db.prepare('SELECT 1 FROM raffle WHERE id = ? AND voided_at IS NULL').get(p.winner)) return reply.code(400).send({ error: 'unknown_winner' });
     const next = { ...state.stage(), ...p, at: Date.now() };
     if (p.speakers) next.speakers = p.speakers.map((x) => ({ name: x.name.trim(), role: (x.role ?? '').trim() })).filter((x) => x.name);
     if (p.prizes) next.prizes = p.prizes.map((x) => x.trim()).filter(Boolean);
+    if (p.ambient) next.ambient = p.ambient.map((x) => x.replace(/\s+/g, ' ').trim()).filter(Boolean); // empty list: the stage falls back to the defaults
     next.speaker = Math.max(0, Math.min(next.speaker, next.speakers.length - 1));
     state.tx(() => { state.setSetting('stage', next); audit(roleIn(req), 'stage', p); });
     return next;
+  });
+  // Stage video upload: the raw MP4 is the body (video/mp4), streamed to data/media and served at /media/. The stage video points at it right away.
+  const MAX_MEDIA = 500 * 1024 * 1024;
+  app.addContentTypeParser('video/mp4', (_req, payload, done) => done(null, payload));
+  app.post('/api/admin/media', { ...admin, bodyLimit: MAX_MEDIA }, async (req, reply) => {
+    const bad = (code: number, error: string) => reply.code(code).header('connection', 'close').send({ error });
+    const body = req.body as Readable | undefined;
+    if (!/^video\/mp4\b/i.test(req.headers['content-type'] ?? '')) return bad(415, 'mp4_required'); // Fastify's built-in text/plain parser also lands here
+    if (typeof body?.pipe !== 'function') return bad(400, 'invalid_mp4');
+    const name = `${Date.now()}-${randomBytes(4).toString('hex')}.mp4`, tmp = join(MEDIA_DIR, name + '.part');
+    let size = 0, head = Buffer.alloc(0), notMp4 = false;
+    const guard = new Transform({ // chunked bodies carry no content-length: count here; an MP4 has "ftyp" at byte 4
+      transform(chunk, _e, cb) {
+        size += chunk.length;
+        if (size > MAX_MEDIA) return cb(new Error('too_large')); // destroys the request: the client sent more than it declared
+        if (head.length < 12) head = Buffer.concat([head, chunk]).subarray(0, 12);
+        if (head.length >= 12 && head.toString('latin1', 4, 8) !== 'ftyp') notMp4 = true;
+        cb(null, notMp4 ? undefined : chunk); // a wrong file is drained, not stored: destroying the request would cut the 400 reply off
+      },
+    });
+    try { await pipeline(body, guard, createWriteStream(tmp)); } catch (e) {
+      rmSync(tmp, { force: true });
+      return (e as Error).message === 'too_large' ? bad(413, 'too_large') : bad(500, 'upload_failed'); // e.g. disk full
+    }
+    if (notMp4 || head.length < 12) { rmSync(tmp, { force: true }); return bad(400, 'invalid_mp4'); }
+    renameSync(tmp, join(MEDIA_DIR, name));
+    const video = 'media/' + name;
+    state.tx(() => { state.setSetting('stage', { ...state.stage(), video, at: Date.now() }); audit(roleIn(req), 'media_upload', { file: name, size }); });
+    return { video, size };
   });
   // WOW cue: every panel and the stage play their part of one sweep at cueAt (server clock), then the stage holds the title.
   app.post('/api/admin/stage/cue', admin, async (req) => {

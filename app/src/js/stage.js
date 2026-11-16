@@ -4,7 +4,7 @@ import confetti from 'canvas-confetti';
 import { live, screenId, isDemo } from './api.js';
 import { $, RM, cleanName, mulberry32 } from './common.js';
 import { rafflePhase, scramble, SCRAMBLE_MS, LEAD_MS } from '../shared/raffle.js';
-import { PANELS, CUE_LEAD_MS, cueDelay, cueMs, ytId } from '../shared/stage.js';
+import { PANELS, CUE_LEAD_MS, cueDelay, cueMs, ytId, DEFAULT_STAGE } from '../shared/stage.js';
 
 gsap.registerPlugin(SplitText);
 
@@ -126,7 +126,7 @@ const demoT0 = Date.now(), pin = q.get('scene'), pinnedTheme = q.has('theme');
 let demoRound = 0;
 function demoState(now) {
   const winner = (n, drawnAt) => ({ id: n + 1, name: DEMO_NAMES[(n * 5 + 3) % DEMO_NAMES.length], prize: DEMO_PRIZES[n % DEMO_PRIZES.length], drawnAt });
-  const base = { scene: 'title', at: 0, cueAt: 0, video: DEMO_VIDEO, speaker: null, winner: null };
+  const base = { scene: 'title', at: 0, cueAt: 0, video: DEMO_VIDEO, speaker: null, winner: null, ambient: DEFAULT_STAGE.ambient };
   if (pin) {
     const sp = DEMO_SPEAKERS[Number(q.get('speaker')) || 0] ?? DEMO_SPEAKERS[0];
     if (pin === 'suspense') return { ...base, scene: 'winner', winner: winner(0, now - LEAD_MS - 5000) }; // reel frozen mid-way
@@ -267,14 +267,24 @@ const MOMENT_MS = demo && !pin ? 8000 : 20000;
   for (let i = 0; i < 46; i++) $('#sparks').append(el('spark', `--x:${Math.round(300 + r() * (W - 600))}px;--y:${Math.round(40 + r() * (H - 82))}px;--t:${(3 + r() * 4).toFixed(1)}s;--d:-${(r() * 7).toFixed(1)}s`));
 }
 if (panel) document.querySelectorAll('.petals i').forEach((el, i) => { if (i > 2) el.style.setProperty('--x', [1250, 1520, 1790][i - 3] + 'px'); }); // the LED layout spreads them over 3328 px
-let ambTimer = null, ambIdx = -1;
+let ambTimer = null, ambIdx = -1, ambSlide = -1;
+// The admin's phrases take turns over the four moments (phrase i -> moment i mod 4); an empty list falls back to the defaults.
+function setMoment(m, text) {
+  const el = m.querySelector('[data-t]'), kind = m.dataset.m;
+  if (kind === 'lema') el.replaceChildren(...text.split(' ').flatMap((w, i) => [i ? ' ' : '', Object.assign(document.createElement('span'), { textContent: w, style: `--i:${i}` })]).filter(Boolean)); // one span per word for the stagger
+  else el.textContent = kind === 'oro' ? text.toUpperCase() : text;
+  fitText(el);
+}
 function ambient(on) {
   clearInterval(ambTimer); ambTimer = null;
   wall.classList.remove('m-dragon');
   if (!on) { for (const m of MOMENTS) m.classList.remove('on', 'run'); return; }
   const pinned = q.get('moment');
   const next = () => {
-    ambIdx = pinned !== null ? Number(pinned) % MOMENTS.length : (ambIdx + 1) % MOMENTS.length;
+    const phrases = S?.ambient?.length ? S.ambient : DEFAULT_STAGE.ambient;
+    ambSlide = pinned !== null ? Number(pinned) : ambSlide + 1;
+    ambIdx = ambSlide % MOMENTS.length;
+    if (!MOMENTS[ambIdx].classList.contains('on')) setMoment(MOMENTS[ambIdx], nice(phrases[ambSlide % phrases.length])); // never rewrite the text while it is on screen
     MOMENTS.forEach((m, i) => {
       if (i === ambIdx) m.classList.add('on', 'run');
       else if (m.classList.contains('on')) { m.classList.remove('on'); setTimeout(() => { if (!m.classList.contains('on')) m.classList.remove('run'); }, 2100); }

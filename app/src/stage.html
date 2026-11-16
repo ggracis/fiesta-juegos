@@ -56,15 +56,13 @@
 
   <!-- Ambient: soft moments that take turns while nothing else is happening on stage (tuned for noche). -->
   <section class="plate" data-view="ambient">
-    <div class="amb" data-m="lema">
-      <p class="lema"><span style="--i:0">Celebremos</span> <span style="--i:1">lo</span> <span style="--i:2">logrado.</span></p>
-      <p class="lema"><span style="--i:4">Imaginemos</span> <span style="--i:5">lo</span> <span style="--i:6">que</span> <span style="--i:7">viene.</span></p>
-    </div>
-    <div class="amb" data-m="faroles"><div class="sky" id="lanterns"></div><p class="welcome">Bienvenidos a la gala</p></div>
-    <div class="amb" data-m="dragon"><p class="year">2026</p><p class="t-sub">GALA DIGITAL POWER</p></div>
+    <!-- Texts ([data-t]) come from the admin's ambient phrases, see stage.js. -->
+    <div class="amb" data-m="lema"><p class="lema" data-t></p></div>
+    <div class="amb" data-m="faroles"><div class="sky" id="lanterns"></div><p class="welcome" data-t></p></div>
+    <div class="amb" data-m="dragon"><p class="year" data-t></p><p class="t-sub">GALA DIGITAL POWER</p></div>
     <div class="amb" data-m="oro"><div class="sky" id="sparks"></div>
       <svg class="knot" viewBox="0 0 220 28" fill="none" aria-hidden="true"><path d="M0 14h88M132 14h88"/><circle cx="110" cy="14" r="9.5"/><path d="M110 5.5 118.5 14 110 22.5 101.5 14z"/></svg>
-      <p class="t-sub">DIGITAL POWER 2026</p></div>
+      <p class="t-sub" data-t></p></div>
   </section>
 
   <section class="plate empty" data-view="video">

@@ -59,6 +59,8 @@ export function openDb(file: string, csvPath: string) {
   `);
   addColumn(db, 'raffle', 'sample', 'TEXT'); // legacy: names the old reel cycled; no longer written (panels now scramble letters)
   addColumn(db, 'raffle', 'prize', 'TEXT'); // optional prize name shown on the stage winner plate
+  addColumn(db, 'raffle', 'voided_at', 'INTEGER'); // winner absent: the draw is void, the guest stays out of later draws and the prize is free again
+  addColumn(db, 'raffle', 'delivered_at', 'INTEGER');
   const seedGame = db.prepare('INSERT OR IGNORE INTO game_config(game, enabled, sort, threshold, max_attempts, params) VALUES (?,?,?,?,?,?)');
   for (const g of GAMES) seedGame.run(g.id, g.ready ? 1 : 0, g.defaults.sort, g.defaults.threshold, g.defaults.maxAttempts, JSON.stringify(g.defaults.params));
   // New default param keys reach existing DBs; edited values are never overwritten.

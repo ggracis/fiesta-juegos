@@ -74,3 +74,22 @@ export const adminHideRaffle = () => call('api/admin/raffle/hide', undefined, 'P
 export const adminStage = () => call('api/admin/stage');
 export const adminSetStage = (patch) => call('api/admin/stage', patch, 'PUT');
 export const adminCue = () => call('api/admin/stage/cue', undefined, 'POST');
+export const adminClearRaffle = () => call('api/admin/raffle/clear', undefined, 'POST');
+export const adminVoidRaffle = (id) => call('api/admin/raffle/' + e(id) + '/void', undefined, 'POST');
+export const adminDeliverRaffle = (id) => call('api/admin/raffle/' + e(id) + '/deliver', undefined, 'POST');
+export const adminPrizeWinners = () => call('api/admin/winners');
+// fetch has no upload progress: XHR streams the file as the raw body (no 8 s timeout, a video takes a while).
+export const adminUploadMedia = (file, onProgress) => new Promise((resolve, reject) => {
+  const x = new XMLHttpRequest();
+  x.open('POST', base + 'api/admin/media');
+  x.setRequestHeader('content-type', 'video/mp4');
+  x.upload.onprogress = (ev) => { if (ev.lengthComputable) onProgress?.(ev.loaded / ev.total); };
+  x.onerror = () => reject(Object.assign(new Error('network'), { code: 'network' }));
+  x.onload = () => {
+    let d = {};
+    try { d = JSON.parse(x.responseText); } catch {}
+    if (x.status >= 200 && x.status < 300) resolve(d);
+    else reject(Object.assign(new Error(d.error || 'http'), { ...d, code: d.error || 'http', status: x.status }));
+  };
+  x.send(file);
+});
