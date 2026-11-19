@@ -9,6 +9,7 @@ import { newToken, csvLine, PIXEL_DIR, MEDIA_DIR, createRegistration } from './l
 import { nameTokens, dniDigits, normEmail } from '../src/shared/identity.js';
 import { gameById, PARAM_INFO } from '../src/shared/games.js';
 import { SCENES, CUE_LEAD_MS } from '../src/shared/stage.js';
+import { XLSX_MIME, readXlsx, exampleXlsx } from './xlsx.ts';
 import type { State } from './state.ts';
 
 const normalize = (s: string) => nameTokens(s).join(' ');
@@ -29,9 +30,10 @@ const FILTERS = {
   unconfirmed: (r: any) => !r.registered,
   walkIn: (r: any) => !!r.walk_in,
 };
+const MAX_XLSX = 5_242_880;
 const iso = (ms: number | null) => (ms ? new Date(ms).toISOString() : '');
 
-export function registerAdmin(app: FastifyInstance, db: DatabaseSync, state: State, adminPassword: string) {
+export function registerAdmin(app: FastifyInstance, db: DatabaseSync, state: State, adminPassword: string, doorPassword = '') {
   const loginHits = new Map<string, number[]>(); // ip -> timestamps (only failures; ponytail: in memory, resets on restart)
 
   const cookies = (req: FastifyRequest) =>
@@ -57,46 +59,53 @@ export function registerAdmin(app: FastifyInstance, db: DatabaseSync, state: Sta
   };
   const roleIn = (req: FastifyRequest) => (req as any).role as string;
   const admin = { onRequest: requireRole('admin') };
+  // Reception staff (role 'door') reach only what the Puerta tab needs.
+  const staff = { onRequest: requireRole('admin', 'door') };
 
   app.addContentTypeParser('text/csv', { parseAs: 'string', bodyLimit: 1_048_576 }, (_req, body, done) => done(null, body));
+  app.addContentTypeParser(XLSX_MIME, { parseAs: 'buffer', bodyLimit: MAX_XLSX }, (_req, body, done) => done(null, body));
 
   app.post('/api/admin/login', {
     schema: { body: { type: 'object', required: ['password'], additionalProperties: false, properties: { password: { type: 'string', maxLength: 200 } } } },
   }, async (req, reply) => {
-    if (!adminPassword) return reply.code(503).send({ error: 'admin_disabled' });
+    if (!adminPassword && !doorPassword) return reply.code(503).send({ error: 'admin_disabled' });
     const now = Date.now();
     const hits = (loginHits.get(req.ip) ?? []).filter((t) => now - t < 60_000);
     if (hits.length >= 10) return reply.code(429).send({ error: 'rate_limited' });
-    if (!timingSafeEqual(sha((req.body as any).password), sha(adminPassword))) {
+    const pw = sha((req.body as any).password);
+    const match = (secret: string) => !!secret && timingSafeEqual(pw, sha(secret));
+    const role = match(adminPassword) ? 'admin' : match(doorPassword) ? 'door' : '';
+    if (!role) {
       hits.push(now);
       loginHits.set(req.ip, hits);
       return reply.code(401).send({ error: 'wrong_password' });
     }
     loginHits.delete(req.ip);
     const token = newToken();
-    db.prepare("INSERT INTO session(token, kind, ref, created_at) VALUES (?, 'admin', 'admin', ?)").run(token, now);
-    audit('admin', 'login');
+    db.prepare("INSERT INTO session(token, kind, ref, created_at) VALUES (?, 'admin', ?, ?)").run(token, role, now);
+    audit(role, 'login');
     reply.header('set-cookie', `fa=${token}; HttpOnly; SameSite=Strict; Path=/; Max-Age=86400` + (process.env.NODE_ENV === 'production' ? '; Secure' : ''));
     return reply.code(204).send();
   });
 
-  app.post('/api/admin/logout', admin, async (req, reply) => {
+  app.post('/api/admin/logout', staff, async (req, reply) => {
     db.prepare('DELETE FROM session WHERE token = ?').run(tokenOf(req));
     audit(roleIn(req), 'logout');
     reply.header('set-cookie', 'fa=; HttpOnly; SameSite=Strict; Path=/; Max-Age=0');
     return reply.code(204).send();
   });
 
-  app.get('/api/admin/me', admin, async (req) => ({ role: roleIn(req) }));
+  app.get('/api/admin/me', staff, async (req) => ({ role: roleIn(req) }));
 
-  app.get('/api/admin/state', admin, async () => {
+  app.get('/api/admin/state', staff, async (req) => {
+    const pendingVerifications = (db.prepare("SELECT COUNT(*) AS n FROM verification_request WHERE status = 'pending'").get() as { n: number }).n;
+    if (roleIn(req) === 'door') return { pendingVerifications }; // reception only needs the badge
     const settings = state.settings();
     const count = (col: string) => (db.prepare(`SELECT COUNT(*) AS n FROM registration WHERE ${col} IS NOT NULL`).get() as { n: number }).n;
     const won = count('prize_won_at');
     const now = Date.now();
     const screens = (db.prepare('SELECT id, game, last_seen FROM screen ORDER BY last_seen DESC LIMIT 100').all() as { id: string; game: string; last_seen: number }[])
       .map((s) => ({ id: s.id, game: s.game, lastSeen: s.last_seen, online: now - s.last_seen <= ONLINE_MS }));
-    const pendingVerifications = (db.prepare("SELECT COUNT(*) AS n FROM verification_request WHERE status = 'pending'").get() as { n: number }).n;
     return { settings, games: state.allGames(), screens, pendingVerifications, prizes: { stock: settings.prizeStock, won, delivered: count('prize_delivered_at'), left: settings.prizeStock - won } };
   });
 
@@ -151,7 +160,7 @@ export function registerAdmin(app: FastifyInstance, db: DatabaseSync, state: Sta
   });
 
   app.get('/api/admin/guests', {
-    ...admin,
+    ...staff,
     schema: { querystring: { type: 'object', properties: {
       q: { type: 'string', maxLength: 60 }, filter: { enum: ['all', 'unaccredited', 'accredited', 'unconfirmed', 'walkIn'] } } } },
   }, async (req) => {
@@ -180,28 +189,46 @@ export function registerAdmin(app: FastifyInstance, db: DatabaseSync, state: Sta
     return { guests, counts, summary };
   });
 
-  app.post('/api/admin/guests/import', { ...admin, bodyLimit: 1_048_576 }, async (req, reply) => {
-    if (typeof req.body !== 'string') return reply.code(415).send({ error: 'csv_required' });
-    // CSV: name,dni,email ('#' lines are comments; optional header). Name may be quoted; dni/email never contain commas.
-    const lines = req.body.replace(/^\uFEFF/, '').split(/\r?\n/).filter((l) => l.trim() && !l.trim().startsWith('#'));
-    const rows = lines.slice(/^"?name"?\s*(,|$)/i.test(lines[0]?.trim() ?? '') ? 1 : 0).map((line) => {
-      const m = line.match(/^\s*"((?:[^"]|"")*)"\s*(?:,(.*))?$/);
-      const [name, ...rest] = m ? [m[1].replace(/""/g, '"'), ...(m[2] ?? '').split(',')] : line.split(',');
-      return { name: name.trim(), dni: dniDigits(rest[0]), email: normEmail(rest[1]) };
-    }).filter((r) => r.name);
+  // Shared by CSV and XLSX. Re-import updates dni/email but never blanks them and never deletes guests.
+  const importGuests = (rows: { name: string; dni: string; email: string }[], role: string) => {
     const exists = db.prepare('SELECT 1 FROM guest WHERE name = ?');
-    // Re-import updates dni/email but never blanks them and never deletes guests.
     const ins = db.prepare(`INSERT INTO guest(name, dni, email) VALUES (?,?,?) ON CONFLICT(name) DO UPDATE SET
       dni = COALESCE(NULLIF(excluded.dni, ''), dni), email = COALESCE(NULLIF(excluded.email, ''), email)`);
     let added = 0;
     state.tx(() => {
       for (const r of rows) { if (!exists.get(r.name)) added++; ins.run(r.name, r.dni, r.email); }
-      audit(roleIn(req), 'import', { rows: rows.length, added });
+      audit(role, 'import', { rows: rows.length, added });
     });
     return { added, total: (db.prepare('SELECT COUNT(*) AS n FROM guest').get() as { n: number }).n };
+  };
+
+  // Body: text/csv (name,dni,email) or a raw .xlsx (columns A=name, B=dni, C=email). Optional header row, empty rows skipped.
+  app.post('/api/admin/guests/import', { ...staff, bodyLimit: MAX_XLSX }, async (req, reply) => {
+    let rows: { name: string; dni: string; email: string }[];
+    if (Buffer.isBuffer(req.body)) {
+      let sheet: string[][];
+      try { sheet = readXlsx(req.body); } catch { return reply.code(400).send({ error: 'file_invalid' }); }
+      if (/^(nombre|name)\b/i.test(sheet[0]?.[0] ?? '')) sheet.shift();
+      rows = sheet.map((r) => ({ name: (r[0] ?? '').replace(/\s+/g, ' '), dni: dniDigits(r[1]), email: normEmail(r[2]) })).filter((r) => r.name);
+      if (!rows.length) return reply.code(400).send({ error: 'file_empty' });
+    } else {
+      if (typeof req.body !== 'string') return reply.code(415).send({ error: 'csv_required' });
+      // CSV: '#' lines are comments; optional header. Name may be quoted; dni/email never contain commas.
+      const lines = req.body.replace(/^\uFEFF/, '').split(/\r?\n/).filter((l) => l.trim() && !l.trim().startsWith('#'));
+      rows = lines.slice(/^"?(name|nombre)\b/i.test(lines[0]?.trim() ?? '') ? 1 : 0).map((line) => {
+        const m = line.match(/^\s*"((?:[^"]|"")*)"\s*(?:,(.*))?$/);
+        const [name, ...rest] = m ? [m[1].replace(/""/g, '"'), ...(m[2] ?? '').split(',')] : line.split(',');
+        return { name: name.trim(), dni: dniDigits(rest[0]), email: normEmail(rest[1]) };
+      }).filter((r) => r.name);
+    }
+    return importGuests(rows, roleIn(req));
   });
 
-  app.get('/api/admin/guests/:id', admin, async (req, reply) => {
+  app.get('/api/admin/guests/example.xlsx', staff, async (_req, reply) =>
+    reply.header('content-type', XLSX_MIME).header('content-disposition', 'attachment; filename="invitados-ejemplo.xlsx"').send(exampleXlsx([
+      ['Nombre y apellido', 'DNI', 'Email'], ['Ejemplo Uno', '30111222', 'ejemplo1@example.com'], ['Ejemplo Dos', '30333444', 'ejemplo2@example.com']])));
+
+  app.get('/api/admin/guests/:id', staff, async (req, reply) => {
     const g = db.prepare(
       `SELECT g.id, g.name, r.guest_id IS NOT NULL AS registered, r.pin, r.checked_in_at AS checkedInAt, r.prize_won_at AS prizeWonAt, r.prize_delivered_at AS prizeDeliveredAt, r.dietary
        FROM guest g LEFT JOIN registration r ON r.guest_id = g.id WHERE g.id = ?`
@@ -215,7 +242,7 @@ export function registerAdmin(app: FastifyInstance, db: DatabaseSync, state: Sta
 
   // Registrations the roster could not match on their own: staff confirm identity at the door and pick the guest.
   app.get('/api/admin/verifications', {
-    ...admin,
+    ...staff,
     schema: { querystring: { type: 'object', properties: { status: { type: 'string', enum: ['pending', 'approved', 'rejected'] } } } },
   }, async (req) => {
     const rows = db.prepare('SELECT * FROM verification_request WHERE status = ? ORDER BY created_at').all(String((req.query as any).status ?? 'pending')) as any[];
@@ -233,7 +260,7 @@ export function registerAdmin(app: FastifyInstance, db: DatabaseSync, state: Sta
     { status: string; resolved_guest_id: number | null; dietary: string | null } | undefined;
 
   app.post('/api/admin/verifications/:id/approve', {
-    ...admin,
+    ...staff,
     schema: { body: { type: 'object', required: ['guestId'], additionalProperties: false, properties: { guestId: { type: 'integer', minimum: 1 } } } },
   }, async (req, reply) => {
     const id = Number((req.params as any).id);
@@ -256,7 +283,7 @@ export function registerAdmin(app: FastifyInstance, db: DatabaseSync, state: Sta
     });
   });
 
-  app.post('/api/admin/verifications/:id/reject', admin, async (req, reply) => {
+  app.post('/api/admin/verifications/:id/reject', staff, async (req, reply) => {
     const id = Number((req.params as any).id);
     return state.tx(() => {
       const v = verification(id);
@@ -279,7 +306,7 @@ export function registerAdmin(app: FastifyInstance, db: DatabaseSync, state: Sta
     return { guestId, ticketToken, pin: pinOf(guestId) };
   };
 
-  app.post('/api/admin/guests/:id/walkin', admin, async (req, reply) => {
+  app.post('/api/admin/guests/:id/walkin', staff, async (req, reply) => {
     const id = Number((req.params as any).id);
     return state.tx(() => {
       if (!db.prepare('SELECT 1 FROM guest WHERE id = ?').get(id)) return reply.code(404).send({ error: 'not_found' });
@@ -288,7 +315,7 @@ export function registerAdmin(app: FastifyInstance, db: DatabaseSync, state: Sta
   });
 
   app.post('/api/admin/guests', {
-    ...admin,
+    ...staff,
     schema: { body: { type: 'object', required: ['name'], additionalProperties: false, properties: {
       name: { type: 'string', minLength: 3, maxLength: 120 }, dni: { type: 'string', maxLength: 20 }, email: { type: 'string', maxLength: 120 } } } },
   }, async (req, reply) => {
@@ -302,7 +329,7 @@ export function registerAdmin(app: FastifyInstance, db: DatabaseSync, state: Sta
     });
   });
 
-  app.post('/api/admin/guests/:id/checkin', admin, async (req, reply) => {
+  app.post('/api/admin/guests/:id/checkin', staff, async (req, reply) => {
     const id = (req.params as any).id;
     if (!db.prepare('SELECT 1 FROM guest WHERE id = ?').get(id)) return reply.code(404).send({ error: 'not_found' });
     const reg = db.prepare('SELECT checked_in_at FROM registration WHERE guest_id = ?').get(id) as { checked_in_at: number | null } | undefined;
@@ -316,7 +343,7 @@ export function registerAdmin(app: FastifyInstance, db: DatabaseSync, state: Sta
   });
 
   app.post('/api/admin/checkin/:token', {
-    ...admin,
+    ...staff,
     schema: { body: { type: 'object', required: ['action'], additionalProperties: false, properties: { action: { enum: ['checkin', 'deliver'] } } } },
   }, async (req, reply) => {
     const token = (req.params as any).token as string;

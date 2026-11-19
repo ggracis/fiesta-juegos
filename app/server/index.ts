@@ -21,14 +21,14 @@ const CSV_PATH = join(ROOT, 'data', 'guests.csv');
 const MAX_FAILS = 5;
 const LOCK_MS = 30_000;
 
-export function buildApp(dbPath = DB_PATH, csvPath = CSV_PATH, opts: { adminPassword?: string; panelToken?: string } = {}) {
+export function buildApp(dbPath = DB_PATH, csvPath = CSV_PATH, opts: { adminPassword?: string; doorPassword?: string; panelToken?: string } = {}) {
   const db = openDb(dbPath, csvPath);
   // removeAdditional off: unknown body keys must be rejected (400), not silently stripped
   const app = Fastify({ trustProxy: true, ajv: { customOptions: { removeAdditional: false } } });
   app.decorate('db', db);
   app.addHook('onClose', () => { db.close(); });
   const state = makeState(db);
-  const { roleOf } = registerAdmin(app, db, state, opts.adminPassword ?? process.env.ADMIN_PASSWORD ?? '');
+  const { roleOf } = registerAdmin(app, db, state, opts.adminPassword ?? process.env.ADMIN_PASSWORD ?? '', opts.doorPassword ?? process.env.DOOR_PASSWORD ?? '');
   const guestOf = (session: unknown) => {
     const row = db.prepare("SELECT ref FROM session WHERE token = ? AND kind = 'guest'").get(String(session)) as { ref: string } | undefined;
     return row ? Number(row.ref) : undefined;

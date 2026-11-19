@@ -52,6 +52,7 @@ export const adminDeliverRaffle = call('adminDeliverRaffle');
 export const adminPrizeWinners = call('adminPrizeWinners');
 export const adminUploadMedia = call('adminUploadMedia');
 export const winnersCsvUrl = `${import.meta.env.BASE_URL}api/admin/winners.csv`;
+export const guestsExampleUrl = `${import.meta.env.BASE_URL}api/admin/guests/example.xlsx`;
 export const attemptsCsvUrl = `${import.meta.env.BASE_URL}api/admin/attempts.csv`;
 
 // Per-screen id: venue panels share one public IP, so lockouts are keyed by this instead.

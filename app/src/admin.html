@@ -45,6 +45,12 @@
         <div id="verifs"></div>
         <p class="muted" id="verifs-empty" hidden>No hay verificaciones pendientes.</p>
       </div>
+      <details class="card" id="import-box">
+        <summary>Subir lista de invitados</summary>
+        <label for="csv">Archivo Excel (.xlsx) o CSV con las columnas Nombre, DNI y Email</label>
+        <input id="csv" type="file" accept=".xlsx,.csv,text/csv">
+        <p class="muted">Los invitados nuevos se agregan; los que ya están se actualizan, y nadie se borra. <a id="guests-example" class="link" download>Descargar ejemplo</a></p>
+      </details>
       <details class="card" id="add-box">
         <summary>Agregar invitado</summary>
         <form id="add-guest">
@@ -143,11 +149,6 @@
 
     <section id="t-setup" class="pane" role="tabpanel" hidden>
       <div id="content-cards"></div>
-      <div class="card">
-        <h2>Lista de invitados</h2>
-        <label for="csv">Importar lista de invitados (CSV <code>name,dni,email</code>)</label>
-        <input id="csv" type="file" accept=".csv,text/csv">
-      </div>
       <div class="card">
         <h2>Oradores</h2>
         <p class="muted">En el orden en que suben al escenario. Los nombres y cargos se pueden corregir en cualquier momento.</p>

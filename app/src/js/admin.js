@@ -17,7 +17,8 @@ const ERRORS = {
   wrong_password: 'Contraseña incorrecta.', rate_limited: 'Demasiados intentos. Espera un minuto.',
   admin_disabled: 'El panel no está habilitado en el servidor.', network: 'Sin conexión con el servidor.',
   not_registered: 'Ese invitado todavía no confirmó su asistencia.', no_candidates: 'No quedan invitados acreditados para sortear.',
-  unknown_game: 'Juego desconocido.', not_found: 'No encontrado.', csv_required: 'Selecciona un archivo CSV.',
+  unknown_game: 'Juego desconocido.', not_found: 'No encontrado.', csv_required: 'Selecciona un archivo .xlsx o .csv.',
+  file_invalid: 'No pudimos leer el archivo. Sube un Excel (.xlsx) o un CSV válido; puedes bajar el ejemplo.', file_empty: 'No encontramos invitados en el archivo. Revisa que el nombre esté en la columna A.',
   guest_exists: 'Ya existe un invitado con ese nombre: búscalo en la lista.',
   already_voided: 'Ese sorteo ya estaba anulado.', already_resolved: 'Esa verificación ya fue resuelta.', http: 'Error del servidor.', already_checked_in: 'Ya estaba acreditado.', demo_unavailable: 'No disponible en el modo demo.',
 };
@@ -34,7 +35,7 @@ async function run(fn) {
     $('netbar').hidden = e.code !== 'network';
     if (e.code === 'network') return;
     if (e.code === 'unauthorized') { toast('Sesión vencida', true); showLogin(); }
-    else if (e.status === 413) toast('El archivo es demasiado grande (máx. 1 MB).', true);
+    else if (e.status === 413) toast('El archivo es demasiado grande (máx. 5 MB).', true);
     else if (e.status === 400) toast('Datos inválidos.', true);
     else toast(ERRORS[e.code] || 'Ocurrió un error inesperado.', true);
   }
@@ -51,7 +52,8 @@ function safeNext() {
 }
 
 let S = null; // last admin state
-const TABS = [['guests', 'Puerta'], ['stage', 'Escenario'], ['live', 'Paneles'], ['games', 'Juegos'], ['results', 'Resultados'], ['setup', 'Preparación']];
+const ALL_TABS = [['guests', 'Puerta'], ['stage', 'Escenario'], ['live', 'Paneles'], ['games', 'Juegos'], ['results', 'Resultados'], ['setup', 'Preparación']];
+let TABS = ALL_TABS, door = false; // door (reception) role: Puerta only
 
 // Dark by default (venue lighting); the choice is remembered per device.
 function setTheme(dark) {
@@ -63,9 +65,18 @@ function setTheme(dark) {
 function showLogin() {
   $('app').hidden = true; $('login').hidden = false; $('pw').value = ''; $('pw').focus();
 }
-function enter() {
+function enter(role) {
   const next = safeNext();
   if (next) { location.replace(next); return; }
+  door = role === 'door';
+  TABS = door ? ALL_TABS.slice(0, 1) : ALL_TABS; // the other panes stay hidden and their loaders never run
+  $('tabs').replaceChildren(...TABS.map(([k, label]) => {
+    const b = h('button', { type: 'button', role: 'tab', id: 'tab-' + k }, label,
+      k === 'guests' && h('span', { className: 'badge prize', id: 'verif-count', hidden: true, title: 'Verificaciones pendientes' }));
+    b.dataset.tab = k; b.onclick = () => select(k);
+    return b;
+  }));
+  $('tabs').hidden = $('strip').hidden = door;
   $('login').hidden = true; $('app').hidden = false;
   let tab;
   try { tab = localStorage.getItem('fiesta.admin.tab'); } catch {}
@@ -85,7 +96,7 @@ async function refresh() {
 
 // Always-visible status line: what an operator must know before touching anything.
 function renderStrip() {
-  if (!S) return;
+  if (!S?.settings) return;
   const { settings: st, prizes: p } = S;
   $('strip').textContent = `Pausa: ${st.paused ? 'sí' : 'no'} · Modo sorteo: ${st.raffleMode ? 'sí' : 'no'} · LED: ${ST ? SCENE_LABELS[ST.scene] : '—'} · Premios: quedan ${p.left}`;
   $('strip').className = 'strip' + (p.left <= 0 ? ' bad' : st.paused || p.left <= 5 ? ' warn' : '');
@@ -97,7 +108,7 @@ async function poll() {
   if (polling || document.hidden || $('app').hidden) return;
   polling = true;
   try {
-    const [s, st] = await Promise.all([refresh(), current === 'stage' ? null : run(api.adminStage)]); // Escenario polls itself every 3 s
+    const [s, st] = await Promise.all([refresh(), current === 'stage' || door ? null : run(api.adminStage)]); // Escenario polls itself every 3 s
     if (st) ST = st;
     if (!s) return;
     renderStrip();
@@ -113,9 +124,9 @@ async function select(tab) {
   try { localStorage.setItem('fiesta.admin.tab', tab); } catch {}
   for (const b of $('tabs').children) b.setAttribute('aria-selected', String(b.dataset.tab === tab));
   $('tabs').querySelector('[aria-selected="true"]')?.scrollIntoView({ inline: 'center', block: 'nearest' });
-  for (const [k] of TABS) $('t-' + k).hidden = k !== tab;
+  for (const [k] of ALL_TABS) $('t-' + k).hidden = k !== tab;
   if (!(await refresh()) || current !== tab) return;
-  if (!ST && tab !== 'stage') run(api.adminStage).then((st) => { if (st) { ST = st; renderStrip(); } }); // LED scene for the strip
+  if (!ST && tab !== 'stage' && !door) run(api.adminStage).then((st) => { if (st) { ST = st; renderStrip(); } }); // LED scene for the strip
   ({
     guests: () => { loadVerifs(); loadGuests(); }, live: renderLive, games: () => { renderStock(); renderGames(); }, results: renderResults,
     stage: () => { const pv = $('st-preview'); if (!pv.getAttribute('src')) pv.src = new URL('stage.html', location.href).href + '?preview=1'; loadStage(); loadRaffle(); },
@@ -635,15 +646,10 @@ async function boot() {
   try { dark = localStorage.getItem('fiesta.admin.dark') !== '0'; } catch {}
   setTheme(dark);
   if (api.isDemo) { $('demo').hidden = false; return; }
-  for (const [k, label] of TABS) {
-    const b = h('button', { type: 'button', role: 'tab', id: 'tab-' + k }, label,
-      k === 'guests' && h('span', { className: 'badge prize', id: 'verif-count', hidden: true, title: 'Verificaciones pendientes' }));
-    b.dataset.tab = k; b.onclick = () => select(k);
-    $('tabs').append(b);
-  }
   $('login-form').onsubmit = async (ev) => {
     ev.preventDefault();
-    if (await run(() => api.adminLogin($('pw').value))) enter();
+    const me = await run(async () => { await api.adminLogin($('pw').value); return api.adminMe(); });
+    if (me) enter(me.role);
   };
   $('logout').onclick = async () => { if (confirm('¿Salir del panel?')) { await run(api.adminLogout); showLogin(); } };
   $('theme').onclick = () => setTheme(!document.body.classList.contains('dark'));
@@ -653,6 +659,7 @@ async function boot() {
   };
   $('trans').onchange = async (ev) => { if (!(await setting({ transition: ev.target.checked }))) renderLive(); };
   $('trans-save').onclick = () => setting({ transitionText: $('trans-text').value }).then((r) => r && toast('Texto guardado'));
+  $('guests-example').href = api.guestsExampleUrl;
   $('verif-new').onclick = loadVerifs;
   $('ag-from-q').onclick = () => { $('ag-name').value = $('gq').value.trim(); $('add-box').open = true; $('ag-name').focus(); };
   $('add-guest').onsubmit = async (ev) => {
@@ -667,10 +674,10 @@ async function boot() {
   $('csv').onchange = async (ev) => {
     const f = ev.target.files[0];
     if (!f) return;
-    if (f.size > 1_048_576) { ev.target.value = ''; return toast('El archivo supera 1 MB.', true); }
-    const r = await run(async () => api.adminImportGuests(await f.text()));
+    if (f.size > 5_242_880) { ev.target.value = ''; return toast('El archivo supera 5 MB.', true); }
+    const r = await run(() => api.adminImportGuests(f));
     ev.target.value = '';
-    if (r) { toast(`Agregados: ${r.added}`); loadGuests(); }
+    if (r) { toast(`${r.added} nuevos, total ${r.total}`); $('import-box').open = false; loadGuests(); }
   };
   $('stock-save').onclick = async () => {
     const n = $('stock').valueAsNumber;
@@ -679,6 +686,6 @@ async function boot() {
   };
   $('rank-game').onchange = renderResults;
 
-  try { await api.adminMe(); enter(); } catch (e) { if (e.code === 'unauthorized') showLogin(); else { showLogin(); toast(ERRORS[e.code] || 'Ocurrió un error inesperado.', true); } }
+  try { enter((await api.adminMe()).role); } catch (e) { if (e.code === 'unauthorized') showLogin(); else { showLogin(); toast(ERRORS[e.code] || 'Ocurrió un error inesperado.', true); } }
 }
 boot();

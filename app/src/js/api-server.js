@@ -13,12 +13,13 @@ const ls = { get: (k) => { try { return localStorage.getItem(k); } catch { retur
 }
 export const apiBase = () => ls.get('fiesta.api') || base;
 
-// body: object -> JSON, string -> text/csv. method defaults to POST with a body, else GET.
+// body: object -> JSON, string -> text/csv, Blob -> .xlsx. method defaults to POST with a body, else GET.
 async function call(path, body, method = body === undefined ? 'GET' : 'POST', extra) {
   let r;
   const init = { method, signal: AbortSignal.timeout(8000) };
   if (extra) init.headers = extra;
   if (typeof body === 'string') { init.headers = { ...extra, 'content-type': 'text/csv' }; init.body = body; }
+  else if (body instanceof Blob) { init.headers = { ...extra, 'content-type': 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' }; init.body = body; }
   else if (body !== undefined) { init.headers = { ...extra, 'content-type': 'application/json' }; init.body = JSON.stringify(body); }
   const root = path.startsWith('api/admin') ? base : apiBase(); // staff pages stay same-origin (cookie)
   try { r = await fetch(root + path, init); } catch { throw Object.assign(new Error('network'), { code: 'network' }); }
@@ -59,7 +60,8 @@ export const adminContent = (kind) => call('api/admin/content/' + e(kind));
 export const adminImportContent = (kind, csvText) => call(`api/admin/content/${e(kind)}/import`, csvText);
 export const adminDeleteContent = (kind, id) => call(`api/admin/content/${e(kind)}/${e(id)}`, undefined, 'DELETE');
 export const adminGuests = (q = '', filter = 'all') => call('api/admin/guests?q=' + e(q) + '&filter=' + e(filter));
-export const adminImportGuests = (csvText) => call('api/admin/guests/import', csvText);
+// .csv goes as text, anything else (.xlsx) as raw bytes
+export const adminImportGuests = async (file) => call('api/admin/guests/import', /\.csv$/i.test(file.name) ? await file.text() : file);
 export const adminGuest = (id) => call('api/admin/guests/' + e(id));
 export const adminCheckinGuest = (id) => call('api/admin/guests/' + e(id) + '/checkin', undefined, 'POST');
 export const adminWalkIn = (id) => call('api/admin/guests/' + e(id) + '/walkin', undefined, 'POST');
