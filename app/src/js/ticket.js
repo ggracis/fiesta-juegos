@@ -123,7 +123,7 @@ try {
     catch { save(new Blob([qr], { type: 'image/svg+xml' }), 'invitacion-gala-digital-power-2026-qr.svg'); }
   };
   $('#dl').addEventListener('click', () => download());
-  const mine = [`PIN: ${d.pin}`, `Tu entrada: ${location.href}`, 'Presenta tu QR en la acreditación.'];
+  const mine = { pin: d.pin, url: location.href };
   $('#cal-g').href = googleCalUrl(mine); $('#cal-ics').href = icsUrl(mine);
 
   if (get(openedKey)) { // returning visitor: straight to the ticket
