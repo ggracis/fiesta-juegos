@@ -34,7 +34,7 @@
   <main>
     <section id="t-guests" class="pane" role="tabpanel" hidden>
       <div class="door-bar">
-        <input id="gq" type="search" autocomplete="off" enterkeyhint="search" placeholder="Buscar por nombre, DNI o email" aria-label="Buscar invitado">
+        <input id="gq" type="search" autocomplete="off" enterkeyhint="search" placeholder="Buscar por nombre o email" aria-label="Buscar invitado">
         <div class="chips" id="gfilters" role="group" aria-label="Filtrar invitados"></div>
         <p class="sum" id="gsum" aria-live="polite"></p>
       </div>
@@ -47,7 +47,7 @@
       </div>
       <details class="card" id="import-box">
         <summary>Subir lista de invitados</summary>
-        <label for="csv">Archivo Excel (.xlsx) o CSV con las columnas Nombre, DNI y Email</label>
+        <label for="csv">Archivo Excel (.xlsx) o CSV con las columnas Nombre y apellido y Email</label>
         <input id="csv" type="file" accept=".xlsx,.csv,text/csv">
         <p class="muted">Los invitados nuevos se agregan; los que ya están se actualizan, y nadie se borra. <a id="guests-example" class="link" download>Descargar ejemplo</a></p>
       </details>
@@ -57,8 +57,7 @@
           <p class="muted">Para quien no está en la lista: queda acreditado y recibe su PIN.</p>
           <label for="ag-name">Nombre y apellido</label>
           <input id="ag-name" required minlength="3" maxlength="120" autocomplete="off">
-          <div class="row"><input id="ag-dni" maxlength="20" placeholder="DNI (opcional)" inputmode="numeric" aria-label="DNI (opcional)" autocomplete="off">
-            <input id="ag-email" type="email" maxlength="120" placeholder="Email (opcional)" aria-label="Email (opcional)" autocomplete="off"></div>
+          <input id="ag-email" type="email" maxlength="120" placeholder="Email (opcional)" aria-label="Email (opcional)" autocomplete="off">
           <button class="b primary" type="submit">Agregar y dar entrada</button>
         </form>
       </details>

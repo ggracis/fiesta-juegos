@@ -9,7 +9,7 @@ import { registerAdmin } from './admin.ts';
 import { makeResults } from './results.ts';
 import { registerPanel } from './panel.ts';
 import { createRegistration, newToken, PIXEL_DIR, MEDIA_DIR } from './lib.ts';
-import { matchesName, verify, validDni, validEmail, dniDigits, normEmail, cleanDietary } from '../src/shared/identity.js';
+import { matchesName, verify, validEmail, normEmail, cleanDietary } from '../src/shared/identity.js';
 import { buildRounds, publicRounds, mulberry32, ROUND_GAMES, ROUND_POINTS } from '../src/shared/rounds.js';
 import { leaderboards } from '../src/shared/leaderboard.js';
 
@@ -42,7 +42,7 @@ export function buildApp(dbPath = DB_PATH, csvPath = CSV_PATH, opts: { adminPass
     hits.set(k, h);
     return h.length > max;
   };
-  const roster = () => db.prepare('SELECT id, name, dni, email FROM guest').all() as { id: number; name: string; dni: string; email: string }[];
+  const roster = () => db.prepare('SELECT id, name, email FROM guest').all() as { id: number; name: string; email: string }[];
 
   if (existsSync(DIST)) {
     app.register(fastifyStatic, { root: DIST });
@@ -60,7 +60,7 @@ export function buildApp(dbPath = DB_PATH, csvPath = CSV_PATH, opts: { adminPass
   mkdirSync(MEDIA_DIR, { recursive: true });
   app.register(fastifyStatic, { root: MEDIA_DIR, prefix: '/media/', decorateReply: false });
 
-  const validationMode =() => state.getSetting('registrationValidation') as 'name_only' | 'name_dni_email';
+  const validationMode =() => state.getSetting('registrationValidation') as 'name_only' | 'name_email';
 
   // Found / not found plus the active validation mode: never echo roster data.
   app.post('/api/lookup', {
@@ -70,22 +70,25 @@ export function buildApp(dbPath = DB_PATH, csvPath = CSV_PATH, opts: { adminPass
     return { found: roster().some((g) => matchesName(g.name, (req.body as any).name)), mode: validationMode() };
   });
 
-  // dni/email are optional in the schema: name_dni_email mode still rejects them when missing or malformed (below).
+  // email is optional in the schema: it is required (below) unless name_only found exactly one roster match.
   // dietary: the schema only bounds the body, cleanDietary() trims, collapses whitespace and caps it at 200 chars.
   app.post('/api/register', {
     schema: { body: { type: 'object', required: ['name'], additionalProperties: false, properties: {
-      name: { type: 'string', minLength: 3, maxLength: 100 }, dni: { type: 'string', maxLength: 20 }, email: { type: 'string', maxLength: 120 },
+      name: { type: 'string', minLength: 3, maxLength: 100 }, email: { type: 'string', maxLength: 120 },
       dietary: { type: 'string', maxLength: 1000 } } } },
   }, async (req, reply) => {
     if (limited('register', req.ip, 10)) return reply.code(429).send({ error: 'rate_limited' });
-    const { name, dni, email, dietary: rawDietary } = req.body as { name: string; dni?: string; email?: string; dietary?: string };
+    const { name, email, dietary: rawDietary } = req.body as { name: string; email?: string; dietary?: string };
     const dietary = cleanDietary(rawDietary);
     const mode = validationMode();
-    if (mode !== 'name_only' && (!validDni(dni) || !validEmail(email))) return reply.code(400).send({ error: 'invalid_input' });
-    const r = verify(roster().filter((g) => matchesName(g.name, name)), { dni, email }, mode);
+    const matches = roster().filter((g) => matchesName(g.name, name));
+    // An unknown name (zero matches) is not an error: it needs an email and goes to staff as a pending request.
+    if ((mode !== 'name_only' || matches.length !== 1) && !validEmail(email)) return reply.code(400).send({ error: 'invalid_input' });
+    const r = verify(matches, { email }, mode);
     if (!r.guest) {
+      // dni '' on purpose: pilot DBs created the column as NOT NULL without a default.
       db.prepare('INSERT INTO verification_request(name, dni, email, candidates, created_at, dietary) VALUES (?,?,?,?,?,?)')
-        .run(name.trim(), dniDigits(dni), normEmail(email), JSON.stringify(r.pending), Date.now(), dietary);
+        .run(name.trim(), '', normEmail(email), JSON.stringify(r.pending), Date.now(), dietary);
       return { status: 'pending' };
     }
     // Already registered with matching data: hand back the existing ticket (lost-ticket recovery).

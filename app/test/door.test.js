@@ -62,38 +62,57 @@ test('door reaches only the Puerta endpoints', async () => {
   assert.equal((await app.inject({ method: 'POST', url: '/api/admin/logout', headers: door })).statusCode, 204);
 });
 
-test('door can import a csv', async () => {
+test('door can import a csv: 2 columns, and the legacy name,dni,email', async () => {
   const { app, door } = await setup();
-  const r = await app.inject({ method: 'POST', url: '/api/admin/guests/import', headers: { ...door, 'content-type': 'text/csv' }, payload: 'Nombre,DNI,Email\nCsv Persona,1.234.567,a@b.co\n' });
-  assert.equal(r.json().added, 1);
-  assert.equal(app.db.prepare("SELECT dni FROM guest WHERE name = 'Csv Persona'").get().dni, '1234567');
+  const csv = (payload) => app.inject({ method: 'POST', url: '/api/admin/guests/import', headers: { ...door, 'content-type': 'text/csv' }, payload });
+  assert.equal((await csv('Nombre y apellido,Email\nDos Columnas,DOS@b.co\n')).json().added, 1);
+  assert.equal(app.db.prepare("SELECT email FROM guest WHERE name = 'Dos Columnas'").get().email, 'dos@b.co');
+  assert.equal((await csv('Nombre,DNI,Email\nCsv Persona,1.234.567,a@b.co\n')).json().added, 1);
+  const g = app.db.prepare("SELECT dni, email FROM guest WHERE name = 'Csv Persona'").get();
+  assert.deepEqual({ ...g }, { dni: null, email: 'a@b.co' }); // the email is the first cell with an @; the DNI is ignored, never stored
 });
 
 test('example.xlsx round-trips through the reader and the import endpoint', async () => {
   const { app, door } = await setup();
   const ex = await app.inject({ url: '/api/admin/guests/example.xlsx', headers: door });
   assert.match(ex.headers['content-disposition'], /invitados-ejemplo\.xlsx/);
-  assert.deepEqual(readXlsx(ex.rawPayload), [['Nombre y apellido', 'DNI', 'Email'], ['Ejemplo Uno', '30111222', 'ejemplo1@example.com'], ['Ejemplo Dos', '30333444', 'ejemplo2@example.com']]);
+  assert.deepEqual(readXlsx(ex.rawPayload), [['Nombre y apellido', 'Email'], ['Ejemplo Uno', 'ejemplo1@example.com'], ['Ejemplo Dos', 'ejemplo2@example.com']]);
   const r = await importXlsx(app, door, ex.rawPayload);
   assert.equal(r.statusCode, 200);
   assert.equal(r.json().added, 2);
-  const g = app.db.prepare("SELECT dni, email FROM guest WHERE name = 'Ejemplo Uno'").get();
-  assert.deepEqual({ ...g }, { dni: '30111222', email: 'ejemplo1@example.com' });
+  assert.equal(app.db.prepare("SELECT email FROM guest WHERE name = 'Ejemplo Uno'").get().email, 'ejemplo1@example.com');
   assert.equal((await importXlsx(app, door, ex.rawPayload)).json().added, 0); // idempotent
 });
 
-test('numeric DNI cells and shared strings are imported as digits', async () => {
+test('legacy 3-column xlsx (numeric DNI, shared strings, empty cell) still imports name + email', async () => {
   const rows = readXlsx(excelLike());
   assert.deepEqual(rows, [['Nombre', 'DNI', 'Email'], ['Ana Gómez & Co', '20123456', 'ANA@Example.com'], ['Zoe <Z>', '', 'x@y.com']]);
   const { app, door } = await setup();
   const r = await importXlsx(app, door, excelLike());
   assert.equal(r.json().added, 2);
-  assert.equal(app.db.prepare("SELECT dni, email FROM guest WHERE name = 'Ana Gómez & Co'").get().dni, '20123456');
   assert.equal(app.db.prepare("SELECT email FROM guest WHERE name = 'Ana Gómez & Co'").get().email, 'ana@example.com');
 });
 
 test('bad xlsx is rejected with file_invalid, header-only with file_empty', async () => {
   const { app, door } = await setup();
   assert.equal((await importXlsx(app, door, Buffer.from('not a zip'))).json().error, 'file_invalid');
-  assert.equal((await importXlsx(app, door, exampleXlsx([['Nombre', 'DNI', 'Email']]))).json().error, 'file_empty');
+  assert.equal((await importXlsx(app, door, exampleXlsx([['Nombre', 'Email']]))).json().error, 'file_empty');
+});
+
+test('door approves an unknown name with "add to the list and approve"', async () => {
+  const { app, door } = await setup();
+  const post = (url, payload) => app.inject({ method: 'POST', url, headers: door, payload });
+  await app.inject({ method: 'POST', url: '/api/register', payload: { name: 'Persona Nueva', email: 'Nueva@X.com', dietary: 'vegano' } });
+  const [v] = (await app.inject({ url: '/api/admin/verifications', headers: door })).json();
+  assert.deepEqual([v.name, v.email, v.candidates, 'dni' in v], ['Persona Nueva', 'nueva@x.com', [], false]);
+  assert.equal((await post(`/api/admin/verifications/${v.id}/approve`, {})).statusCode, 400); // needs a guest or add
+  const a = await post(`/api/admin/verifications/${v.id}/approve`, { add: true });
+  assert.equal(a.statusCode, 200);
+  assert.match(a.json().pin, /^\d{6}$/);
+  const g = app.db.prepare("SELECT id, email, walk_in FROM guest WHERE name = 'Persona Nueva'").get();
+  assert.deepEqual({ email: g.email, walk_in: g.walk_in }, { email: 'nueva@x.com', walk_in: 1 });
+  assert.equal(app.db.prepare('SELECT dietary FROM registration WHERE guest_id = ?').get(g.id).dietary, 'vegano');
+  assert.equal((await post(`/api/admin/verifications/${v.id}/approve`, { add: true })).json().ticketToken, a.json().ticketToken); // idempotent, no second guest
+  assert.equal(app.db.prepare("SELECT COUNT(*) n FROM guest WHERE name = 'Persona Nueva'").get().n, 1);
+  assert.equal((await post(`/api/admin/verifications/${v.id}/reject`)).statusCode, 409);
 });

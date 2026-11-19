@@ -16,8 +16,8 @@ async function adminApp() {
 const live = async (app) => (await app.inject('/api/live')).json();
 const winners = async (app, h) => (await app.inject({ url: '/api/admin/raffle', headers: h })).json();
 async function checkedIn(app, h, id) {
-  const g = app.db.prepare('SELECT name, dni, email FROM guest WHERE id = ?').get(id);
-  const { ticketToken } = (await post(app, '/api/register', { name: g.name, dni: g.dni, email: g.email })).json();
+  const g = app.db.prepare('SELECT name, email FROM guest WHERE id = ?').get(id);
+  const { ticketToken } = (await post(app, '/api/register', { name: g.name, email: g.email })).json();
   const t = (await app.inject('/api/ticket/' + ticketToken)).json();
   await post(app, '/api/admin/checkin/' + t.checkinToken, { action: 'checkin' }, h);
 }

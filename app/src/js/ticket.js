@@ -3,12 +3,13 @@ import confetti from 'canvas-confetti';
 import QRCode from 'qrcode';
 import { ticket, checkinUrl } from './api.js';
 import { $, RM, demoBadge, cleanName, vibrate } from './common.js';
+import { googleCalUrl, icsUrl } from '../shared/event.js';
 import logoUrl from '../assets/brand/huawei-v.png'; // the ticket paper is cream in both themes: the black wordmark always
 
 demoBadge();
 
 const token = new URLSearchParams(location.search).get('t') || '';
-const openedKey = 'fiesta.opened.' + token;
+const openedKey = 'fiesta.opened.' + token, autoKey = 'fiesta.autodl.' + token;
 const get = (k) => { try { return localStorage.getItem(k); } catch { return null; } };
 const set = (k, v) => { try { localStorage.setItem(k, v); } catch {} };
 
@@ -22,7 +23,7 @@ function save(blob, name) {
 
 async function ticketPng(d, qr) {
   try { await Promise.all(['300 60px', '400 22px', '500 24px', '700 60px'].map((f) => document.fonts.load(f + ' "Huawei Sans"'))); } catch {}
-  const W = 900, H = 1260, serif = '"Huawei Sans", "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif', sans = serif; // ponytail: one family, "serif" kept as the display slot
+  const W = 900, H = 1300, serif = '"Huawei Sans", "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif', sans = serif; // ponytail: one family, "serif" kept as the display slot
   const logo = new Image(); // official logo, drawn at its native aspect ratio
   logo.src = logoUrl;
   const c = Object.assign(document.createElement('canvas'), { width: W, height: H });
@@ -54,7 +55,8 @@ async function ticketPng(d, qr) {
   x.fillText('Lunes 30 de noviembre de 2026 · 18:30 H', W / 2, 1090);
   x.fillText('Puerto Salguero, Costanera Rafael Obligado 1221, CABA', W / 2, 1130, W - 160);
   x.fillStyle = '#6B6460'; x.font = `400 22px ${sans}`;
-  x.fillText('Muestra este QR al llegar. Tu PIN es tu llave para los juegos.', W / 2, 1180, W - 160);
+  x.fillText('Muestra este QR en la acreditación.', W / 2, 1184, W - 160);
+  x.fillText('Usa tu PIN para jugar en las pantallas.', W / 2, 1218, W - 160);
   return new Promise((res) => c.toBlob(res, 'image/png'));
 }
 
@@ -78,13 +80,13 @@ function openEnvelope(digits) {
   if (RM) {
     $('#sealed').hidden = true;
     gsap.from(t, { opacity: 0, duration: 0.2 });
-    finish();
+    finish(true);
     return;
   }
   gsap.set(t, { y: 120, scale: 0.6, opacity: 0 });
   gsap.set('#qr', { opacity: 0 });
   gsap.set(digits, { opacity: 0, y: 10 });
-  gsap.timeline({ onComplete: finish })
+  gsap.timeline({ onComplete: () => finish(true) })
     .to('.seal', { scale: 0.2, opacity: 0, duration: 0.25, ease: 'power2.in' }, 0)
     .to('.flap', { rotateX: 180, duration: 0.55, ease: 'power2.inOut' }, 0.1)
     .to(t, { y: 0, scale: 1, opacity: 1, duration: 0.9, ease: 'power3.out' }, 0.45)
@@ -97,9 +99,12 @@ function openEnvelope(digits) {
     .to(digits, { opacity: 1, y: 0, duration: 0.4, ease: 'power2.out', stagger: 0.09 }, 1.7);
 }
 
-function finish() {
+let download = () => {};
+// first: the envelope just opened. The PNG then downloads by itself, once per ticket (iOS Safari shows a preview instead).
+function finish(first) {
   set(openedKey, '1');
-  $('#dl').hidden = false;
+  $('#dl').hidden = false; $('#cal').hidden = false;
+  if (first && !get(autoKey)) { set(autoKey, '1'); download(); }
 }
 
 try {
@@ -113,10 +118,13 @@ try {
   const digits = [...document.querySelectorAll('#pin span')];
 
   $('#reveal').hidden = false;
-  $('#dl').addEventListener('click', async () => {
+  download = async () => {
     try { save(await ticketPng(d, qr), 'invitacion-gala-digital-power-2026.png'); }
     catch { save(new Blob([qr], { type: 'image/svg+xml' }), 'invitacion-gala-digital-power-2026-qr.svg'); }
-  });
+  };
+  $('#dl').addEventListener('click', () => download());
+  const mine = [`PIN: ${d.pin}`, `Tu entrada: ${location.href}`, 'Presenta tu QR en la acreditación.'];
+  $('#cal-g').href = googleCalUrl(mine); $('#cal-ics').href = icsUrl(mine);
 
   if (get(openedKey)) { // returning visitor: straight to the ticket
     $('#sealed').hidden = true; $('#t').hidden = false;

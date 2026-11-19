@@ -11,8 +11,8 @@ import { buildRounds, publicRounds, mulberry32, ROUND_POINTS } from '../src/shar
 const CSV = join(import.meta.dirname, '..', 'data', 'guests.csv');
 const post = (app, url, payload, headers) => app.inject({ method: 'POST', url, payload, headers });
 async function guest(app, guestId) {
-  const g = app.db.prepare('SELECT name, dni, email FROM guest WHERE id = ?').get(guestId);
-  const { ticketToken } = (await post(app, '/api/register', { name: g.name, dni: g.dni, email: g.email })).json();
+  const g = app.db.prepare('SELECT name, email FROM guest WHERE id = ?').get(guestId);
+  const { ticketToken } = (await post(app, '/api/register', { name: g.name, email: g.email })).json();
   const t = (await app.inject('/api/ticket/' + ticketToken)).json();
   return (await post(app, '/api/login', { pin: t.pin, screenId: 'screen-' + guestId + '-xxxx' })).json().session;
 }

@@ -185,7 +185,6 @@ let gFilter = 'unaccredited', gSeq = 0, lastAct = '', down = false;
 // Background refreshes never replace cards while a finger or mouse button is down.
 addEventListener('pointerdown', () => { down = true; }, true);
 for (const t of ['pointerup', 'pointercancel']) addEventListener(t, () => { down = false; }, true);
-const fmtDni = (d) => String(d ?? '').replace(/\B(?=(\d{3})+(?!\d))/g, '.');
 async function loadGuests(bg) {
   const seq = bg ? gSeq : ++gSeq; // a user-triggered load (search, filter) supersedes any load still in flight
   const q = $('gq').value.trim();
@@ -232,7 +231,7 @@ function guestCard(g) {
       g.walkIn && chip('Agregado en puerta'),
       g.pendingVerification && chip('Verificación pendiente', 'warn'),
       g.prizeWonAt && chip(g.prizeDeliveredAt ? 'Premio entregado' : 'Premio ganado', 'prize')),
-    g.dni && h('div', { className: 'muted' }, 'DNI ' + fmtDni(g.dni)),
+    g.email && h('div', { className: 'muted' }, g.email),
     g.dietary && h('div', { className: 'diet' }, 'Restricción: ' + g.dietary),
     g.pin && pinBox(g.pin),
     act);
@@ -250,7 +249,7 @@ function checkVerifs() {
   b.hidden = n <= 0;
   b.textContent = `${n} ${n === 1 ? 'verificación nueva' : 'verificaciones nuevas'} · Ver`;
 }
-const sfx = (g) => ` · DNI ${g.dni || '—'} · ${g.email || '—'}`; // DNI/email tell homonyms apart
+const sfx = (g) => ` · ${g.email || '—'}`; // the email tells homonyms apart
 function verifItem(v) {
   const opt = (g) => h('option', { value: g.id }, g.name + sfx(g) + (g.registered ? ' (ya confirmado)' : ''));
   const sel = h('select', { ariaLabel: 'Invitado para ' + v.name },
@@ -270,21 +269,23 @@ function verifItem(v) {
   };
   const ok = h('button', { className: 'b primary', type: 'button' }, 'Aprobar');
   const no = h('button', { className: 'b', type: 'button' }, 'Rechazar');
+  // Not on the roster at all: create the guest from the request's name and email, then approve.
+  const add = !v.candidates.length && h('button', { className: 'b primary', type: 'button' }, 'Agregar a la lista y aprobar');
   const item = h('div', { className: 'card' },
     h('strong', {}, v.name),
-    h('div', { className: 'muted' }, `DNI ${v.dni || '—'} · ${v.email || '—'} · ${time(v.createdAt)}`),
+    h('div', { className: 'muted' }, `${v.email || '—'} · ${time(v.createdAt)}`),
     v.dietary && h('div', { className: 'muted' }, 'Restricción: ' + v.dietary),
-    sel, q, h('div', { className: 'row' }, ok, no));
+    sel, q, h('div', { className: 'row' }, add, ok, no));
   item.dataset.vid = v.id;
-  ok.onclick = async () => {
-    if (!sel.value) return toast('Elige un invitado.', true);
-    const name = sel.selectedOptions[0].textContent.split(' · ')[0];
-    const r = await run(() => api.adminApproveVerification(v.id, Number(sel.value)));
+  const approve = async (guestId, name) => {
+    const r = await run(() => api.adminApproveVerification(v.id, guestId));
     if (!r) return;
     item.replaceChildren(h('strong', {}, 'Aprobado: ' + name), pinBox(r.pin), ticketLink(r.ticketToken));
     item.dataset.done = '1'; vSeen--; // stays on screen (PIN and ticket link) until the tab is left
     toast(name + ' aprobado'); refresh(); loadGuests();
   };
+  ok.onclick = () => (sel.value ? approve(Number(sel.value), sel.selectedOptions[0].textContent.split(' · ')[0]) : toast('Elige un invitado.', true));
+  if (add) add.onclick = () => approve(null, v.name);
   no.onclick = async () => {
     if (!confirm('¿Rechazar el registro de ' + v.name + '?')) return;
     if (await run(() => api.adminRejectVerification(v.id))) { item.remove(); vSeen--; $('verifs-empty').hidden = $('verifs').children.length > 0; refresh(); }
@@ -665,7 +666,7 @@ async function boot() {
   $('add-guest').onsubmit = async (ev) => {
     ev.preventDefault();
     const name = $('ag-name').value.trim();
-    const r = await run(() => api.adminAddGuest({ name, dni: $('ag-dni').value.trim(), email: $('ag-email').value.trim() }));
+    const r = await run(() => api.adminAddGuest({ name, email: $('ag-email').value.trim() }));
     if (!r) return;
     ev.target.reset(); $('add-box').open = false; $('gq').value = name; gFilter = 'all'; lastAct = `${name} agregado ${time(Date.now())}`;
     await loadGuests(); $('gq').scrollIntoView({ block: 'start' });

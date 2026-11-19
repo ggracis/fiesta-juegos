@@ -1,5 +1,5 @@
 // Public leaderboards for the panel attract screen, shared by the server and the static demo. Pure.
-// Only display names leave this function: no ids, PINs, tokens, DNI or email.
+// Only display names leave this function: no ids, PINs, tokens or email.
 
 // "Ana Lucía Fernández" -> "Ana F." (first name + last initial, for a public screen).
 export function shortName(full) {

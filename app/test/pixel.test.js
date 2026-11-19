@@ -66,7 +66,7 @@ test('demo rounds: 8 images, 4 distinct options from the same group', () => {
 
 test('pixel rounds endpoint: no answer key in the response; answers score with pixelPoints', async () => {
   const app = buildApp(':memory:');
-  const g = app.db.prepare('SELECT name, dni, email FROM guest WHERE id = 1').get();
+  const g = app.db.prepare('SELECT name, email FROM guest WHERE id = 1').get();
   const { ticketToken } = (await app.inject({ method: 'POST', url: '/api/register', payload: g })).json();
   const { pin } = (await app.inject('/api/ticket/' + ticketToken)).json();
   const session = (await app.inject({ method: 'POST', url: '/api/login', payload: { pin, screenId: 'screen-pixel-test' } })).json().session;

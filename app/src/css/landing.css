@@ -68,6 +68,7 @@
 .info .em { font-weight: 500; color: var(--ink); }
 
 .cta { min-width: 70%; }
+.cal { display: flex; flex-wrap: wrap; justify-content: center; gap: 4px 20px; margin: 0; }
 .mine { margin-top: 12px; font-size: .78rem; letter-spacing: .06em; color: var(--red-deep); text-underline-offset: 3px; cursor: pointer; }
 
 /* ---------- sections below the hero ---------- */

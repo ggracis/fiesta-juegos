@@ -17,8 +17,8 @@ const tmpFile = () => join(mkdtempSync(join(tmpdir(), 'fiesta-')), 'test.db');
 const post = (app, url, payload, headers) => app.inject({ method: 'POST', url, payload, headers });
 const put = (app, url, payload, headers) => app.inject({ method: 'PUT', url, payload, headers });
 async function guest(app, guestId, screenId = 'screen-' + guestId + '-xxxx') {
-  const g = app.db.prepare('SELECT name, dni, email FROM guest WHERE id = ?').get(guestId);
-  const { ticketToken } = (await post(app, '/api/register', { name: g.name, dni: g.dni, email: g.email })).json();
+  const g = app.db.prepare('SELECT name, email FROM guest WHERE id = ?').get(guestId);
+  const { ticketToken } = (await post(app, '/api/register', { name: g.name, email: g.email })).json();
   const t = (await app.inject('/api/ticket/' + ticketToken)).json();
   const { session } = (await post(app, '/api/login', { pin: t.pin, screenId })).json();
   return { session, checkinToken: t.checkinToken, pin: t.pin, guestId };
@@ -223,7 +223,7 @@ test('admin guests import, list, detail, checkin', async () => {
   const { app, h } = await adminApp();
   const csv = (body) => post(app, '/api/admin/guests/import', body, { ...h, 'content-type': 'text/csv' });
   const before = app.db.prepare('SELECT COUNT(*) AS n FROM guest').get().n;
-  const r = await csv('﻿# comment\r\nname,dni,email\r\nNuevo Uno,30.111.222,Uno@X.com\r\n"Nuevo, Dos",30111333,dos@x.com\r\n\r\nAna Lucía Fernández (demo)\r\nNuevo Uno\r\n');
+  const r = await csv('﻿# comment\r\nname,email\r\nNuevo Uno,Uno@X.com\r\n"Nuevo, Dos",dos@x.com\r\n\r\nAna Lucía Fernández (demo)\r\nNuevo Uno\r\n');
   assert.equal(r.statusCode, 200);
   assert.deepEqual(r.json(), { added: 2, total: before + 2 });
   assert.equal((await post(app, '/api/admin/guests/import', 'x', { 'content-type': 'text/csv' })).statusCode, 401);
@@ -238,7 +238,7 @@ test('admin guests import, list, detail, checkin', async () => {
   assert.equal(nr.statusCode, 409);
   assert.equal(nr.json().error, 'not_registered');
   assert.equal(app.db.prepare('SELECT email FROM guest WHERE id = ?').get(id).email, 'uno@x.com'); // re-import without email kept it
-  assert.equal((await post(app, '/api/register', { name: 'nuevo uno', dni: '30111222', email: 'uno@x.com' })).json().status, 'registered');
+  assert.equal((await post(app, '/api/register', { name: 'nuevo uno', email: 'uno@x.com' })).json().status, 'registered');
   const c = await post(app, `/api/admin/guests/${id}/checkin`, undefined, h);
   assert.equal(c.statusCode, 200);
   assert.ok(c.json().checkedInAt > 0);
@@ -347,7 +347,7 @@ test('csv export neutralizes formulas', async () => {
 test('admin sees dietary in the guest list, detail and attempts csv', async () => {
   const { app, db, h } = await adminApp();
   const g = await guest(app, 1);
-  await post(app, '/api/register', { ...db.prepare('SELECT name, dni, email FROM guest WHERE id = 1').get(), dietary: 'vegano, =cmd' });
+  await post(app, '/api/register', { ...db.prepare('SELECT name, email FROM guest WHERE id = 1').get(), dietary: 'vegano, =cmd' });
   await start(app, g.session);
   const list = (await app.inject({ url: '/api/admin/guests', headers: h })).json().guests;
   assert.equal(list.find((x) => x.id === 1).dietary, 'vegano, =cmd');
@@ -390,9 +390,9 @@ test('round games stay hidden until their bank has content', async () => {
 
 test('verifications: list without PIN, approve once, dietary carries over, reject', async () => {
   const { app, db, h } = await adminApp();
-  const g = db.prepare('SELECT id, name, dni FROM guest ORDER BY id LIMIT 2').all();
-  // Right name, wrong DNI -> pending request with that guest as candidate.
-  const ask = (name, dietary) => post(app, '/api/register', { name, dni: '11111111', email: 'nobody@example.com', dietary });
+  const g = db.prepare('SELECT id, name FROM guest ORDER BY id LIMIT 2').all();
+  // Right name, wrong email -> pending request with that guest as candidate.
+  const ask = (name, dietary) => post(app, '/api/register', { name, email: 'nobody@example.com', dietary });
   assert.equal((await ask(g[0].name, 'celíaco')).json().status, 'pending');
   assert.equal((await ask(g[1].name)).json().status, 'pending');
   assert.equal((await app.inject({ url: '/api/admin/verifications' })).statusCode, 401);
@@ -443,13 +443,13 @@ test('walk-ins: accredit an unconfirmed guest once, add a guest at the door, no 
   assert.equal((await post(app, '/api/admin/guests/999999/walkin', undefined, h)).statusCode, 404);
   assert.equal((await post(app, `/api/admin/guests/${g.id}/walkin`)).statusCode, 401);
 
-  const add = await post(app, '/api/admin/guests', { name: '  Invitado   Sorpresa ', dni: '30.999.111', email: 'S@X.com' }, h);
+  const add = await post(app, '/api/admin/guests', { name: '  Invitado   Sorpresa ', email: 'S@X.com' }, h);
   assert.equal(add.statusCode, 200);
-  const row = db.prepare('SELECT name, dni, email, walk_in FROM guest WHERE id = ?').get(add.json().guestId);
-  assert.deepEqual({ ...row }, { name: 'Invitado Sorpresa', dni: '30999111', email: 's@x.com', walk_in: 1 });
+  const row = db.prepare('SELECT name, email, walk_in FROM guest WHERE id = ?').get(add.json().guestId);
+  assert.deepEqual({ ...row }, { name: 'Invitado Sorpresa', email: 's@x.com', walk_in: 1 });
   assert.ok(db.prepare('SELECT checked_in_at FROM registration WHERE guest_id = ?').get(add.json().guestId).checked_in_at);
   assert.equal((await post(app, '/api/admin/guests', { name: 'Invitado Sorpresa' }, h)).json().error, 'guest_exists');
-  assert.equal((await post(app, '/api/admin/guests', { name: 'Solo Nombre' }, h)).statusCode, 200); // dni/email optional
+  assert.equal((await post(app, '/api/admin/guests', { name: 'Solo Nombre' }, h)).statusCode, 200); // email optional
 
   const list = await app.inject({ url: '/api/admin/guests?q=sorpresa', headers: h });
   assert.deepEqual(list.json().guests.map((x) => [x.walkIn, x.registered, !!x.checkedInAt]), [[true, true, true]]);
@@ -534,12 +534,12 @@ test('live leaderboard: no private data, cached, skips no_prize plays', async ()
   await finish(app, db, a.attemptId, 77);
   const res = await app.inject('/api/live');
   const lb = res.json().leaderboard;
-  const full = db.prepare('SELECT name, dni, email FROM guest WHERE id = 1').get();
+  const full = db.prepare('SELECT name, email FROM guest WHERE id = 1').get();
   assert.equal(lb.all[0].score, 77);
   assert.equal(lb.all[0].name, shortName(full.name));
   assert.deepEqual(lb.byGame.distinto.map((r) => r.score), [77]);
   const body = JSON.stringify(lb);
-  for (const secret of [g.pin, g.session, g.checkinToken, full.dni, full.email, full.name]) assert.ok(!body.includes(secret), secret);
+  for (const secret of [g.pin, g.session, g.checkinToken, full.email, full.name]) assert.ok(!body.includes(secret), secret);
   db.prepare('UPDATE attempt SET score = 99, no_prize = 1').run();
   assert.equal((await app.inject('/api/live')).json().leaderboard.all[0].score, 77); // still cached
 });
@@ -561,21 +561,21 @@ test('every game setting has an admin label, help and bounds that fit its defaul
   await app.close();
 });
 
-test('door list: search by name/DNI/email, filters with counts, pending flag', async () => {
+test('door list: search by name/email, filters with counts, pending flag', async () => {
   const { app, db, h } = await adminApp();
-  const csv = 'name,dni,email\nJosé Núñez Zarzuelo,30.444.555,jose@empresa.com\nJosefina Paz Zarzuelo,28111222,jp@otra.com\n';
+  const csv = 'name,email\nJosé Núñez Zarzuelo,jose@empresa.com\nJosefina Paz Zarzuelo,jp@otra.com\n';
   await post(app, '/api/admin/guests/import', csv, { ...h, 'content-type': 'text/csv' });
   const list = async (qs) => (await app.inject({ url: '/api/admin/guests?' + qs, headers: h })).json();
   assert.deepEqual((await list('q=jose nunez')).guests.map((g) => g.name), ['José Núñez Zarzuelo']); // accents and case
-  assert.deepEqual((await list('q=' + encodeURIComponent('30.444.5'))).guests.map((g) => g.name), ['José Núñez Zarzuelo']); // DNI with dots
-  assert.deepEqual((await list('q=444555')).guests.map((g) => g.dni), ['30444555']);
+  assert.deepEqual((await list('q=nunez')).guests.map((g) => g.name), ['José Núñez Zarzuelo']); // accent-insensitive name
+  assert.ok(!('dni' in (await list('q=nunez')).guests[0])); // no DNI in the list
   assert.deepEqual((await list('q=EMPRESA.COM')).guests.map((g) => g.name), ['José Núñez Zarzuelo']);
-  assert.deepEqual((await list('q=EMPRESA.COM')).guests.map((g) => g.email), ['jose@empresa.com']); // the verification search tells homonyms apart by DNI/email
+  assert.deepEqual((await list('q=EMPRESA.COM')).guests.map((g) => g.email), ['jose@empresa.com']); // the verification search tells homonyms apart by email
 
   const jose = db.prepare("SELECT id FROM guest WHERE name = 'José Núñez Zarzuelo'").get().id;
   const paz = db.prepare("SELECT id FROM guest WHERE name = 'Josefina Paz Zarzuelo'").get().id;
   await post(app, `/api/admin/guests/${jose}/walkin`, undefined, h);
-  await post(app, '/api/register', { name: 'Josefina Paz Zarzuelo', dni: '99999999', email: 'x@x.com' }); // wrong data -> pending
+  await post(app, '/api/register', { name: 'Josefina Paz Zarzuelo', email: 'x@x.com' }); // wrong data -> pending
   const r = await list('q=zarzuelo');
   assert.deepEqual(r.counts, { all: 2, unaccredited: 1, accredited: 1, unconfirmed: 1, walkIn: 0 });
   assert.deepEqual((await list('q=zarzuelo&filter=accredited')).guests.map((g) => g.id), [jose]);
@@ -600,7 +600,7 @@ test('PIN in plain sight for admins only, never in public payloads', async () =>
   // Public surfaces and verification candidates stay PIN-free.
   const a = (await start(app, g.session)).json();
   await finish(app, db, a.attemptId, 80);
-  await post(app, '/api/register', { name: db.prepare('SELECT name FROM guest WHERE id = 1').get().name, dni: '99999999', email: 'x@x.com' });
+  await post(app, '/api/register', { name: db.prepare('SELECT name FROM guest WHERE id = 1').get().name, email: 'x@x.com' });
   const live = await app.inject('/api/live?session=' + g.session);
   assert.equal(live.json().leaderboard.all[0].score, 80);
   for (const res of [live, await app.inject('/api/live'), await app.inject('/api/checkin/' + g.checkinToken),

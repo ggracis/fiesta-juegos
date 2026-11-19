@@ -66,6 +66,7 @@
 
   <a class="btn cta" href="#reg">Confirmar asistencia <span aria-hidden="true">›</span></a>
   <a id="mine" class="mine" hidden>Ver mi entrada</a>
+  <p class="cal"><a id="cal-g" class="mine" target="_blank" rel="noopener">Agregar a Google Calendar</a><a id="cal-ics" class="mine" download="gala-digital-power-2026.ics">Otro calendario (.ics)</a></p>
 </header>
 
 <main>
@@ -96,18 +97,14 @@
       <form id="step-name" novalidate>
         <label class="fld" for="q">Tu nombre y apellido</label>
         <div class="pill-input">
-          <input id="q" type="text" autocomplete="name" autocapitalize="words" spellcheck="false" enterkeyhint="go" placeholder="Nombre y apellido, como en tu DNI">
+          <input id="q" type="text" autocomplete="name" autocapitalize="words" spellcheck="false" enterkeyhint="go" placeholder="Nombre y apellido completos">
         </div>
         <button class="btn" type="submit"><span class="lbl">Continuar</span>
           <svg class="spin" viewBox="0 0 24 24" width="20" height="20" aria-hidden="true"><circle cx="12" cy="12" r="9" fill="none" stroke="#fff" stroke-width="3" stroke-linecap="round" stroke-dasharray="40 60"/></svg>
         </button>
       </form>
       <form id="step-id" hidden novalidate>
-        <p class="found" id="found">Te encontramos en la lista. Para confirmar que eres tú, completa estos datos.</p>
-        <label class="fld" for="dni" data-ident>DNI</label>
-        <div class="pill-input" data-ident>
-          <input id="dni" type="text" inputmode="numeric" autocomplete="off" maxlength="10" placeholder="12.345.678">
-        </div>
+        <p class="found" id="found">Te encontramos en la lista. Para confirmar que eres tú, escribe tu correo electrónico.</p>
         <label class="fld" for="email" data-ident>Correo electrónico</label>
         <div class="pill-input" data-ident>
           <input id="email" type="email" autocomplete="email" autocapitalize="none" spellcheck="false" enterkeyhint="go" placeholder="tu@correo.com">

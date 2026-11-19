@@ -32,7 +32,7 @@ const unesc = (s: string) => s.replace(/&(#x[0-9a-f]+|#\d+|lt|gt|quot|apos|amp);
 const attr = (tag: string, name: string) => unesc(tag.match(new RegExp(`\\b${name}="([^"]*)"`))?.[1] ?? '');
 const texts = (xml: string) => [...xml.replace(/<rPh\b[\s\S]*?<\/rPh>/g, '').matchAll(/<t\b[^>]*>([\s\S]*?)<\/t>/g)].map((m) => unesc(m[1])).join('');
 const colIndex = (ref: string) => [...ref.match(/^[A-Z]+/i)![0].toUpperCase()].reduce((n, c) => n * 26 + c.charCodeAt(0) - 64, 0) - 1;
-// Excel stores DNIs as numbers (2.0123456E7): whole numbers become plain digits.
+// Excel stores whole numbers as floats (2.0123456E7): they become plain digits (legacy files had a numeric DNI column).
 const num = (v: string) => { const n = Number(v); return v.trim() !== '' && Number.isFinite(n) && Number.isInteger(n) && Math.abs(n) < 1e21 ? n.toFixed(0) : v; };
 
 // First worksheet as rows of strings by column (A=0...), empty cells kept positional.
@@ -84,9 +84,9 @@ const esc = (s: string) => s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replac
 const XML = '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>\n';
 const NS = 'http://schemas.openxmlformats.org/';
 const REL = NS + 'officeDocument/2006/relationships';
-// Every cell is inlineStr, so Excel keeps the DNI as text.
+// Every cell is inlineStr, so Excel keeps every value as text.
 export function exampleXlsx(rows: string[][]): Buffer {
-  const sheet = XML + `<worksheet xmlns="${NS}spreadsheetml/2006/main"><cols><col min="1" max="1" width="32" customWidth="1"/><col min="2" max="2" width="16" customWidth="1"/><col min="3" max="3" width="32" customWidth="1"/></cols><sheetData>`
+  const sheet = XML + `<worksheet xmlns="${NS}spreadsheetml/2006/main"><cols><col min="1" max="1" width="32" customWidth="1"/><col min="2" max="2" width="32" customWidth="1"/></cols><sheetData>`
     + rows.map((r, i) => `<row r="${i + 1}">` + r.map((c, j) => `<c r="${'ABC'[j]}${i + 1}" t="inlineStr"><is><t>${esc(c)}</t></is></c>`).join('') + '</row>').join('') + '</sheetData></worksheet>';
   return zip([
     ['[Content_Types].xml', XML + `<Types xmlns="${NS}package/2006/content-types"><Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/><Default Extension="xml" ContentType="application/xml"/><Override PartName="/xl/workbook.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet.main+xml"/><Override PartName="/xl/worksheets/sheet1.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.worksheet+xml"/></Types>`],

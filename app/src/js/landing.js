@@ -1,7 +1,8 @@
 import gsap from 'gsap';
 import { ScrollTrigger } from 'gsap/ScrollTrigger';
 import { lookup, register, ticketHref } from './api.js';
-import { formatDni, validDni, validEmail } from '../shared/identity.js';
+import { validEmail } from '../shared/identity.js';
+import { googleCalUrl, icsUrl } from '../shared/event.js';
 import { $, RM, demoBadge } from './common.js';
 
 gsap.registerPlugin(ScrollTrigger);
@@ -110,17 +111,18 @@ reveal('.reg > .card', { y: 36 });
 gsap.from(cjkChars, { opacity: 0, y: RM ? 0 : 10, duration: RM ? 0.5 : 0.7, stagger: RM ? 0 : 0.14, ease: 'power2.out', ...CP, scrollTrigger: { trigger: '.foot', start: 'top 92%', once: true } });
 reveal('.slogan', { y: 8 }, { trigger: '.foot' });
 
+$('#cal-g').href = googleCalUrl(); $('#cal-ics').href = icsUrl();
 try {
   const t = localStorage.getItem('fiesta.ticket');
   if (t) { $('#mine').href = t; $('#mine').hidden = false; }
 } catch {}
 
-// ---------- registration: name -> DNI + email -> ticket (or pending verification) ----------
+// ---------- registration: name -> email -> ticket (or pending verification) ----------
 const fName = $('#step-name'), fId = $('#step-id'), pend = $('#step-pending');
-const q = $('#q'), dni = $('#dni'), email = $('#email'), diet = $('#diet'), errEl = $('#err');
-const fields = [q, dni, email];
+const q = $('#q'), email = $('#email'), diet = $('#diet'), errEl = $('#err');
+const fields = [q, email];
 const foundText = $('#found').textContent;
-let nameOnly = false; // server's validation mode for the matched name: no DNI/email, just the dietary field
+let nameOnly = false; // server's validation mode for the matched name: no email, just the dietary field
 const showErr = (m, el) => {
   errEl.textContent = m || ''; errEl.hidden = !m;
   fields.forEach((f) => f.removeAttribute('aria-invalid'));
@@ -139,34 +141,31 @@ const netErr = (e) => (e.code === 'rate_limited' ? 'Demasiados intentos. Espera 
 
 fName.addEventListener('submit', async (e) => {
   e.preventDefault();
-  if (q.value.trim().split(/\s+/).filter(Boolean).length < 2) return showErr('Escribe tu nombre y apellido completos, como figuran en tu DNI.', q);
+  if (q.value.trim().split(/\s+/).filter(Boolean).length < 2) return showErr('Escribe tu nombre y apellido completos.', q);
   const b = $('button[type=submit]', fName);
   busy(b, true); showErr('');
   try {
     const { found, mode } = await lookup(q.value);
-    if (found) {
-      nameOnly = mode === 'name_only';
-      $$('[data-ident]', fId).forEach((el) => { el.hidden = nameOnly; });
-      $('#found').textContent = nameOnly ? 'Te encontramos en la lista. Solo falta confirmar tu inscripción.' : foundText;
-      show(fId, nameOnly ? diet : dni);
-    }
-    else showErr('No encontramos ese nombre. Escribe tu nombre y apellido tal como figuran en tu DNI e inténtalo de nuevo.', q);
+    // Not on the list is not a dead end: the guest still leaves an email and staff verify the request.
+    nameOnly = found && mode === 'name_only';
+    $$('[data-ident]', fId).forEach((el) => { el.hidden = nameOnly; });
+    $('#found').textContent = !found ? 'No te encontramos en la lista, pero puedes dejar tus datos y lo verificamos.'
+      : nameOnly ? 'Te encontramos en la lista. Solo falta confirmar tu inscripción.' : foundText;
+    show(fId, nameOnly ? diet : email);
   } catch (err) { showErr(netErr(err)); }
   busy(b, false);
 });
 
-dni.addEventListener('input', () => { dni.value = formatDni(dni.value); });
 $('#back').addEventListener('click', () => show(fName, q));
-$('#again').addEventListener('click', () => { [q, dni, email, diet].forEach((f) => { f.value = ''; }); show(fName, q); });
+$('#again').addEventListener('click', () => { [q, email, diet].forEach((f) => { f.value = ''; }); show(fName, q); });
 
 fId.addEventListener('submit', async (e) => {
   e.preventDefault();
-  if (!nameOnly && !validDni(dni.value)) return showErr('Revisa tu DNI: debe tener 7 u 8 números.', dni);
   if (!nameOnly && !validEmail(email.value)) return showErr('Revisa tu correo electrónico: parece incompleto.', email);
   const b = $('button[type=submit]', fId);
   busy(b, true); showErr('');
   try {
-    const r = await register(q.value, nameOnly ? undefined : dni.value, nameOnly ? undefined : email.value, diet.value);
+    const r = await register(q.value, nameOnly ? undefined : email.value, diet.value);
     if (r.status === 'pending') { busy(b, false); return show(pend, pend); }
     const href = ticketHref(r.ticketToken);
     try { localStorage.setItem('fiesta.ticket', href); } catch {}
@@ -174,6 +173,6 @@ fId.addEventListener('submit', async (e) => {
     setTimeout(() => { location.href = href; }, RM ? 0 : 650);
   } catch (err) {
     busy(b, false);
-    showErr(err.code === 'invalid_input' ? 'Revisa tu DNI y tu correo electrónico.' : netErr(err));
+    showErr(err.code === 'invalid_input' ? 'Revisa tu correo electrónico.' : netErr(err));
   }
 });

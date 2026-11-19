@@ -36,7 +36,7 @@ export const panelRoster = () => call('api/panel/roster', undefined, 'GET', staf
 export const panelSync = (items) => call('api/panel/sync', { items }, 'POST', staff());
 
 export const lookup = (name) => call('api/lookup', { name });
-export const register = (name, dni, email, dietary) => call('api/register', { name, dni, email, dietary }); // undefined keys are dropped (name_only has no dni/email)
+export const register = (name, email, dietary) => call('api/register', { name, email, dietary }); // undefined keys are dropped (name_only has no email)
 export const ticket = (token) => notFound(call('api/ticket/' + e(token)));
 export const login = (pin, screenId) => call('api/login', { pin, screenId });
 export const startAttempt = (session, game) => call('api/attempts', { session, game });
@@ -67,7 +67,7 @@ export const adminCheckinGuest = (id) => call('api/admin/guests/' + e(id) + '/ch
 export const adminWalkIn = (id) => call('api/admin/guests/' + e(id) + '/walkin', undefined, 'POST');
 export const adminAddGuest = (guest) => call('api/admin/guests', guest);
 export const adminVerifications = () => call('api/admin/verifications?status=pending');
-export const adminApproveVerification = (id, guestId) => call('api/admin/verifications/' + e(id) + '/approve', { guestId });
+export const adminApproveVerification = (id, guestId) => call('api/admin/verifications/' + e(id) + '/approve', guestId ? { guestId } : { add: true }); // no guestId: create the guest from the request
 export const adminRejectVerification = (id) => call('api/admin/verifications/' + e(id) + '/reject', undefined, 'POST');
 export const adminRanking = (game) => call('api/admin/ranking/' + e(game));
 export const adminRaffle = (prize) => call('api/admin/raffle', prize ? { prize } : undefined, 'POST');

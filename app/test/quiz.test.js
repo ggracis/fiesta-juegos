@@ -43,7 +43,7 @@ test('quiz attempt: no key in content, 409 on repeat, ms clamp, server score', a
   const app = buildApp(':memory:', undefined, { adminPassword: 'secret' });
   const cookie = (await post(app, '/api/admin/login', { password: 'secret' })).headers['set-cookie'].split(';')[0];
   await post(app, '/api/admin/content/quiz/import', DEMO_CSV, { cookie, 'content-type': 'text/csv' });
-  const g = app.db.prepare('SELECT name, dni, email FROM guest WHERE id = 1').get();
+  const g = app.db.prepare('SELECT name, email FROM guest WHERE id = 1').get();
   const { ticketToken } = (await post(app, '/api/register', g)).json();
   const { pin } = (await app.inject('/api/ticket/' + ticketToken)).json();
   const { session } = (await post(app, '/api/login', { pin, screenId: 'screen-quiz-test' })).json();

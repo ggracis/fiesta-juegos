@@ -6,7 +6,7 @@ import { Transform, type Readable } from 'node:stream';
 import { pipeline } from 'node:stream/promises';
 import { join } from 'node:path';
 import { newToken, csvLine, PIXEL_DIR, MEDIA_DIR, createRegistration } from './lib.ts';
-import { nameTokens, dniDigits, normEmail } from '../src/shared/identity.js';
+import { nameTokens, normEmail, guestRow } from '../src/shared/identity.js';
 import { gameById, PARAM_INFO } from '../src/shared/games.js';
 import { SCENES, CUE_LEAD_MS } from '../src/shared/stage.js';
 import { XLSX_MIME, readXlsx, exampleXlsx } from './xlsx.ts';
@@ -118,7 +118,7 @@ export function registerAdmin(app: FastifyInstance, db: DatabaseSync, state: Sta
           paused: { type: 'boolean' }, transition: { type: 'boolean' }, transitionText: { type: 'string', maxLength: 200 },
           prizeStock: { type: 'integer', minimum: 0 }, raffleShowSeconds: { type: 'integer', minimum: 1, maximum: 600 },
           raffleMode: { type: 'boolean' },
-          registrationValidation: { enum: ['name_only', 'name_dni_email'] },
+          registrationValidation: { enum: ['name_only', 'name_email'] },
         },
       },
     },
@@ -165,22 +165,21 @@ export function registerAdmin(app: FastifyInstance, db: DatabaseSync, state: Sta
       q: { type: 'string', maxLength: 60 }, filter: { enum: ['all', 'unaccredited', 'accredited', 'unconfirmed', 'walkIn'] } } } },
   }, async (req) => {
     const { q: rawQ = '', filter = 'all' } = req.query as { q?: string; filter?: keyof typeof FILTERS };
-    const q = normalize(rawQ), digits = dniDigits(rawQ), mail = normEmail(rawQ);
+    const q = normalize(rawQ), mail = normEmail(rawQ);
     const rows = db.prepare(
-      `SELECT g.id, g.name, g.dni, g.email, g.walk_in, r.guest_id IS NOT NULL AS registered, r.pin, r.ticket_token, r.checked_in_at, r.prize_won_at, r.prize_delivered_at, r.dietary,
+      `SELECT g.id, g.name, g.email, g.walk_in, r.guest_id IS NOT NULL AS registered, r.pin, r.ticket_token, r.checked_in_at, r.prize_won_at, r.prize_delivered_at, r.dietary,
          (SELECT COUNT(*) FROM attempt a WHERE a.guest_id = g.id) AS attempts
        FROM guest g LEFT JOIN registration r ON r.guest_id = g.id`
     ).all() as any[];
     const pending = new Set((db.prepare("SELECT candidates FROM verification_request WHERE status = 'pending'").all() as { candidates: string }[])
       .flatMap((v) => JSON.parse(v.candidates) as number[]));
     // ponytail: filter in JS for accent-insensitive match; fine for a few hundred guests.
-    // Name tokens, or DNI digits (dots ignored, 3+ digits), or email substring.
-    const hit = (r: any) => !rawQ.trim() || normalize(r.name).includes(q)
-      || (digits.length >= 3 && dniDigits(r.dni).includes(digits)) || (mail.length >= 3 && normEmail(r.email).includes(mail));
+    // Name tokens, or email substring.
+    const hit = (r: any) => !rawQ.trim() || normalize(r.name).includes(q) || (mail.length >= 3 && normEmail(r.email).includes(mail));
     const found = rows.filter(hit);
     const counts = Object.fromEntries(Object.entries(FILTERS).map(([k, f]) => [k, found.filter(f).length]));
     const guests = found.filter(FILTERS[filter]).sort((a, b) => a.name.localeCompare(b.name, 'es')).slice(0, 300).map((r) => ({
-      id: r.id, name: r.name, dni: r.dni, email: r.email, walkIn: !!r.walk_in, registered: !!r.registered, checkedInAt: r.checked_in_at, prizeWonAt: r.prize_won_at,
+      id: r.id, name: r.name, email: r.email, walkIn: !!r.walk_in, registered: !!r.registered, checkedInAt: r.checked_in_at, prizeWonAt: r.prize_won_at,
       prizeDeliveredAt: r.prize_delivered_at, dietary: r.dietary, attempts: r.attempts, pendingVerification: pending.has(r.id),
       // Staff read the PIN straight off the card at the door (admin cookie only; public endpoints never carry it).
       pin: r.pin ?? null, ticketToken: r.ticket_token ?? null,
@@ -189,36 +188,35 @@ export function registerAdmin(app: FastifyInstance, db: DatabaseSync, state: Sta
     return { guests, counts, summary };
   });
 
-  // Shared by CSV and XLSX. Re-import updates dni/email but never blanks them and never deletes guests.
-  const importGuests = (rows: { name: string; dni: string; email: string }[], role: string) => {
+  // Shared by CSV and XLSX. Re-import updates email but never blanks them and never deletes guests.
+  const importGuests = (rows: { name: string; email: string }[], role: string) => {
     const exists = db.prepare('SELECT 1 FROM guest WHERE name = ?');
-    const ins = db.prepare(`INSERT INTO guest(name, dni, email) VALUES (?,?,?) ON CONFLICT(name) DO UPDATE SET
-      dni = COALESCE(NULLIF(excluded.dni, ''), dni), email = COALESCE(NULLIF(excluded.email, ''), email)`);
+    const ins = db.prepare(`INSERT INTO guest(name, email) VALUES (?,?) ON CONFLICT(name) DO UPDATE SET
+      email = COALESCE(NULLIF(excluded.email, ''), email)`);
     let added = 0;
     state.tx(() => {
-      for (const r of rows) { if (!exists.get(r.name)) added++; ins.run(r.name, r.dni, r.email); }
+      for (const r of rows) { if (!exists.get(r.name)) added++; ins.run(r.name, r.email); }
       audit(role, 'import', { rows: rows.length, added });
     });
     return { added, total: (db.prepare('SELECT COUNT(*) AS n FROM guest').get() as { n: number }).n };
   };
 
-  // Body: text/csv (name,dni,email) or a raw .xlsx (columns A=name, B=dni, C=email). Optional header row, empty rows skipped.
+  // Body: text/csv (name,email) or a raw .xlsx (A=name, B=email). Legacy name,dni,email files work too: guestRow takes the first other cell with an "@". Optional header row, empty rows skipped.
   app.post('/api/admin/guests/import', { ...staff, bodyLimit: MAX_XLSX }, async (req, reply) => {
-    let rows: { name: string; dni: string; email: string }[];
+    let rows: { name: string; email: string }[];
     if (Buffer.isBuffer(req.body)) {
       let sheet: string[][];
       try { sheet = readXlsx(req.body); } catch { return reply.code(400).send({ error: 'file_invalid' }); }
       if (/^(nombre|name)\b/i.test(sheet[0]?.[0] ?? '')) sheet.shift();
-      rows = sheet.map((r) => ({ name: (r[0] ?? '').replace(/\s+/g, ' '), dni: dniDigits(r[1]), email: normEmail(r[2]) })).filter((r) => r.name);
+      rows = sheet.map(guestRow).filter((r) => r.name);
       if (!rows.length) return reply.code(400).send({ error: 'file_empty' });
     } else {
       if (typeof req.body !== 'string') return reply.code(415).send({ error: 'csv_required' });
-      // CSV: '#' lines are comments; optional header. Name may be quoted; dni/email never contain commas.
+      // CSV: '#' lines are comments; optional header. Name may be quoted; the other cells never contain commas.
       const lines = req.body.replace(/^\uFEFF/, '').split(/\r?\n/).filter((l) => l.trim() && !l.trim().startsWith('#'));
       rows = lines.slice(/^"?(name|nombre)\b/i.test(lines[0]?.trim() ?? '') ? 1 : 0).map((line) => {
         const m = line.match(/^\s*"((?:[^"]|"")*)"\s*(?:,(.*))?$/);
-        const [name, ...rest] = m ? [m[1].replace(/""/g, '"'), ...(m[2] ?? '').split(',')] : line.split(',');
-        return { name: name.trim(), dni: dniDigits(rest[0]), email: normEmail(rest[1]) };
+        return guestRow(m ? [m[1].replace(/""/g, '"'), ...(m[2] ?? '').split(',')] : line.split(','));
       }).filter((r) => r.name);
     }
     return importGuests(rows, roleIn(req));
@@ -226,7 +224,7 @@ export function registerAdmin(app: FastifyInstance, db: DatabaseSync, state: Sta
 
   app.get('/api/admin/guests/example.xlsx', staff, async (_req, reply) =>
     reply.header('content-type', XLSX_MIME).header('content-disposition', 'attachment; filename="invitados-ejemplo.xlsx"').send(exampleXlsx([
-      ['Nombre y apellido', 'DNI', 'Email'], ['Ejemplo Uno', '30111222', 'ejemplo1@example.com'], ['Ejemplo Dos', '30333444', 'ejemplo2@example.com']])));
+      ['Nombre y apellido', 'Email'], ['Ejemplo Uno', 'ejemplo1@example.com'], ['Ejemplo Dos', 'ejemplo2@example.com']])));
 
   app.get('/api/admin/guests/:id', staff, async (req, reply) => {
     const g = db.prepare(
@@ -246,28 +244,40 @@ export function registerAdmin(app: FastifyInstance, db: DatabaseSync, state: Sta
     schema: { querystring: { type: 'object', properties: { status: { type: 'string', enum: ['pending', 'approved', 'rejected'] } } } },
   }, async (req) => {
     const rows = db.prepare('SELECT * FROM verification_request WHERE status = ? ORDER BY created_at').all(String((req.query as any).status ?? 'pending')) as any[];
-    const cand = db.prepare('SELECT g.id, g.name, g.dni, g.email, r.guest_id IS NOT NULL AS registered FROM guest g LEFT JOIN registration r ON r.guest_id = g.id WHERE g.id = ?');
+    const cand = db.prepare('SELECT g.id, g.name, g.email, r.guest_id IS NOT NULL AS registered FROM guest g LEFT JOIN registration r ON r.guest_id = g.id WHERE g.id = ?');
     return rows.map((v) => ({
-      id: v.id, name: v.name, dni: v.dni, email: v.email, dietary: v.dietary, createdAt: v.created_at, status: v.status,
+      id: v.id, name: v.name, email: v.email, dietary: v.dietary, createdAt: v.created_at, status: v.status,
       resolvedGuestId: v.resolved_guest_id, resolvedAt: v.resolved_at,
       candidates: (JSON.parse(v.candidates) as number[]).map((id) => cand.get(id) as any).filter(Boolean)
-        .map((g) => ({ id: g.id, name: g.name, dni: g.dni, email: g.email, registered: !!g.registered })),
+        .map((g) => ({ id: g.id, name: g.name, email: g.email, registered: !!g.registered })),
     }));
   });
 
   const pinOf = (guestId: number) => (db.prepare('SELECT pin FROM registration WHERE guest_id = ?').get(guestId) as { pin: string }).pin;
-  const verification = (id: unknown) => db.prepare('SELECT status, resolved_guest_id, dietary FROM verification_request WHERE id = ?').get(id as number) as
-    { status: string; resolved_guest_id: number | null; dietary: string | null } | undefined;
+  const verification = (id: unknown) => db.prepare('SELECT name, email, status, resolved_guest_id, dietary FROM verification_request WHERE id = ?').get(id as number) as
+    { name: string; email: string; status: string; resolved_guest_id: number | null; dietary: string | null } | undefined;
 
+  // Body: { guestId } picks a roster guest; { add: true } creates the guest from the request's name and email (no roster match), then approves.
   app.post('/api/admin/verifications/:id/approve', {
     ...staff,
-    schema: { body: { type: 'object', required: ['guestId'], additionalProperties: false, properties: { guestId: { type: 'integer', minimum: 1 } } } },
+    schema: { body: { type: 'object', additionalProperties: false, properties: { guestId: { type: 'integer', minimum: 1 }, add: { type: 'boolean' } } } },
   }, async (req, reply) => {
     const id = Number((req.params as any).id);
-    const { guestId } = req.body as { guestId: number };
+    const { guestId: picked, add } = req.body as { guestId?: number; add?: boolean };
+    if (!picked && !add) return reply.code(400).send({ error: 'invalid_input' });
     return state.tx(() => {
       const v = verification(id);
       if (!v) return reply.code(404).send({ error: 'not_found' });
+      let guestId = picked as number;
+      if (add) {
+        if (v.status === 'approved' && v.resolved_guest_id) guestId = v.resolved_guest_id; // replay: same guest, same ticket
+        else if (v.status !== 'pending') return reply.code(409).send({ error: 'already_resolved' });
+        else {
+          const g = db.prepare('SELECT id FROM guest WHERE name = ?').get(v.name) as { id: number } | undefined; // exact name already on the list: reuse it
+          guestId = g?.id ?? Number(db.prepare('INSERT INTO guest(name, email, walk_in) VALUES (?,?,1)').run(v.name, v.email).lastInsertRowid);
+          if (!g) audit(roleIn(req), 'guest_add', { guestId, added: v.name, from: 'verification' });
+        }
+      }
       // Approving twice with the same guest is a no-op that hands back the same ticket.
       if (v.status !== 'pending' && !(v.status === 'approved' && v.resolved_guest_id === guestId)) return reply.code(409).send({ error: 'already_resolved' });
       if (!db.prepare('SELECT 1 FROM guest WHERE id = ?').get(guestId)) return reply.code(404).send({ error: 'not_found' });
@@ -317,14 +327,14 @@ export function registerAdmin(app: FastifyInstance, db: DatabaseSync, state: Sta
   app.post('/api/admin/guests', {
     ...staff,
     schema: { body: { type: 'object', required: ['name'], additionalProperties: false, properties: {
-      name: { type: 'string', minLength: 3, maxLength: 120 }, dni: { type: 'string', maxLength: 20 }, email: { type: 'string', maxLength: 120 } } } },
+      name: { type: 'string', minLength: 3, maxLength: 120 }, email: { type: 'string', maxLength: 120 } } } },
   }, async (req, reply) => {
-    const { name: raw, dni, email } = req.body as { name: string; dni?: string; email?: string };
+    const { name: raw, email } = req.body as { name: string; email?: string };
     const name = raw.replace(/\s+/g, ' ').trim();
     if (nameTokens(name).length < 1) return reply.code(400).send({ error: 'invalid_input' });
     return state.tx(() => {
       if (db.prepare('SELECT 1 FROM guest WHERE name = ?').get(name)) return reply.code(409).send({ error: 'guest_exists' });
-      const id = Number(db.prepare('INSERT INTO guest(name, dni, email, walk_in) VALUES (?,?,?,1)').run(name, dniDigits(dni), normEmail(email)).lastInsertRowid);
+      const id = Number(db.prepare('INSERT INTO guest(name, email, walk_in) VALUES (?,?,1)').run(name, normEmail(email)).lastInsertRowid);
       return walkIn(id, roleIn(req), { added: name });
     });
   });

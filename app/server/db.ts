@@ -2,6 +2,7 @@ import { DatabaseSync } from 'node:sqlite';
 import { mkdirSync, readFileSync } from 'node:fs';
 import { dirname } from 'node:path';
 import { GAMES } from '../src/shared/games.js';
+import { guestRow } from '../src/shared/identity.js';
 
 function addColumn(db: DatabaseSync, table: string, col: string, ddl: string) {
   const cols = db.prepare(`PRAGMA table_info(${table})`).all() as { name: string }[];
@@ -28,7 +29,7 @@ export function openDb(file: string, csvPath: string) {
       finished_at INTEGER, score INTEGER, duration_ms INTEGER);
     CREATE TABLE IF NOT EXISTS verification_request(
       id INTEGER PRIMARY KEY,
-      name TEXT NOT NULL, dni TEXT NOT NULL, email TEXT NOT NULL,
+      name TEXT NOT NULL, dni TEXT NOT NULL DEFAULT '', email TEXT NOT NULL, -- dni: legacy, no longer read or written
       candidates TEXT NOT NULL, -- JSON array of guest ids whose name matched
       created_at INTEGER NOT NULL);
   `);
@@ -77,15 +78,18 @@ export function openDb(file: string, csvPath: string) {
     if (p.finishFloor === 40) setParams.run(JSON.stringify({ ...p, finishFloor: 20 }), 'memo');
   }
   const seedSetting =db.prepare('INSERT OR IGNORE INTO setting(key, value) VALUES (?,?)');
-  const defaults: Record<string, unknown> = { paused: false, transition: false, transitionText: '', prizeStock: 0, raffleShowSeconds: 15, raffleHidden: 0, registrationValidation: 'name_dni_email' };
+  const defaults: Record<string, unknown> = { paused: false, transition: false, transitionText: '', prizeStock: 0, raffleShowSeconds: 15, raffleHidden: 0, registrationValidation: 'name_email' };
   for (const [k, v] of Object.entries(defaults)) seedSetting.run(k, JSON.stringify(v));
+  // One-time: the DNI check is gone, so a stored 'name_dni_email' becomes 'name_email'; later edits stay.
+  if (db.prepare("INSERT OR IGNORE INTO setting(key, value) VALUES ('identity_v1', 'true')").run().changes)
+    db.prepare("UPDATE setting SET value = ? WHERE key = 'registrationValidation' AND value = ?").run('"name_email"', '"name_dni_email"');
   const { n } = db.prepare('SELECT COUNT(*) AS n FROM guest').get() as { n: number };
   if (n === 0 || migrate) {
-    // CSV: name,dni,email (names have no commas); '#' lines are comments, the first other line is the header.
+    // CSV: name,email (a legacy name,dni,email file also works; names have no commas); '#' lines are comments, the first other line is the header.
     const rows = readFileSync(csvPath, 'utf8').split(/\r?\n/).map((l) => l.trim()).filter((l) => l && !l.startsWith('#')).slice(1).map((l) => l.split(',').map((c) => c.trim()));
-    const ins = db.prepare('INSERT INTO guest(name, dni, email) VALUES (?,?,?) ON CONFLICT(name) DO UPDATE SET dni = excluded.dni, email = excluded.email');
+    const ins = db.prepare('INSERT INTO guest(name, email) VALUES (?,?) ON CONFLICT(name) DO UPDATE SET email = excluded.email');
     db.exec('BEGIN');
-    for (const [name, dni = '', email = ''] of rows) ins.run(name, dni, email);
+    for (const r of rows) { const { name, email } = guestRow(r); if (name) ins.run(name, email); }
     db.exec('COMMIT');
   }
   return db;

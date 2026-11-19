@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { nameTokens, matchesName, formatDni, dniDigits, validDni, validEmail, verify } from '../src/shared/identity.js';
+import { nameTokens, matchesName, validEmail, verify, guestRow } from '../src/shared/identity.js';
 
 const N = 'Ana Lucía Fernández Gómez';
 
@@ -25,30 +25,27 @@ test('name matching: too few tokens, unknown tokens, repeated token', () => {
 });
 
 test('namesakes: every matching row is a candidate', () => {
-  const rows = [{ id: 1, name: 'Ana Gómez', dni: '1111111', email: 'a@x.com' }, { id: 2, name: 'Ana María Gómez', dni: '2222222', email: 'b@x.com' }, { id: 3, name: 'Ana Pérez', dni: '3333333', email: 'c@x.com' }];
+  const rows = [{ id: 1, name: 'Ana Gómez', email: 'a@x.com' }, { id: 2, name: 'Ana María Gómez', email: 'b@x.com' }, { id: 3, name: 'Ana Pérez', email: 'c@x.com' }];
   const hits = rows.filter((g) => matchesName(g.name, 'ana gomez'));
   assert.deepEqual(hits.map((g) => g.id), [1, 2]);
-  assert.equal(verify(hits, { dni: '2.222.222', email: ' B@X.com ' }).guest.id, 2);
-  assert.deepEqual(verify(hits, { dni: '9.999.999', email: 'b@x.com' }), { pending: [1, 2] });
-  assert.deepEqual(verify(hits, { dni: '1.111.111', email: 'b@x.com' }), { pending: [1, 2] }); // DNI and email must belong to the same row
+  assert.equal(verify(hits, { email: ' B@X.com ' }).guest.id, 2);
+  assert.deepEqual(verify(hits, { email: 'zzz@x.com' }), { pending: [1, 2] }); // wrong email: staff decide
+  assert.deepEqual(verify(hits, { email: '' }), { pending: [1, 2] }); // an empty email never matches
 });
 
 test('validation modes', () => {
-  const a = { id: 1, dni: '1', email: 'a' }, b = { id: 2, dni: '2', email: 'b' };
-  assert.equal(verify([a], { dni: 'x', email: 'x' }, 'name_only').guest, a);
-  assert.deepEqual(verify([a, b], { dni: '1', email: 'a' }, 'name_only'), { pending: [1, 2] });
-  assert.deepEqual(verify([], { dni: '1', email: 'a' }), { pending: [] });
+  const a = { id: 1, email: 'a' }, b = { id: 2, email: 'b' };
+  assert.equal(verify([a], { email: 'x' }, 'name_only').guest, a);
+  assert.deepEqual(verify([a, b], { email: 'a' }, 'name_only'), { pending: [1, 2] });
+  assert.deepEqual(verify([], { email: 'a' }), { pending: [] }); // unknown name: pending with no candidates
 });
 
-test('DNI formatting and validation', () => {
-  assert.equal(formatDni('12345678'), '12.345.678');
-  assert.equal(formatDni('1234567'), '1.234.567');
-  assert.equal(formatDni('123'), '123');
-  assert.equal(formatDni('1234'), '1.234');
-  assert.equal(formatDni('12.345.6789012'), '12.345.678'); // max 8 digits
-  assert.equal(formatDni('a1b2'), '12');
-  assert.equal(dniDigits('12.345.678'), '12345678');
-  assert.ok(validDni('1.234.567') && validDni('12.345.678'));
-  assert.ok(!validDni('123456') && !validDni(''));
+test('email validation and roster rows', () => {
   assert.ok(validEmail('a@b.co') && !validEmail('a@b') && !validEmail('a b@c.com'));
+});
+
+test('guestRow: name in A, email is the first other cell with an @ (2 or legacy 3 columns)', () => {
+  assert.deepEqual(guestRow([' Ana   Gómez ', 'ANA@x.com']), { name: 'Ana Gómez', email: 'ana@x.com' });
+  assert.deepEqual(guestRow(['Ana Gómez', '20123456', 'a@x.com']), { name: 'Ana Gómez', email: 'a@x.com' });
+  assert.deepEqual(guestRow(['Ana Gómez']), { name: 'Ana Gómez', email: '' });
 });

@@ -37,7 +37,8 @@ body.tk { min-height: 100svh; background: radial-gradient(120% 80% at 50% 0, #FB
 .when { margin: 18px 0 0; padding-top: 16px; border-top: 1px solid rgba(201, 164, 92, .6); font-size: .74rem; line-height: 1.7; color: var(--ink); }
 .help { margin: 12px 0 0; font-size: .78rem; line-height: 1.5; color: var(--ink-soft); }
 .sheen { position: absolute; z-index: 4; inset: 0; pointer-events: none; opacity: 0; background: linear-gradient(105deg, transparent 38%, rgba(232, 200, 120, .55) 50%, transparent 62%); }
-.dl { margin-top: 22px; }
+.dl { width: 100%; min-height: 64px; margin-top: 22px; font-size: .95rem; letter-spacing: .08em; }
+.cal { display: grid; gap: 10px; width: 100%; margin: 14px 0 0; }
 
 .nf { max-width: 360px; padding: 32px 24px; border-radius: 12px; background: #FBF7EF; box-shadow: 0 0 0 1px rgba(201, 164, 92, .8); }
 .nf h1 { margin: 0 0 8px; font: 500 1.8rem/1.1 var(--display); color: var(--red-deep); }

@@ -45,7 +45,7 @@ test('memoScore: finish formula, floor and time-out', () => {
 
 const post = (app, url, payload) => app.inject({ method: 'POST', url, payload });
 async function memoAttempt(app) {
-  const g = app.db.prepare('SELECT name, dni, email FROM guest WHERE id = 1').get();
+  const g = app.db.prepare('SELECT name, email FROM guest WHERE id = 1').get();
   const { ticketToken } = (await post(app, '/api/register', g)).json();
   const { pin } = (await app.inject('/api/ticket/' + ticketToken)).json();
   const { session } = (await post(app, '/api/login', { pin, screenId: 'screen-memo-xxxx' })).json();

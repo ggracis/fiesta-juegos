@@ -1,7 +1,7 @@
-// Name/DNI/email matching, shared by the Fastify server and the static demo core. Pure, no DOM, no storage.
+// Name/email matching, shared by the Fastify server and the static demo core. Pure, no DOM, no storage.
 // ponytail: this becomes a per-event setting in the upcoming Supabase admin panel.
-// 'name_dni_email': name + DNI + email must match one roster row. 'name_only': a unique name match registers directly.
-export const VALIDATION_MODE = 'name_dni_email';
+// 'name_email': a name match plus an equal normalized email registers. 'name_only': a unique name match registers directly.
+export const VALIDATION_MODE = 'name_email';
 
 // Lowercase, no accents, no punctuation, single spaces -> tokens.
 export const nameTokens = (s) =>
@@ -13,17 +13,19 @@ export function matchesName(rosterName, typed) {
   return want.size >= 2 && [...want].every((t) => have.has(t));
 }
 
-export const dniDigits = (s) => String(s ?? '').replace(/\D/g, '');
-export const formatDni = (s) => dniDigits(s).slice(0, 8).replace(/\B(?=(\d{3})+(?!\d))/g, '.'); // 12.345.678 / 1.234.567
-export const validDni = (s) => /^\d{7,8}$/.test(dniDigits(s));
 export const normEmail = (s) => String(s ?? '').trim().toLowerCase();
 export const validEmail = (s) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(normEmail(s));
+// One roster row from raw cells: column A is the name, the email is the first other cell with an "@" (also reads legacy name,dni,email files).
+export const guestRow = (cells) => ({
+  name: String(cells[0] ?? '').replace(/\s+/g, ' ').trim(),
+  email: normEmail(cells.slice(1).find((c) => String(c ?? '').includes('@'))),
+});
 export const cleanDietary = (s) => String(s ?? '').replace(/\s+/g, ' ').trim().slice(0, 200).trimEnd() || null; // free text: collapsed, capped, '' -> null
 
 // rows: roster guests whose name matched. Returns { guest } to register, or { pending: candidate ids } for staff verification.
-export function verify(rows, { dni, email }, mode = VALIDATION_MODE) {
+export function verify(rows, { email }, mode = VALIDATION_MODE) {
   const guest = mode === 'name_only'
     ? (rows.length === 1 ? rows[0] : undefined)
-    : rows.find((g) => dniDigits(g.dni) === dniDigits(dni) && normEmail(g.email) === normEmail(email));
+    : rows.find((g) => normEmail(email) && normEmail(g.email) === normEmail(email));
   return guest ? { guest } : { pending: rows.map((g) => g.id) };
 }

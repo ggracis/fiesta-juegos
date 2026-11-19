@@ -17,8 +17,8 @@ export async function lookup(name) {
 }
 
 // Pending verification requests only live in this browser's localStorage.
-export async function register(name, dni, email, dietary) {
-  const r = registerRoster(roster, { name, dni, email, dietary }, VALIDATION_MODE);
+export async function register(name, email, dietary) {
+  const r = registerRoster(roster, { name, email, dietary }, VALIDATION_MODE);
   if (r.request) write('fiesta.demo.pending', [...read('fiesta.demo.pending', []), r.request]);
   else if (r.dietary) write('fiesta.demo.dietary', { ...read('fiesta.demo.dietary', {}), [r.ticketToken]: r.dietary }); // by ticket; empty never erases
   return { status: r.status, ticketToken: r.ticketToken };
