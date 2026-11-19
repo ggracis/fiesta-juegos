@@ -1,5 +1,5 @@
 // Single source for the "add to calendar" links (Google + .ics) on the invitation and the ticket.
-// The program below and the "Programa" list in src/index.html must be updated together; the final program is still pending from the client.
+// The program below and the "Agenda" list in src/index.html must be updated together; final agenda confirmed by the client on 2026-11-19.
 export const EVENT = {
   title: 'Gala Digital Power 2026 · Huawei',
   start: '20261130T213000Z', // 18:30 Buenos Aires (UTC-3)
@@ -13,11 +13,13 @@ export const EVENT = {
   dress: 'A confirmar', // same text as DRESS CODE in src/index.html
 };
 export const PROGRAM = [
-  ['18:30', 'Recepción y experiencias'],
-  ['20:00', 'Últimas tecnologías Digital Power'],
-  ['20:15', 'Menciones y reconocimientos'],
-  ['20:30', 'Sorteo y premios'],
-  ['20:45', 'Cena y networking'],
+  ['18:30', 'Recepción, jazz en vivo y experiencias'],
+  ['20:00', 'Apertura y bienvenida'],
+  ['20:10', 'Últimas tecnologías de Huawei Digital Power'],
+  ['20:20', 'Casos de éxito y reconocimientos'],
+  ['20:40', 'Sorteo y premios'],
+  ['21:00', 'Cena y networking'],
+  ['22:30', 'Brindis de cierre'],
 ];
 
 // Invitation page URL, honouring the Pages sub-path.
@@ -34,7 +36,7 @@ export function eventDetails(ticket) {
     EVENT.intro, '',
     ...(ticket ? ['🎟️ TU ENTRADA', `PIN para los juegos: ${ticket.pin}`, 'Presenta tu QR en la acreditación.', `Ver mi entrada (QR y PIN): ${ticket.url}`, ''] : []),
     `🕡 ${EVENT.when}`, `📍 ${EVENT.venue}`, `Cómo llegar: ${mapsUrl()}`, '',
-    'PROGRAMA', ...PROGRAM.map(([t, l]) => `${t} · ${l}`), '',
+    'AGENDA', ...PROGRAM.map(([t, l]) => `${t} · ${l}`), '',
     `Dress code: ${EVENT.dress}`,
     ...(ticket ? [] : [`Confirma tu asistencia y obtén tu entrada: ${inv}`]),
     `Invitación: ${inv}`,
@@ -44,7 +46,7 @@ export function eventDetails(ticket) {
     `<i>${esc(EVENT.intro)}</i>`,
     ...(ticket ? [`<br><b>🎟️ TU ENTRADA</b><br>PIN para los juegos: <b>${esc(ticket.pin)}</b><br>Presenta tu QR en la acreditación.<br>${a(ticket.url, 'Ver mi entrada (QR y PIN)')}`] : []),
     `<br>🕡 <b>${esc(EVENT.when)}</b><br>📍 ${esc(EVENT.venue)} · ${a(mapsUrl(), 'Cómo llegar')}`,
-    `<br><b>PROGRAMA</b><ul>${PROGRAM.map(([t, l]) => `<li><b>${t}</b> · ${esc(l)}</li>`).join('')}</ul>`,
+    `<br><b>AGENDA</b><ul>${PROGRAM.map(([t, l]) => `<li><b>${t}</b> · ${esc(l)}</li>`).join('')}</ul>`,
     `<b>Dress code:</b> ${esc(EVENT.dress)}`,
     `<br>${ticket ? a(inv, 'Ver la invitación') : a(inv, 'Confirma tu asistencia y obtén tu entrada')}`,
   ].join('<br>');

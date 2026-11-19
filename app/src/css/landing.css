@@ -139,3 +139,6 @@
   .js .waves path { stroke-dashoffset: 0; }
   .petals { display: none; }
 }
+/* The venue address always opens Google Maps: the link keeps the block's own layout and colours. */
+a.maps { color: inherit; text-decoration: none; }
+.info a.maps { display: flex; flex-direction: column; align-items: center; gap: 1px; }

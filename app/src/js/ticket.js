@@ -9,6 +9,7 @@ import logoUrl from '../assets/brand/huawei-v.png'; // the ticket paper is cream
 demoBadge();
 
 const token = new URLSearchParams(location.search).get('t') || '';
+const staff = new URLSearchParams(location.search).has('staff'); // opened from the admin panel
 const openedKey = 'fiesta.opened.' + token, autoKey = 'fiesta.autodl.' + token;
 const get = (k) => { try { return localStorage.getItem(k); } catch { return null; } };
 const set = (k, v) => { try { localStorage.setItem(k, v); } catch {} };
@@ -104,7 +105,7 @@ let download = () => {};
 function finish(first) {
   set(openedKey, '1');
   $('#dl').hidden = false; $('#cal').hidden = false;
-  if (first && !get(autoKey)) { set(autoKey, '1'); download(); }
+  if (first && !staff && !get(autoKey)) { set(autoKey, '1'); download(); }
 }
 
 try {
@@ -114,7 +115,8 @@ try {
   $('#name').textContent = cleanName(d.name);
   $('#qr').innerHTML = qr;
   $('#pin').innerHTML = [...d.pin].map((c) => `<span>${c}</span>`).join('');
-  set('fiesta.ticket', `ticket.html?t=${encodeURIComponent(token)}`);
+  // Remembered on this device: the invitation then opens straight on this ticket. Staff opening a guest's ticket (?staff) is not remembered.
+  if (!staff) set('fiesta.ticket', `ticket.html?t=${encodeURIComponent(token)}`);
   const digits = [...document.querySelectorAll('#pin span')];
 
   $('#reveal').hidden = false;
@@ -133,6 +135,8 @@ try {
     $('#env').addEventListener('click', () => openEnvelope(digits), { once: true });
   }
 } catch {
+  // A remembered ticket that no longer exists would bounce the invitation back here forever: forget it.
+  if (get('fiesta.ticket')?.includes(`t=${encodeURIComponent(token)}`)) { try { localStorage.removeItem('fiesta.ticket'); } catch {} }
   $('#reveal').hidden = true;
   $('#nf').hidden = false;
 }

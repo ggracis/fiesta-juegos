@@ -173,7 +173,7 @@ function renderLive() {
 // ---- Puerta
 const time = (ms) => new Date(ms).toLocaleTimeString('es', { hour: '2-digit', minute: '2-digit' });
 let gTimer;
-const ticketUrl = (token) => new URL('ticket.html?t=' + encodeURIComponent(token), location.href).href;
+const ticketUrl = (token) => new URL('ticket.html?staff&t=' + encodeURIComponent(token), location.href).href; // ?staff: not remembered on this device
 const ticketLink = (token) => h('a', { className: 'b primary', href: ticketUrl(token), target: '_blank', rel: 'noopener' }, 'Abrir ticket (QR y PIN)');
 
 // PIN in plain sight: staff read it to the guest at the door.
