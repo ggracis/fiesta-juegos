@@ -19,6 +19,7 @@ const ERRORS = {
   not_registered: 'Ese invitado todavía no confirmó su asistencia.', no_candidates: 'No quedan invitados acreditados para sortear.',
   unknown_game: 'Juego desconocido.', not_found: 'No encontrado.', csv_required: 'Selecciona un archivo .xlsx o .csv.',
   file_invalid: 'No pudimos leer el archivo. Sube un Excel (.xlsx) o un CSV válido; puedes bajar el ejemplo.', file_empty: 'No encontramos invitados en el archivo. Revisa que el nombre esté en la columna A.',
+  too_soon: 'Ya se envió hace instantes. Espera un minuto.', no_email: 'Ese invitado no tiene email.', send_failed: 'No se pudo enviar el correo.',
   guest_exists: 'Ya existe un invitado con ese nombre: búscalo en la lista.',
   already_voided: 'Ese sorteo ya estaba anulado.', already_resolved: 'Esa verificación ya fue resuelta.', http: 'Error del servidor.', already_checked_in: 'Ya estaba acreditado.', demo_unavailable: 'No disponible en el modo demo.',
 };
@@ -304,6 +305,11 @@ async function loadVerifs() {
   $('verifs-empty').hidden = box.children.length > 0;
   $('verif-card').hidden = !box.children.length; // the door screen stays short when there is nothing to verify
 }
+function resendButton(g) {
+  const b = h('button', { className: 'b', type: 'button' }, 'Reenviar entrada por mail');
+  b.onclick = async () => { b.disabled = true; if (await run(() => api.adminResendEmail(g.id))) toast('Entrada reenviada a ' + g.email); b.disabled = false; };
+  return b;
+}
 async function showDetail(id) {
   const g = await run(() => api.adminGuest(id));
   if (!g) return;
@@ -312,6 +318,7 @@ async function showDetail(id) {
     h('p', { className: 'muted' }, g.checkedInAt ? 'Acreditado a las ' + time(g.checkedInAt) : 'Sin acreditar'),
     g.dietary && h('p', { className: 'diet' }, 'Restricción alimentaria: ' + g.dietary),
     g.pin && pinBox(g.pin),
+    !!g.registered && !!g.email && resendButton(g),
     g.attempts.length
       ? h('table', {}, h('thead', {}, h('tr', {}, ...['Juego', 'Puntaje', 'Tiempo'].map((t) => h('th', {}, t)))),
         h('tbody', {}, ...g.attempts.map((a) => h('tr', {}, h('td', {}, a.game),

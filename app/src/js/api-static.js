@@ -122,6 +122,7 @@ export const adminGuest = unavailable;
 export const adminCheckinGuest = unavailable;
 export const adminVerifications = unavailable;
 export const adminWalkIn = unavailable;
+export const adminResendEmail = unavailable;
 export const adminAddGuest = unavailable;
 export const adminApproveVerification = unavailable;
 export const adminRejectVerification = unavailable;

@@ -65,6 +65,7 @@ export const adminImportGuests = async (file) => call('api/admin/guests/import',
 export const adminGuest = (id) => call('api/admin/guests/' + e(id));
 export const adminCheckinGuest = (id) => call('api/admin/guests/' + e(id) + '/checkin', undefined, 'POST');
 export const adminWalkIn = (id) => call('api/admin/guests/' + e(id) + '/walkin', undefined, 'POST');
+export const adminResendEmail = (id) => call('api/admin/guests/' + e(id) + '/resend-email', undefined, 'POST');
 export const adminAddGuest = (guest) => call('api/admin/guests', guest);
 export const adminVerifications = () => call('api/admin/verifications?status=pending');
 export const adminApproveVerification = (id, guestId) => call('api/admin/verifications/' + e(id) + '/approve', guestId ? { guestId } : { add: true }); // no guestId: create the guest from the request

@@ -8,6 +8,8 @@ import { makeState } from './state.ts';
 import { registerAdmin } from './admin.ts';
 import { makeResults } from './results.ts';
 import { registerPanel } from './panel.ts';
+import QRCode from 'qrcode';
+import { mailGuest, checkinUrl } from './mail.ts';
 import { createRegistration, newToken, PIXEL_DIR, MEDIA_DIR } from './lib.ts';
 import { matchesName, verify, validEmail, normEmail, cleanDietary } from '../src/shared/identity.js';
 import { buildRounds, publicRounds, mulberry32, ROUND_GAMES, ROUND_POINTS } from '../src/shared/rounds.js';
@@ -97,7 +99,9 @@ export function buildApp(dbPath = DB_PATH, csvPath = CSV_PATH, opts: { adminPass
       if (dietary) db.prepare('UPDATE registration SET dietary = ? WHERE guest_id = ?').run(dietary, r.guest.id); // empty never erases
       return { status: 'registered', ticketToken: done.ticket_token };
     }
-    return { status: 'registered', ticketToken: createRegistration(db, r.guest.id, dietary) };
+    const ticketToken = createRegistration(db, r.guest.id, dietary);
+    void mailGuest(db, r.guest.id); // fire-and-forget; only new registrations, never the lost-ticket path above
+    return { status: 'registered', ticketToken };
   });
 
   app.get('/api/ticket/:token', async (req, reply) => {
@@ -106,6 +110,14 @@ export function buildApp(dbPath = DB_PATH, csvPath = CSV_PATH, opts: { adminPass
     ).get((req.params as any).token) as { name: string; pin: string; checkin_token: string } | undefined;
     if (!row) return reply.code(404).send({ error: 'not_found' });
     return { name: row.name, pin: row.pin, checkinToken: row.checkin_token };
+  });
+
+  // QR of the check-in URL, as an image for the ticket email (same colours and URL as the ticket page).
+  app.get('/api/ticket/:token/qr.png', async (req, reply) => {
+    const row = db.prepare('SELECT checkin_token FROM registration WHERE ticket_token = ?').get((req.params as any).token) as { checkin_token: string } | undefined;
+    if (!row) return reply.code(404).send({ error: 'not_found' });
+    const png = await QRCode.toBuffer(checkinUrl(row.checkin_token), { width: 440, margin: 1, color: { dark: '#2E2A28', light: '#F7F1E8' } });
+    return reply.header('cache-control', 'public, max-age=31536000, immutable').type('image/png').send(png);
   });
 
   app.post('/api/login', {

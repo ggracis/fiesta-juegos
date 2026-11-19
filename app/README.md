@@ -47,6 +47,10 @@ Registration validates identity: the guest types their full name (normalized; th
 
 Set `ADMIN_PASSWORD` (env or `.env` via the systemd unit) to enable `/api/admin/*`; without it admin login returns 503. Staff log in on their phone with the same password and then scan ticket QRs. Every business rule (enabled games, order, prize threshold, max attempts per game, prize stock, transition text, raffle display time) is editable from the admin, with defaults in `src/shared/games.js`. Deploy: `deploy/README.md`.
 
+## Ticket email (Brevo)
+
+Tickets are emailed through Brevo's transactional API (`server/mail.ts`) on new registrations, approved verifications and door add-ins; staff can resend from Puerta. Env: `BREVO_API_KEY` (unset = no mail), `PUBLIC_URL` (e.g. `https://galadigitalpower.com.ar`, used for links, logo and the QR image), `MAIL_REDIRECT_TO` (testing: every mail goes to this address, subject prefixed `[PRUEBA → original]`). The QR is served at `GET /api/ticket/:token/qr.png`.
+
 ## GitHub Pages
 
 `npm run deploy:pages` builds the static demo and force-pushes `dist/` to the `gh-pages` branch (Pages source: branch `gh-pages`, root).

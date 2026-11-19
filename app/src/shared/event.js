@@ -24,14 +24,14 @@ export const PROGRAM = [
 
 // Invitation page URL, honouring the Pages sub-path.
 export const invitationUrl = () => new URL(import.meta.env.BASE_URL, location.origin).href;
-const mapsUrl = () => 'https://maps.google.com/?q=' + encodeURIComponent(EVENT.location); // single param: no &amp; inside the HTML href
+export const mapsUrl = () => 'https://maps.google.com/?q=' + encodeURIComponent(EVENT.location); // single param: no &amp; inside the HTML href
 
 const esc = (s) => String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
 
 // ticket: { pin, url } on the ticket page (adds the personal block), undefined on the invitation.
 // Returns { text, html }: Google Calendar renders the HTML (b, br, a, ul); .ics carries both (plain + X-ALT-DESC for Outlook).
-export function eventDetails(ticket) {
-  const inv = invitationUrl();
+// inv: invitation URL; the server (no location/import.meta.env) passes it explicitly.
+export function eventDetails(ticket, inv = invitationUrl()) {
   const text = [
     EVENT.intro, '',
     ...(ticket ? ['🎟️ TU ENTRADA', `PIN para los juegos: ${ticket.pin}`, 'Presenta tu QR en la acreditación.', `Ver mi entrada (QR y PIN): ${ticket.url}`, ''] : []),
@@ -53,10 +53,10 @@ export function eventDetails(ticket) {
   return { text, html };
 }
 
-export const googleCalUrl = (ticket) =>
+export const googleCalUrl = (ticket, inv) =>
   'https://calendar.google.com/calendar/render?action=TEMPLATE'
   + `&text=${encodeURIComponent(EVENT.title)}&dates=${EVENT.start}/${EVENT.end}&ctz=${encodeURIComponent(EVENT.tz)}`
-  + `&details=${encodeURIComponent(eventDetails(ticket).html)}&location=${encodeURIComponent(EVENT.location)}`;
+  + `&details=${encodeURIComponent(eventDetails(ticket, inv).html)}&location=${encodeURIComponent(EVENT.location)}`;
 
 // RFC 5545: escape \ ; , and newlines; fold lines at 75 octets (continuation lines start with a space).
 const icsText = (s) => String(s).replace(/\\/g, '\\\\').replace(/[;,]/g, '\\$&').replace(/\r?\n/g, '\\n');

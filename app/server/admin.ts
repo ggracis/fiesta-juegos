@@ -5,6 +5,7 @@ import { createWriteStream, existsSync, renameSync, rmSync } from 'node:fs';
 import { Transform, type Readable } from 'node:stream';
 import { pipeline } from 'node:stream/promises';
 import { join } from 'node:path';
+import { mailGuest } from './mail.ts';
 import { newToken, csvLine, PIXEL_DIR, MEDIA_DIR, createRegistration } from './lib.ts';
 import { nameTokens, normEmail, guestRow } from '../src/shared/identity.js';
 import { gameById, PARAM_INFO } from '../src/shared/games.js';
@@ -228,7 +229,7 @@ export function registerAdmin(app: FastifyInstance, db: DatabaseSync, state: Sta
 
   app.get('/api/admin/guests/:id', staff, async (req, reply) => {
     const g = db.prepare(
-      `SELECT g.id, g.name, r.guest_id IS NOT NULL AS registered, r.pin, r.checked_in_at AS checkedInAt, r.prize_won_at AS prizeWonAt, r.prize_delivered_at AS prizeDeliveredAt, r.dietary
+      `SELECT g.id, g.name, g.email, r.guest_id IS NOT NULL AS registered, r.pin, r.checked_in_at AS checkedInAt, r.prize_won_at AS prizeWonAt, r.prize_delivered_at AS prizeDeliveredAt, r.dietary
        FROM guest g LEFT JOIN registration r ON r.guest_id = g.id WHERE g.id = ?`
     ).get((req.params as any).id) as any;
     if (!g) return reply.code(404).send({ error: 'not_found' });
@@ -236,6 +237,19 @@ export function registerAdmin(app: FastifyInstance, db: DatabaseSync, state: Sta
       'SELECT game, score, duration_ms AS durationMs, started_at AS startedAt, finished_at AS finishedAt FROM attempt WHERE guest_id = ? ORDER BY started_at'
     ).all(g.id);
     return { ...g, attempts };
+  });
+
+  // Staff resend: ignores email_sent_at except for a 60 s cool-down against double taps.
+  app.post('/api/admin/guests/:id/resend-email', staff, async (req, reply) => {
+    const id = Number((req.params as any).id);
+    const r = db.prepare('SELECT g.email, r.email_sent_at FROM guest g JOIN registration r ON r.guest_id = g.id WHERE g.id = ?').get(id) as { email: string | null; email_sent_at: number | null } | undefined;
+    if (!r) return reply.code(404).send({ error: 'not_found' });
+    if (!r.email) return reply.code(400).send({ error: 'no_email' });
+    if (r.email_sent_at && Date.now() - r.email_sent_at < 60_000) return reply.code(429).send({ error: 'too_soon' });
+    const res = await mailGuest(db, id, { force: true });
+    if (!res.ok) return reply.code(502).send({ error: 'send_failed' });
+    audit(roleIn(req), 'resend_email', { guestId: id });
+    return { ok: true };
   });
 
   // Registrations the roster could not match on their own: staff confirm identity at the door and pick the guest.
@@ -265,7 +279,8 @@ export function registerAdmin(app: FastifyInstance, db: DatabaseSync, state: Sta
     const id = Number((req.params as any).id);
     const { guestId: picked, add } = req.body as { guestId?: number; add?: boolean };
     if (!picked && !add) return reply.code(400).send({ error: 'invalid_input' });
-    return state.tx(() => {
+    let send: { guestId: number; to: string } | undefined;
+    const out = state.tx(() => {
       const v = verification(id);
       if (!v) return reply.code(404).send({ error: 'not_found' });
       let guestId = picked as number;
@@ -288,9 +303,12 @@ export function registerAdmin(app: FastifyInstance, db: DatabaseSync, state: Sta
         db.prepare("UPDATE verification_request SET status = 'approved', resolved_guest_id = ?, resolved_at = ?, resolved_by = ? WHERE id = ?")
           .run(guestId, Date.now(), roleIn(req), id);
         audit(roleIn(req), 'verification_approve', { id, guestId });
+        send = { guestId, to: v.email };
       }
       return { ticketToken, pin: pinOf(guestId) };
     });
+    if (send) void mailGuest(db, send.guestId, { to: send.to }); // the request's address: unlisted guests have no roster email
+    return out;
   });
 
   app.post('/api/admin/verifications/:id/reject', staff, async (req, reply) => {
@@ -312,7 +330,7 @@ export function registerAdmin(app: FastifyInstance, db: DatabaseSync, state: Sta
     const reg = db.prepare('SELECT ticket_token FROM registration WHERE guest_id = ?').get(guestId) as { ticket_token: string } | undefined;
     const ticketToken = reg?.ticket_token ?? createRegistration(db, guestId, null);
     db.prepare('UPDATE registration SET checked_in_at = COALESCE(checked_in_at, ?) WHERE guest_id = ?').run(Date.now(), guestId);
-    if (!reg) audit(role, 'walk_in', { guestId, ...detail });
+    if (!reg) { audit(role, 'walk_in', { guestId, ...detail }); void mailGuest(db, guestId); } // no-op without an email
     return { guestId, ticketToken, pin: pinOf(guestId) };
   };
 
