@@ -115,15 +115,14 @@ async function poll() {
   finally { inflight = false; }
 }
 
-// Demo: every plate in turn with fake data; the theme flips after each round unless ?theme= pins it.
+// Demo: every plate in turn with fake data.
 const DEMO_SPEAKERS = [{ name: 'Binbing Xiao', role: 'CEO' }, { name: 'Wilfred', role: 'Director' }, { name: 'Ignacio Dapena', role: 'Director de Energía Digital' }];
 const DEMO_NAMES = ['Lucía Fernández', 'Martín Gómez', 'Sofía Herrera', 'Diego Castro', 'Valentina Ruiz', 'Joaquín Paredes', 'Camila Ortega', 'Tomás Aguirre', 'Florencia Vidal', 'Agustín Molina', 'Julieta Sosa', 'Matías Romero'];
 const DEMO_PRIZES = ['Smart TV 55"', 'Notebook', 'Auriculares inalámbricos', 'Tablet', 'Reloj inteligente'];
 const DEMO_VIDEO = 'https://www.youtube.com/watch?v=mIFULvJIFaU';
 const DEMO_STEPS = [['title', 8000], ['ambient', 32000], ['speaker', 6000, 0], ['speaker', 6000, 1], ['speaker', 6000, 2], ['raffle', 6000], ['draw', 21000], ['video', 6000], ['cue', 9000]];
 const DEMO_CYCLE = DEMO_STEPS.reduce((a, s) => a + s[1], 0);
-const demoT0 = Date.now(), pin = q.get('scene'), pinnedTheme = q.has('theme');
-let demoRound = 0;
+const demoT0 = Date.now(), pin = q.get('scene');
 function demoState(now) {
   const winner = (n, drawnAt) => ({ id: n + 1, name: DEMO_NAMES[(n * 5 + 3) % DEMO_NAMES.length], prize: DEMO_PRIZES[n % DEMO_PRIZES.length], drawnAt });
   const base = { scene: 'title', at: 0, cueAt: 0, video: DEMO_VIDEO, speaker: null, winner: null, ambient: DEFAULT_STAGE.ambient };
@@ -135,7 +134,6 @@ function demoState(now) {
     return { ...base, scene: pin, speaker: sp };
   }
   const round = Math.floor((now - demoT0) / DEMO_CYCLE);
-  if (round !== demoRound) { demoRound = round; if (!pinnedTheme) document.documentElement.classList.toggle('noche'); }
   let t = (now - demoT0) % DEMO_CYCLE, start = now - t;
   for (const [kind, ms, arg] of DEMO_STEPS) {
     if (t < ms) {
@@ -250,8 +248,7 @@ function revealWinner() {
   gsap.from(splits[0].chars, { opacity: 0, y: 90, scale: 0.6, duration: 0.7, ease: 'back.out(2)', stagger: 0.045 });
   gsap.from('#wi-prize', { opacity: 0, y: -30, duration: 0.6, delay: 0.5 });
   sweep(1400);
-  const noche = document.documentElement.classList.contains('noche');
-  const colors = noche ? ['#F8E7BC', '#D4AF6A', '#E3283A', '#FFFFFF'] : ['#C8102E', '#C9A45C', '#F2A7B0', '#9E1B22'];
+  const colors = ['#F8E7BC', '#D4AF6A', '#E3283A', '#FFFFFF'];
   const shot = (x, angle) => confetti({ particleCount: 120, angle, spread: 70, startVelocity: 70, origin: { x, y: 0.75 }, colors, scalar: 1.6, disableForReducedMotion: true });
   shot(0.3, 70); shot(0.7, 110);
   setTimeout(() => { shot(0.2, 65); shot(0.8, 115); }, 700);

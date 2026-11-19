@@ -13,7 +13,6 @@ const $$ = (s, r = document) => [...r.querySelectorAll(s)];
 const hero = $('.hero'), curtain = $('#curtain');
 const seen = document.documentElement.classList.contains('seen');
 try { sessionStorage.setItem('gala.intro', '1'); } catch {}
-try { localStorage.setItem('gala.theme', document.documentElement.classList.contains('noche') ? 'noche' : ''); } catch {} // ticket follows the invitation's theme
 const maskOk = CSS.supports('mask-image', 'radial-gradient(#000,#000)') || CSS.supports('-webkit-mask-image', 'radial-gradient(#000,#000)');
 
 // ---------- split text into letters ----------

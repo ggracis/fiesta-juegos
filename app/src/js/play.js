@@ -443,9 +443,9 @@ function applyOverlays() {
 }
 
 // Nothing to play (paused, or no game enabled): the panel shows the stage animations, 16:9 (stage.html?format=panel), following /api/live like the LED wall.
-// The iframe is made when the idle starts and removed when games return. It shares localStorage (theme, ?api=) with this page; DOM order keeps it under the raffle/transition overlays.
+// The iframe is made when the idle starts and removed when games return. It shares localStorage (?api=) with this page; DOM order keeps it under the raffle/transition overlays.
 const stageFrame = () => Object.assign(document.createElement('iframe'), { tabIndex: -1, title: 'Escenario',
-  src: new URL('stage.html?format=panel&theme=' + (document.documentElement.classList.contains('noche') ? 'noche' : 'amanecer'), location.href).href });
+  src: new URL('stage.html?format=panel', location.href).href });
 let idleFrame = null;
 function stageIdle(on) {
   if (!on) { idleFrame?.remove(); idleFrame = null; return; }
