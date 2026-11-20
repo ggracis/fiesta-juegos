@@ -6,7 +6,7 @@ import { Transform, type Readable } from 'node:stream';
 import { pipeline } from 'node:stream/promises';
 import { join } from 'node:path';
 import { mailGuest } from './mail.ts';
-import { newToken, csvLine, PIXEL_DIR, MEDIA_DIR, createRegistration } from './lib.ts';
+import { newToken, csvLine, PIXEL_DIR, MEDIA_DIR, createRegistration, canonical } from './lib.ts';
 import { nameTokens, normEmail, guestRow, validEmail } from '../src/shared/identity.js';
 import { gameById, PARAM_INFO } from '../src/shared/games.js';
 import { SCENES, CUE_LEAD_MS } from '../src/shared/stage.js';
@@ -245,21 +245,30 @@ export function registerAdmin(app: FastifyInstance, db: DatabaseSync, state: Sta
     return { ...g, attempts };
   });
 
-  // Removes the extra copy of a duplicate. Only while another guest with the same name remains, and never one that
-  // already played or was drawn in the raffle (scores and winners stay intact).
+  // Removes the extra copy of a duplicate by merging it into the guest that stays: its emailed ticket, QR and PIN keep
+  // working and point at the survivor (token_alias). Only while another guest with the same name remains, and never one
+  // that already played or was drawn in the raffle (scores and winners stay intact).
   app.delete('/api/admin/guests/:id', staff, async (req, reply) => {
     const id = Number((req.params as any).id);
     return state.tx(() => {
       const g = db.prepare('SELECT name, email FROM guest WHERE id = ?').get(id) as { name: string; email: string | null } | undefined;
       if (!g) return reply.code(404).send({ error: 'not_found' });
-      const others = (db.prepare('SELECT id, name FROM guest WHERE id <> ?').all(id) as { name: string }[]).some((o) => dupKey(o.name) === dupKey(g.name));
-      if (!others) return reply.code(409).send({ error: 'not_duplicate' });
+      const survivor = (db.prepare('SELECT g.id, g.name, r.guest_id IS NOT NULL AS reg FROM guest g LEFT JOIN registration r ON r.guest_id = g.id WHERE g.id <> ? ORDER BY reg DESC, g.id')
+        .all(id) as { id: number; name: string; reg: number }[]).find((o) => dupKey(o.name) === dupKey(g.name));
+      if (!survivor) return reply.code(409).send({ error: 'not_duplicate' });
       if (db.prepare('SELECT 1 FROM attempt WHERE guest_id = ? UNION ALL SELECT 1 FROM raffle WHERE guest_id = ?').get(id, id)) return reply.code(409).send({ error: 'guest_in_use' });
-      db.prepare("DELETE FROM session WHERE kind = 'guest' AND ref = ?").run(String(id));
-      db.prepare('DELETE FROM registration WHERE guest_id = ?').run(id);
+      const reg = db.prepare('SELECT pin, ticket_token, checkin_token, checked_in_at, dietary FROM registration WHERE guest_id = ?').get(id) as any;
+      if (reg && !survivor.reg) db.prepare('UPDATE registration SET guest_id = ? WHERE guest_id = ?').run(survivor.id, id); // survivor never confirmed: it takes this ticket as is
+      else if (reg) {
+        db.prepare('INSERT INTO token_alias(pin, ticket_token, checkin_token, guest_id) VALUES (?,?,?,?)').run(reg.pin, reg.ticket_token, reg.checkin_token, survivor.id);
+        db.prepare('UPDATE registration SET checked_in_at = COALESCE(checked_in_at, ?), dietary = COALESCE(dietary, ?) WHERE guest_id = ?').run(reg.checked_in_at, reg.dietary, survivor.id);
+        db.prepare('DELETE FROM registration WHERE guest_id = ?').run(id);
+      }
+      db.prepare('UPDATE token_alias SET guest_id = ? WHERE guest_id = ?').run(survivor.id, id); // aliases it already carried follow along
+      db.prepare("UPDATE session SET ref = ? WHERE kind = 'guest' AND ref = ?").run(String(survivor.id), String(id)); // a screen logged in with it stays logged in
       db.prepare('DELETE FROM guest WHERE id = ?').run(id);
-      audit(roleIn(req), 'guest_delete', { guestId: id, name: g.name, email: g.email });
-      return { ok: true };
+      audit(roleIn(req), 'guest_delete', { guestId: id, name: g.name, email: g.email, mergedInto: survivor.id });
+      return { ok: true, mergedInto: survivor.name };
     });
   });
 
@@ -398,7 +407,7 @@ export function registerAdmin(app: FastifyInstance, db: DatabaseSync, state: Sta
     ...staff,
     schema: { body: { type: 'object', required: ['action'], additionalProperties: false, properties: { action: { enum: ['checkin', 'deliver'] } } } },
   }, async (req, reply) => {
-    const token = (req.params as any).token as string;
+    const token = canonical(db, 'checkin_token', (req.params as any).token as string);
     const v = state.checkinView(token);
     if (!v) return reply.code(404).send({ error: 'not_found' });
     const { action } = req.body as { action: 'checkin' | 'deliver' };

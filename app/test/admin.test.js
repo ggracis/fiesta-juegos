@@ -625,7 +625,17 @@ test('duplicates: flagged by name, filterable, the extra copy can be deleted but
   assert.equal((await del(id('o@x.com'))).json().error, 'not_duplicate');
   db.prepare("INSERT INTO attempt(id, guest_id, seed, started_at) VALUES ('a1', ?, 1, 1)").run(id('l1@x.com'));
   assert.equal((await del(id('l1@x.com'))).json().error, 'guest_in_use');
-  assert.deepEqual((await del(id('l2@x.com'))).json(), { ok: true });
+  const old = db.prepare('SELECT r.* FROM registration r WHERE guest_id = ?').get(id('l2@x.com'));
+  const keep = db.prepare('SELECT r.* FROM registration r WHERE guest_id = ?').get(id('l1@x.com'));
+  db.prepare('UPDATE registration SET checked_in_at = 123 WHERE guest_id = ?').run(id('l2@x.com')); // accredited with the copy
+  assert.deepEqual((await del(id('l2@x.com'))).json(), { ok: true, mergedInto: 'Lucas Albarracin' });
+  // The emailed ticket, QR and PIN of the deleted copy keep working and resolve to the guest that stayed.
+  const t = (await app.inject('/api/ticket/' + old.ticket_token)).json();
+  assert.deepEqual(t, { name: 'Lucas Albarracin', pin: keep.pin, checkinToken: keep.checkin_token });
+  assert.equal((await app.inject('/api/ticket/' + old.ticket_token + '/qr.png')).statusCode, 200);
+  assert.equal((await app.inject({ url: '/api/checkin/' + old.checkin_token, headers: h })).json().name, 'Lucas Albarracin');
+  assert.equal((await post(app, '/api/login', { pin: old.pin, screenId: 'screen-dup-1' })).json().name, 'Lucas Albarracin');
+  assert.equal(db.prepare('SELECT checked_in_at FROM registration WHERE guest_id = ?').get(id('l1@x.com')).checked_in_at, 123); // accreditation carried over
   assert.equal(db.prepare('SELECT COUNT(*) AS n FROM guest').get().n, 2);
   assert.equal(db.prepare("SELECT COUNT(*) AS n FROM audit_log WHERE action = 'guest_delete'").get().n, 1);
   assert.equal((await del(id('l1@x.com'))).json().error, 'not_duplicate'); // the last copy stays

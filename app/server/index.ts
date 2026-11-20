@@ -10,7 +10,7 @@ import { makeResults } from './results.ts';
 import { registerPanel } from './panel.ts';
 import QRCode from 'qrcode';
 import { mailGuest, checkinUrl } from './mail.ts';
-import { createRegistration, newToken, PIXEL_DIR, MEDIA_DIR } from './lib.ts';
+import { createRegistration, newToken, canonical, PIXEL_DIR, MEDIA_DIR } from './lib.ts';
 import { matchesName, verify, validEmail, normEmail, cleanDietary } from '../src/shared/identity.js';
 import { buildRounds, publicRounds, mulberry32, ROUND_GAMES, ROUND_POINTS } from '../src/shared/rounds.js';
 import { leaderboards } from '../src/shared/leaderboard.js';
@@ -128,14 +128,14 @@ export function buildApp(dbPath = DB_PATH, csvPath = CSV_PATH, opts: { adminPass
   app.get('/api/ticket/:token', async (req, reply) => {
     const row = db.prepare(
       'SELECT g.name, r.pin, r.checkin_token FROM registration r JOIN guest g ON g.id = r.guest_id WHERE r.ticket_token = ?'
-    ).get((req.params as any).token) as { name: string; pin: string; checkin_token: string } | undefined;
+    ).get(canonical(db, 'ticket_token', (req.params as any).token)) as { name: string; pin: string; checkin_token: string } | undefined;
     if (!row) return reply.code(404).send({ error: 'not_found' });
     return { name: row.name, pin: row.pin, checkinToken: row.checkin_token };
   });
 
   // QR of the check-in URL, as an image for the ticket email (same colours and URL as the ticket page).
   app.get('/api/ticket/:token/qr.png', async (req, reply) => {
-    const row = db.prepare('SELECT checkin_token FROM registration WHERE ticket_token = ?').get((req.params as any).token) as { checkin_token: string } | undefined;
+    const row = db.prepare('SELECT checkin_token FROM registration WHERE ticket_token = ?').get(canonical(db, 'ticket_token', (req.params as any).token)) as { checkin_token: string } | undefined;
     if (!row) return reply.code(404).send({ error: 'not_found' });
     const png = await QRCode.toBuffer(checkinUrl(row.checkin_token), { width: 440, margin: 1, color: { dark: '#2E2A28', light: '#F7F1E8' } });
     return reply.header('cache-control', 'public, max-age=31536000, immutable').type('image/png').send(png);
@@ -150,7 +150,7 @@ export function buildApp(dbPath = DB_PATH, csvPath = CSV_PATH, opts: { adminPass
     if (f.until > now) return reply.code(429).send({ error: 'locked', retryAfter: Math.ceil((f.until - now) / 1000) });
     const row = db.prepare(
       'SELECT g.id, g.name FROM registration r JOIN guest g ON g.id = r.guest_id WHERE r.pin = ?'
-    ).get((req.body as any).pin) as { id: number; name: string } | undefined;
+    ).get(canonical(db, 'pin', (req.body as any).pin)) as { id: number; name: string } | undefined;
     if (!row) {
       f.n++;
       if (f.n >= MAX_FAILS) { f.n = 0; f.until = now + LOCK_MS; }
@@ -294,7 +294,7 @@ export function buildApp(dbPath = DB_PATH, csvPath = CSV_PATH, opts: { adminPass
   });
 
   app.get('/api/checkin/:token', async (req, reply) => {
-    const v = state.checkinView((req.params as any).token);
+    const v = state.checkinView(canonical(db, 'checkin_token', (req.params as any).token));
     if (!v) return reply.code(404).send({ error: 'not_found' });
     return roleOf(req) ? v : { name: v.name };
   });

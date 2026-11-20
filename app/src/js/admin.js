@@ -246,8 +246,9 @@ function deleteDupButton(g) {
   const b = h('button', { className: 'b danger', type: 'button' }, 'Eliminar duplicado');
   b.onclick = async (ev) => {
     ev.stopPropagation();
-    if (!confirm(`¿Eliminar a ${g.name}${g.email ? ` (${g.email})` : ''}? Su entrada y su PIN dejan de funcionar. No se puede deshacer.`)) return;
-    if (await run(() => api.adminDeleteGuest(g.id))) { lastAct = `${g.name} eliminado ${time(Date.now())}`; toast(`${g.name} eliminado`); loadGuests(); }
+    if (!confirm(`¿Eliminar a ${g.name}${g.email ? ` (${g.email})` : ''}? Su QR y su PIN siguen funcionando: quedan unificados con el otro registro.`)) return;
+    const r = await run(() => api.adminDeleteGuest(g.id));
+    if (r) { lastAct = `${g.name} unificado con ${r.mergedInto} ${time(Date.now())}`; toast(`${g.name} eliminado · unificado con ${r.mergedInto}`); loadGuests(); }
   };
   return b;
 }

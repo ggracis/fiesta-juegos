@@ -58,6 +58,8 @@ export function openDb(file: string, csvPath: string) {
     CREATE TABLE IF NOT EXISTS raffle(id INTEGER PRIMARY KEY, guest_id INTEGER NOT NULL UNIQUE REFERENCES guest(id), drawn_at INTEGER NOT NULL);
     CREATE TABLE IF NOT EXISTS audit_log(id INTEGER PRIMARY KEY, at INTEGER NOT NULL, role TEXT NOT NULL, action TEXT NOT NULL, detail TEXT);
     CREATE INDEX IF NOT EXISTS attempt_guest_game ON attempt(guest_id, game);
+    -- Old PIN/QR/ticket of a deleted duplicate, now pointing at the guest that stayed.
+    CREATE TABLE IF NOT EXISTS token_alias(pin TEXT NOT NULL UNIQUE, ticket_token TEXT NOT NULL UNIQUE, checkin_token TEXT NOT NULL UNIQUE, guest_id INTEGER NOT NULL REFERENCES guest(id));
   `);
   addColumn(db, 'raffle', 'sample', 'TEXT'); // legacy: names the old reel cycled; no longer written (panels now scramble letters)
   addColumn(db, 'raffle', 'prize', 'TEXT'); // optional prize name shown on the stage winner plate
