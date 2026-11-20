@@ -3,7 +3,7 @@ import confetti from 'canvas-confetti';
 import QRCode from 'qrcode';
 import { ticket, checkinUrl } from './api.js';
 import { $, RM, demoBadge, cleanName, vibrate } from './common.js';
-import { googleCalUrl, icsUrl } from '../shared/event.js';
+import { EVENT, googleCalUrl, icsUrl } from '../shared/event.js';
 import logoUrl from '../assets/brand/huawei-v.png'; // the ticket paper is cream in both themes: the black wordmark always
 
 demoBadge();
@@ -54,10 +54,11 @@ async function ticketPng(d, qr) {
   if ('letterSpacing' in x) x.letterSpacing = '0px';
   x.fillStyle = '#2E2A28'; x.font = `500 26px ${sans}`;
   x.fillText('Lunes 30 de noviembre de 2026 · 18:30 H', W / 2, 1090);
-  x.fillText('Puerto Salguero, Costanera Rafael Obligado 1221, CABA', W / 2, 1130, W - 160);
+  x.fillText('Puerto Salguero, Costanera Rafael Obligado 1221, CABA', W / 2, 1128, W - 160);
+  x.fillText(`Dress code: ${EVENT.dress}`, W / 2, 1166, W - 160);
   x.fillStyle = '#6B6460'; x.font = `400 22px ${sans}`;
-  x.fillText('Muestra este QR en la acreditación.', W / 2, 1184, W - 160);
-  x.fillText('Usa tu PIN para jugar en las pantallas.', W / 2, 1218, W - 160);
+  x.fillText('Muestra este QR en la acreditación.', W / 2, 1204, W - 160);
+  x.fillText('Usa tu PIN para jugar en las pantallas.', W / 2, 1234, W - 160);
   return new Promise((res) => c.toBlob(res, 'image/png'));
 }
 

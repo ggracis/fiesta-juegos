@@ -10,7 +10,7 @@ export const EVENT = {
   venue: 'Puerto Salguero · Av. Costanera Rafael Obligado 1221, CABA',
   when: 'Lunes 30 de noviembre de 2026 · 18:30 a 00:00 h',
   intro: 'Te invitamos a ser parte de una noche especial, donde la innovación, las personas y las grandes conexiones nos impulsan hacia nuevos horizontes.',
-  dress: 'A confirmar', // same text as DRESS CODE in src/index.html
+  dress: 'Elegante sport', // same text as DRESS CODE in src/index.html
 };
 export const PROGRAM = [
   ['18:30', 'Recepción, jazz en vivo y experiencias'],
