@@ -7,7 +7,7 @@ import { pipeline } from 'node:stream/promises';
 import { join } from 'node:path';
 import { mailGuest } from './mail.ts';
 import { newToken, csvLine, PIXEL_DIR, MEDIA_DIR, createRegistration } from './lib.ts';
-import { nameTokens, normEmail, guestRow } from '../src/shared/identity.js';
+import { nameTokens, normEmail, guestRow, validEmail } from '../src/shared/identity.js';
 import { gameById, PARAM_INFO } from '../src/shared/games.js';
 import { SCENES, CUE_LEAD_MS } from '../src/shared/stage.js';
 import { XLSX_MIME, readXlsx, exampleXlsx } from './xlsx.ts';
@@ -349,7 +349,7 @@ export function registerAdmin(app: FastifyInstance, db: DatabaseSync, state: Sta
   }, async (req, reply) => {
     const { name: raw, email } = req.body as { name: string; email?: string };
     const name = raw.replace(/\s+/g, ' ').trim();
-    if (nameTokens(name).length < 1) return reply.code(400).send({ error: 'invalid_input' });
+    if (nameTokens(name).length < 1 || (email?.trim() && !validEmail(email))) return reply.code(400).send({ error: 'invalid_input' });
     return state.tx(() => {
       if (db.prepare('SELECT 1 FROM guest WHERE name = ?').get(name)) return reply.code(409).send({ error: 'guest_exists' });
       const id = Number(db.prepare('INSERT INTO guest(name, email, walk_in) VALUES (?,?,1)').run(name, normEmail(email)).lastInsertRowid);

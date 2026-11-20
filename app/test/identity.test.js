@@ -42,6 +42,10 @@ test('validation modes', () => {
 
 test('email validation and roster rows', () => {
   assert.ok(validEmail('a@b.co') && !validEmail('a@b') && !validEmail('a b@c.com'));
+  for (const ok of ['Lucas.Albarracin@efergia.com', ' x+tag@sub.h-partners.com.ar ', 'a_b-c%d@x.io']) assert.ok(validEmail(ok), ok);
+  for (const bad of ['ĺucas.albarracin@efergia.com', 'josé@x.com', 'nuñez@x.com', 'a@exámple.com', 'a..b@x.com', '.a@x.com', 'a.@x.com',
+    'a@x..com', 'a@-x.com', 'a@x.c', 'a@@x.com', 'a"b@x.com', 'a,b@x.com', 'a@x.com.']) assert.ok(!validEmail(bad), bad);
+  assert.equal(guestRow(['Ana', 'josé@x.com']).email, ''); // imported malformed address is dropped
 });
 
 test('guestRow: name in A, email is the first other cell with an @ (2 or legacy 3 columns)', () => {

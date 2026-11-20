@@ -1,5 +1,6 @@
 import type { DatabaseSync } from 'node:sqlite';
 import { EVENT, PROGRAM, eventDetails, googleCalUrl, mapsUrl } from '../src/shared/event.js';
+import { validEmail } from '../src/shared/identity.js';
 
 const BREVO_URL = 'https://api.brevo.com/v3/smtp/email';
 const FROM = { name: 'Gala Huawei Digital Power', email: 'invitaciones@galadigitalpower.com.ar' };
@@ -68,6 +69,7 @@ export type MailResult = { ok: true } | { ok: false; skipped?: 'no_key' };
 export async function sendTicketEmail({ to, name, pin, ticketToken }: { to: string; name: string; pin: string; ticketToken: string }): Promise<MailResult> {
   const key = process.env.BREVO_API_KEY;
   if (!key) return { ok: false, skipped: 'no_key' };
+  if (!validEmail(to)) return { ok: false }; // legacy rows from before the ASCII-only rule
   const redirect = process.env.MAIL_REDIRECT_TO;
   const { html, text } = ticketEmail({ name, pin, ticketToken });
   try {

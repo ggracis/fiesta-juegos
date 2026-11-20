@@ -162,7 +162,7 @@ $('#again').addEventListener('click', () => { [q, email, diet].forEach((f) => { 
 
 fId.addEventListener('submit', async (e) => {
   e.preventDefault();
-  if (!nameOnly && !validEmail(email.value)) return showErr('Revisa tu correo electrónico: parece incompleto.', email);
+  if (!nameOnly && !validEmail(email.value)) return showErr('Revisa tu correo electrónico: debe estar completo y sin tildes, ñ ni espacios.', email);
   const b = $('button[type=submit]', fId);
   busy(b, true); showErr('');
   try {

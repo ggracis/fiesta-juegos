@@ -14,11 +14,12 @@ export function matchesName(rosterName, typed) {
 }
 
 export const normEmail = (s) => String(s ?? '').trim().toLowerCase();
-export const validEmail = (s) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(normEmail(s));
+// Plain ASCII only: no accents, ñ, spaces or odd symbols (a typed "ĺucas@" bounced). Dots never lead, trail or repeat.
+export const validEmail = (s) => /^[a-z0-9_%+-]+(\.[a-z0-9_%+-]+)*@([a-z0-9]([a-z0-9-]*[a-z0-9])?\.)+[a-z]{2,}$/.test(normEmail(s));
 // One roster row from raw cells: column A is the name, the email is the first other cell with an "@" (also reads legacy name,dni,email files).
 export const guestRow = (cells) => ({
   name: String(cells[0] ?? '').replace(/\s+/g, ' ').trim(),
-  email: normEmail(cells.slice(1).find((c) => String(c ?? '').includes('@'))),
+  email: ((e) => (validEmail(e) ? e : ''))(normEmail(cells.slice(1).find((c) => String(c ?? '').includes('@')))), // a malformed address is dropped, never mailed
 });
 export const cleanDietary = (s) => String(s ?? '').replace(/\s+/g, ' ').trim().slice(0, 200).trimEnd() || null; // free text: collapsed, capped, '' -> null
 
