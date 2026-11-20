@@ -30,7 +30,10 @@ const FILTERS = {
   accredited: (r: any) => !!r.checked_in_at,
   unconfirmed: (r: any) => !r.registered,
   walkIn: (r: any) => !!r.walk_in,
+  duplicates: (r: any) => !!r.dup,
 };
+// Same person signed up twice with another email: same name tokens in any order, ignoring the "(2)" namesake suffix.
+const dupKey = (name: string) => nameTokens(name.replace(/\s*\(\d+\)$/, '')).sort().join(' ');
 const MAX_XLSX = 5_242_880;
 const iso = (ms: number | null) => (ms ? new Date(ms).toISOString() : '');
 
@@ -163,7 +166,7 @@ export function registerAdmin(app: FastifyInstance, db: DatabaseSync, state: Sta
   app.get('/api/admin/guests', {
     ...staff,
     schema: { querystring: { type: 'object', properties: {
-      q: { type: 'string', maxLength: 60 }, filter: { enum: ['all', 'unaccredited', 'accredited', 'unconfirmed', 'walkIn'] } } } },
+      q: { type: 'string', maxLength: 60 }, filter: { enum: ['all', 'unaccredited', 'accredited', 'unconfirmed', 'walkIn', 'duplicates'] } } } },
   }, async (req) => {
     const { q: rawQ = '', filter = 'all' } = req.query as { q?: string; filter?: keyof typeof FILTERS };
     const q = normalize(rawQ), mail = normEmail(rawQ);
@@ -172,6 +175,9 @@ export function registerAdmin(app: FastifyInstance, db: DatabaseSync, state: Sta
          (SELECT COUNT(*) FROM attempt a WHERE a.guest_id = g.id) AS attempts
        FROM guest g LEFT JOIN registration r ON r.guest_id = g.id`
     ).all() as any[];
+    const keys = new Map<string, number>();
+    for (const r of rows) keys.set(dupKey(r.name), (keys.get(dupKey(r.name)) ?? 0) + 1);
+    for (const r of rows) r.dup = keys.get(dupKey(r.name))! > 1;
     const pending = new Set((db.prepare("SELECT candidates FROM verification_request WHERE status = 'pending'").all() as { candidates: string }[])
       .flatMap((v) => JSON.parse(v.candidates) as number[]));
     // ponytail: filter in JS for accent-insensitive match; fine for a few hundred guests.
@@ -181,7 +187,7 @@ export function registerAdmin(app: FastifyInstance, db: DatabaseSync, state: Sta
     const counts = Object.fromEntries(Object.entries(FILTERS).map(([k, f]) => [k, found.filter(f).length]));
     const guests = found.filter(FILTERS[filter]).sort((a, b) => a.name.localeCompare(b.name, 'es')).slice(0, 300).map((r) => ({
       id: r.id, name: r.name, email: r.email, walkIn: !!r.walk_in, registered: !!r.registered, checkedInAt: r.checked_in_at, prizeWonAt: r.prize_won_at,
-      prizeDeliveredAt: r.prize_delivered_at, dietary: r.dietary, attempts: r.attempts, pendingVerification: pending.has(r.id),
+      prizeDeliveredAt: r.prize_delivered_at, dietary: r.dietary, attempts: r.attempts, pendingVerification: pending.has(r.id), duplicate: r.dup,
       // Staff read the PIN straight off the card at the door (admin cookie only; public endpoints never carry it).
       pin: r.pin ?? null, ticketToken: r.ticket_token ?? null,
     }));
@@ -237,6 +243,24 @@ export function registerAdmin(app: FastifyInstance, db: DatabaseSync, state: Sta
       'SELECT game, score, duration_ms AS durationMs, started_at AS startedAt, finished_at AS finishedAt FROM attempt WHERE guest_id = ? ORDER BY started_at'
     ).all(g.id);
     return { ...g, attempts };
+  });
+
+  // Removes the extra copy of a duplicate. Only while another guest with the same name remains, and never one that
+  // already played or was drawn in the raffle (scores and winners stay intact).
+  app.delete('/api/admin/guests/:id', staff, async (req, reply) => {
+    const id = Number((req.params as any).id);
+    return state.tx(() => {
+      const g = db.prepare('SELECT name, email FROM guest WHERE id = ?').get(id) as { name: string; email: string | null } | undefined;
+      if (!g) return reply.code(404).send({ error: 'not_found' });
+      const others = (db.prepare('SELECT id, name FROM guest WHERE id <> ?').all(id) as { name: string }[]).some((o) => dupKey(o.name) === dupKey(g.name));
+      if (!others) return reply.code(409).send({ error: 'not_duplicate' });
+      if (db.prepare('SELECT 1 FROM attempt WHERE guest_id = ? UNION ALL SELECT 1 FROM raffle WHERE guest_id = ?').get(id, id)) return reply.code(409).send({ error: 'guest_in_use' });
+      db.prepare("DELETE FROM session WHERE kind = 'guest' AND ref = ?").run(String(id));
+      db.prepare('DELETE FROM registration WHERE guest_id = ?').run(id);
+      db.prepare('DELETE FROM guest WHERE id = ?').run(id);
+      audit(roleIn(req), 'guest_delete', { guestId: id, name: g.name, email: g.email });
+      return { ok: true };
+    });
   });
 
   // Staff resend: ignores email_sent_at except for a 60 s cool-down against double taps.

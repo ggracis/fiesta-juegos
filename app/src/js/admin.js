@@ -21,6 +21,7 @@ const ERRORS = {
   file_invalid: 'No pudimos leer el archivo. Sube un Excel (.xlsx) o un CSV válido; puedes bajar el ejemplo.', file_empty: 'No encontramos invitados en el archivo. Revisa que el nombre esté en la columna A.',
   too_soon: 'Ya se envió hace instantes. Espera un minuto.', no_email: 'Ese invitado no tiene email.', send_failed: 'No se pudo enviar el correo.',
   guest_exists: 'Ya existe un invitado con ese nombre: búscalo en la lista.',
+  not_duplicate: 'Ya no hay otro invitado con ese nombre: no se elimina.', guest_in_use: 'Ese invitado ya jugó o participó del sorteo: no se puede eliminar.',
   already_voided: 'Ese sorteo ya estaba anulado.', already_resolved: 'Esa verificación ya fue resuelta.', http: 'Error del servidor.', already_checked_in: 'Ya estaba acreditado.', demo_unavailable: 'No disponible en el modo demo.',
 };
 let toastTimer;
@@ -181,7 +182,7 @@ const ticketLink = (token) => h('a', { className: 'b primary', href: ticketUrl(t
 const pinBox = (pin) => h('div', { className: 'pinrow' }, h('span', { className: 'muted' }, 'PIN'), h('code', { className: 'pin' }, pin));
 
 // Door mode: search, filter chips, one big card per guest with the action that fits its state.
-const FILTER_LABELS = [['all', 'Todos'], ['unaccredited', 'Sin acreditar'], ['accredited', 'Acreditados'], ['unconfirmed', 'No confirmados'], ['walkIn', 'Agregados en puerta']];
+const FILTER_LABELS = [['all', 'Todos'], ['unaccredited', 'Sin acreditar'], ['accredited', 'Acreditados'], ['unconfirmed', 'No confirmados'], ['walkIn', 'Agregados en puerta'], ['duplicates', 'Posibles duplicados']];
 let gFilter = 'unaccredited', gSeq = 0, lastAct = '', down = false;
 // Background refreshes never replace cards while a finger or mouse button is down.
 addEventListener('pointerdown', () => { down = true; }, true);
@@ -231,13 +232,24 @@ function guestCard(g) {
       g.checkedInAt ? chip('Acreditado ✓ ' + time(g.checkedInAt), 'ok') : chip(g.registered ? 'Confirmado' : 'No confirmado', g.registered ? 'ok' : ''),
       g.walkIn && chip('Agregado en puerta'),
       g.pendingVerification && chip('Verificación pendiente', 'warn'),
+      g.duplicate && chip('Posible duplicado', 'warn'),
       g.prizeWonAt && chip(g.prizeDeliveredAt ? 'Premio entregado' : 'Premio ganado', 'prize')),
     g.email && h('div', { className: 'muted' }, g.email),
     g.dietary && h('div', { className: 'diet' }, 'Restricción: ' + g.dietary),
     g.pin && pinBox(g.pin),
-    act);
+    act,
+    g.duplicate && deleteDupButton(g));
   card.onclick = (ev) => { if (!ev.target.closest('a, button')) showDetail(g.id); };
   return card;
+}
+function deleteDupButton(g) {
+  const b = h('button', { className: 'b danger', type: 'button' }, 'Eliminar duplicado');
+  b.onclick = async (ev) => {
+    ev.stopPropagation();
+    if (!confirm(`¿Eliminar a ${g.name}${g.email ? ` (${g.email})` : ''}? Su entrada y su PIN dejan de funcionar. No se puede deshacer.`)) return;
+    if (await run(() => api.adminDeleteGuest(g.id))) { lastAct = `${g.name} eliminado ${time(Date.now())}`; toast(`${g.name} eliminado`); loadGuests(); }
+  };
+  return b;
 }
 // Door refresh: every 10 s while the Puerta tab is open and visible (search text and scroll are kept).
 setInterval(() => { if (current === 'guests' && !document.hidden && !$('app').hidden) loadGuests(true); }, 10_000);

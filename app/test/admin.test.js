@@ -577,7 +577,7 @@ test('door list: search by name/email, filters with counts, pending flag', async
   await post(app, `/api/admin/guests/${jose}/walkin`, undefined, h);
   await post(app, '/api/register', { name: 'Josefina Paz Zarzuelo', email: 'x@x.com' }); // wrong data -> pending
   const r = await list('q=zarzuelo');
-  assert.deepEqual(r.counts, { all: 2, unaccredited: 1, accredited: 1, unconfirmed: 1, walkIn: 0 });
+  assert.deepEqual(r.counts, { all: 2, unaccredited: 1, accredited: 1, unconfirmed: 1, walkIn: 0, duplicates: 0 });
   assert.deepEqual((await list('q=zarzuelo&filter=accredited')).guests.map((g) => g.id), [jose]);
   assert.equal(r.guests.find((g) => g.id === paz).pendingVerification, true);
   const all = await list('');
@@ -608,4 +608,26 @@ test('PIN in plain sight for admins only, never in public payloads', async () =>
     assert.ok(!res.body.includes(g.pin), res.body.slice(0, 80));
     assert.ok(!/"pin"/.test(res.body), res.body.slice(0, 80));
   }
+});
+
+test('duplicates: flagged by name, filterable, the extra copy can be deleted but never the last one or a player', async () => {
+  const { app, db, h } = await adminApp();
+  db.exec('DELETE FROM guest');
+  db.prepare("UPDATE setting SET value = '\"open\"' WHERE key = 'registrationValidation'").run();
+  for (const [n, e] of [['Lucas Albarracin', 'l1@x.com'], ['albarracin lucas', 'l2@x.com'], ['Otra Persona', 'o@x.com']]) await post(app, '/api/register', { name: n, email: e });
+  const list = (await app.inject({ url: '/api/admin/guests?filter=duplicates', headers: h })).json();
+  assert.equal(list.counts.duplicates, 2);
+  assert.deepEqual(list.guests.map((g) => g.email).sort(), ['l1@x.com', 'l2@x.com']);
+  assert.ok(list.guests.every((g) => g.duplicate));
+  const id = (e) => db.prepare('SELECT id FROM guest WHERE email = ?').get(e).id;
+  const del = (gid) => app.inject({ method: 'DELETE', url: '/api/admin/guests/' + gid, headers: h });
+  assert.equal((await app.inject({ method: 'DELETE', url: '/api/admin/guests/' + id('l2@x.com') })).statusCode, 401); // staff only
+  assert.equal((await del(id('o@x.com'))).json().error, 'not_duplicate');
+  db.prepare("INSERT INTO attempt(id, guest_id, seed, started_at) VALUES ('a1', ?, 1, 1)").run(id('l1@x.com'));
+  assert.equal((await del(id('l1@x.com'))).json().error, 'guest_in_use');
+  assert.deepEqual((await del(id('l2@x.com'))).json(), { ok: true });
+  assert.equal(db.prepare('SELECT COUNT(*) AS n FROM guest').get().n, 2);
+  assert.equal(db.prepare("SELECT COUNT(*) AS n FROM audit_log WHERE action = 'guest_delete'").get().n, 1);
+  assert.equal((await del(id('l1@x.com'))).json().error, 'not_duplicate'); // the last copy stays
+  await app.close();
 });

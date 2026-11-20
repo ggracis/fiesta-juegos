@@ -49,6 +49,7 @@ kbd { padding: 0 6px; border: 1px solid currentColor; border-radius: 6px; font: 
 .b { min-height: 44px; padding: 0 18px; border: 0; border-radius: 10px; font: 700 .95rem var(--font); color: var(--cream); background: rgba(255, 255, 255, .14); cursor: pointer; white-space: nowrap; }
 .card .b { color: var(--btn-ink); background: var(--btn); }
 .b.primary, .card .b.primary { color: #fff; background: var(--red); }
+.b.danger, .card .b.danger { color: var(--red); background: transparent; border: 1px solid var(--red); }
 .b.big { min-height: 72px; padding: 0 56px; font-size: 1.5rem; border-radius: 999px; }
 .b:disabled { opacity: .5; cursor: default; }
 .link { color: var(--link); font-weight: 700; cursor: pointer; text-decoration: underline; }

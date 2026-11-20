@@ -37,6 +37,7 @@ export const adminCheckinGuest = call('adminCheckinGuest');
 export const adminVerifications = call('adminVerifications');
 export const adminWalkIn = call('adminWalkIn');
 export const adminResendEmail = call('adminResendEmail');
+export const adminDeleteGuest = call('adminDeleteGuest');
 export const adminAddGuest = call('adminAddGuest');
 export const adminApproveVerification = call('adminApproveVerification');
 export const adminRejectVerification = call('adminRejectVerification');
