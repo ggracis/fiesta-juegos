@@ -149,7 +149,8 @@ fName.addEventListener('submit', async (e) => {
     // Not on the list is not a dead end: the guest still leaves an email and staff verify the request.
     nameOnly = found && mode === 'name_only';
     $$('[data-ident]', fId).forEach((el) => { el.hidden = nameOnly; });
-    $('#found').textContent = !found ? 'No te encontramos en la lista, pero puedes dejar tus datos y lo verificamos.'
+    $('#found').textContent = mode === 'open' ? 'Escribe tu correo electrónico y te enviaremos tu entrada con el QR y el PIN.'
+      : !found ? 'No te encontramos en la lista, pero puedes dejar tus datos y lo verificamos.'
       : nameOnly ? 'Te encontramos en la lista. Solo falta confirmar tu inscripción.' : foundText;
     show(fId, nameOnly ? diet : email);
   } catch (err) { showErr(netErr(err)); }
@@ -173,6 +174,7 @@ fId.addEventListener('submit', async (e) => {
     setTimeout(() => { location.href = href; }, RM ? 0 : 650);
   } catch (err) {
     busy(b, false);
-    showErr(err.code === 'invalid_input' ? 'Revisa tu correo electrónico.' : netErr(err));
+    showErr(err.code === 'invalid_input' ? 'Revisa tu correo electrónico.'
+      : err.code === 'email_in_use' ? 'Ese correo ya está inscripto con otro nombre. Escribe el mismo nombre que usaste.' : netErr(err));
   }
 });

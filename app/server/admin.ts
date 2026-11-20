@@ -119,7 +119,7 @@ export function registerAdmin(app: FastifyInstance, db: DatabaseSync, state: Sta
           paused: { type: 'boolean' }, transition: { type: 'boolean' }, transitionText: { type: 'string', maxLength: 200 },
           prizeStock: { type: 'integer', minimum: 0 }, raffleShowSeconds: { type: 'integer', minimum: 1, maximum: 600 },
           raffleMode: { type: 'boolean' },
-          registrationValidation: { enum: ['name_only', 'name_email'] },
+          registrationValidation: { enum: ['name_only', 'name_email', 'open'] },
         },
       },
     },

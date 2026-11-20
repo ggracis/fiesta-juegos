@@ -131,6 +131,23 @@ test('register: name_only needs no email for a roster match, name_email still do
   await app.close();
 });
 
+test('register: open mode registers any name + email, keyed by email', async () => {
+  const app = buildApp(':memory:');
+  app.db.exec('DELETE FROM guest');
+  app.db.prepare("UPDATE setting SET value = '\"open\"' WHERE key = 'registrationValidation'").run();
+  const r1 = (await reg(app, 'Zoe  Quiroga', 'Zoe@x.com ')).json();
+  assert.equal(r1.status, 'registered');
+  assert.deepEqual((await reg(app, 'zoe quiroga', 'zoe@x.com')).json(), r1); // lost-ticket recovery
+  assert.equal((await reg(app, 'Otra Persona', 'zoe@x.com')).statusCode, 409); // someone else's email
+  const r2 = (await reg(app, 'Zoe Quiroga', 'zoe2@x.com')).json(); // namesake, other email
+  assert.notEqual(r2.ticketToken, r1.ticketToken);
+  assert.deepEqual(app.db.prepare('SELECT name FROM guest ORDER BY id').all().map((g) => g.name), ['Zoe Quiroga', 'Zoe Quiroga (2)']);
+  assert.equal((await reg(app, 'Zoe', 'z3@x.com')).statusCode, 400); // needs name and surname
+  assert.equal((await reg(app, 'Zoe Quiroga', 'nope')).statusCode, 400);
+  assert.equal(app.db.prepare('SELECT COUNT(*) AS n FROM verification_request').get().n, 0);
+  await app.close();
+});
+
 test('register: dietary is stored on success, updated on repeat, null when empty, capped at 200', async () => {
   const app = buildApp(':memory:');
   const dietary = () => app.db.prepare('SELECT dietary FROM registration').get().dietary;

@@ -62,7 +62,7 @@ export function buildApp(dbPath = DB_PATH, csvPath = CSV_PATH, opts: { adminPass
   mkdirSync(MEDIA_DIR, { recursive: true });
   app.register(fastifyStatic, { root: MEDIA_DIR, prefix: '/media/', decorateReply: false });
 
-  const validationMode =() => state.getSetting('registrationValidation') as 'name_only' | 'name_email';
+  const validationMode =() => state.getSetting('registrationValidation') as 'name_only' | 'name_email' | 'open';
 
   // Found / not found plus the active validation mode: never echo roster data.
   app.post('/api/lookup', {
@@ -83,6 +83,27 @@ export function buildApp(dbPath = DB_PATH, csvPath = CSV_PATH, opts: { adminPass
     const { name, email, dietary: rawDietary } = req.body as { name: string; email?: string; dietary?: string };
     const dietary = cleanDietary(rawDietary);
     const mode = validationMode();
+    if (mode === 'open') {
+      // Open registration: any name + valid email registers and gets the ticket email. The email identifies the guest.
+      const nm = name.replace(/\s+/g, ' ').trim(), em = normEmail(email);
+      if (!validEmail(em) || nm.split(' ').length < 2) return reply.code(400).send({ error: 'invalid_input' });
+      let g = db.prepare('SELECT id, name FROM guest WHERE email = ?').get(em) as { id: number; name: string } | undefined;
+      // Same email under another name: never hand someone else's ticket over.
+      if (g && !matchesName(g.name, nm) && !matchesName(nm, g.name)) return reply.code(409).send({ error: 'email_in_use' });
+      if (!g) {
+        let n = nm; // guest.name is UNIQUE: a namesake with another email gets "(2)", "(3)"...
+        for (let i = 2; db.prepare('SELECT 1 FROM guest WHERE name = ?').get(n); i++) n = `${nm} (${i})`;
+        g = { id: Number(db.prepare('INSERT INTO guest(name, email) VALUES (?,?)').run(n, em).lastInsertRowid), name: n };
+      }
+      const done = db.prepare('SELECT ticket_token FROM registration WHERE guest_id = ?').get(g.id) as { ticket_token: string } | undefined;
+      if (done) {
+        if (dietary) db.prepare('UPDATE registration SET dietary = ? WHERE guest_id = ?').run(dietary, g.id);
+        return { status: 'registered', ticketToken: done.ticket_token };
+      }
+      const ticketToken = createRegistration(db, g.id, dietary);
+      void mailGuest(db, g.id);
+      return { status: 'registered', ticketToken };
+    }
     const matches = roster().filter((g) => matchesName(g.name, name));
     // An unknown name (zero matches) is not an error: it needs an email and goes to staff as a pending request.
     if ((mode !== 'name_only' || matches.length !== 1) && !validEmail(email)) return reply.code(400).send({ error: 'invalid_input' });
