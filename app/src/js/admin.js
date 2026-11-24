@@ -177,6 +177,8 @@ function renderLive() {
 // ---- Puerta
 const time = (ms) => new Date(ms).toLocaleTimeString('es', { hour: '2-digit', minute: '2-digit' });
 let gTimer;
+// After a door action started from a search, the box is cleared and refocused for the next guest in line.
+const nextGuest = () => { if ($('gq').value.trim()) { $('gq').value = ''; $('gq').focus(); } loadGuests(); };
 const ticketUrl = (token) => new URL('ticket.html?staff&t=' + encodeURIComponent(token), location.href).href; // ?staff: not remembered on this device
 const ticketLink = (token) => h('a', { className: 'b primary', href: ticketUrl(token), target: '_blank', rel: 'noopener' }, 'Abrir ticket (QR y PIN)');
 
@@ -185,7 +187,7 @@ const pinBox = (pin) => h('div', { className: 'pinrow' }, h('span', { className:
 
 // Door mode: search, filter chips, one big card per guest with the action that fits its state.
 const FILTER_LABELS = [['all', 'Todos'], ['unaccredited', 'Sin acreditar'], ['accredited', 'Acreditados'], ['unconfirmed', 'No confirmados'], ['walkIn', 'Agregados en puerta'], ['duplicates', 'Posibles duplicados']];
-let gFilter = 'unaccredited', gSeq = 0, lastAct = '', down = false;
+let gFilter = 'unaccredited', gSeq = 0, lastAct = '', down = false, gOpen = true; // gOpen: check-in allowed today (server clock)
 // Background refreshes never replace cards while a finger or mouse button is down.
 addEventListener('pointerdown', () => { down = true; }, true);
 for (const t of ['pointerup', 'pointercancel']) addEventListener(t, () => { down = false; }, true);
@@ -196,6 +198,7 @@ async function loadGuests(bg) {
   if (!res || seq !== gSeq || (bg && down)) return;
   if (!changed('g', res) && bg) return;
   const { guests, counts, summary } = res;
+  gOpen = res.checkinOpen !== false; $('door-closed').hidden = gOpen;
   const y = scrollY; // refreshes must not move the list under the staff's finger
   $('gfilters').replaceChildren(...FILTER_LABELS.map(([k, label]) => {
     const b = h('button', { type: 'button', className: 'chip', ariaPressed: String(k === gFilter) }, `${label} · ${counts[k]}`);
@@ -213,32 +216,35 @@ async function loadGuests(bg) {
 function guestCard(g) {
   const chip = (text, cls = '') => h('span', { className: 'badge ' + cls }, text);
   let act;
-  if (g.checkedInAt) act = ticketLink(g.ticketToken);
+  if (g.checkedInAt) act = h('a', { className: 'b', href: ticketUrl(g.ticketToken), target: '_blank', rel: 'noopener' }, 'Ver entrada');
+  else if (g.registered && !gOpen) act = null; // before event day: nothing to press (the banner explains why)
   else if (g.registered) {
     act = h('button', { className: 'b primary', type: 'button' }, 'Acreditar'); // no confirm: speed at the door matters
     act.onclick = async (ev) => {
       ev.stopPropagation();
-      if (await run(() => api.adminCheckinGuest(g.id))) { lastAct = `${g.name} acreditado ${time(Date.now())}`; toast(`${g.name} acreditado`); loadGuests(); }
+      if (await run(() => api.adminCheckinGuest(g.id))) { lastAct = `${g.name} acreditado ${time(Date.now())}`; toast(`${g.name} acreditado`); nextGuest(); }
     };
   } else {
-    act = h('button', { className: 'b primary', type: 'button' }, 'Acreditar y dar entrada');
+    act = h('button', { className: 'b primary', type: 'button' }, gOpen ? 'Acreditar' : 'Dar entrada');
     act.onclick = async (ev) => {
       ev.stopPropagation();
-      if (!confirm(`¿Acreditar a ${g.name}? No había confirmado asistencia.`)) return;
+      if (!confirm(gOpen ? `¿Acreditar a ${g.name}? No había confirmado asistencia.` : `¿Dar entrada a ${g.name}? No había confirmado asistencia.`)) return;
       const r = await run(() => api.adminWalkIn(g.id));
-      if (r) { const what = r.checkedIn ? 'acreditado' : 'confirmado (se acredita el 30/11)'; lastAct = `${g.name} ${what} ${time(Date.now())}`; toast(`${g.name} ${what} · PIN ${r.pin}`); loadGuests(); } // the refreshed card shows the PIN and ticket
+      if (r) { const what = r.checkedIn ? 'acreditado' : 'confirmado (se acredita el 30/11)'; lastAct = `${g.name} ${what} ${time(Date.now())}`; toast(`${g.name} ${what} · PIN ${r.pin}`); nextGuest(); }
     };
   }
-  const card = h('article', { className: 'card guest' },
-    h('div', { className: 'gtop' }, h('strong', {}, g.name),
-      g.checkedInAt ? chip('Acreditado ✓ ' + time(g.checkedInAt), 'ok') : chip(g.registered ? 'Confirmado' : 'No confirmado', g.registered ? 'ok' : ''),
-      g.walkIn && chip('Agregado en puerta'),
-      g.pendingVerification && chip('Verificación pendiente', 'warn'),
-      g.duplicate && chip('Posible duplicado', 'warn'),
-      g.prizeWonAt && chip(g.prizeDeliveredAt ? 'Premio entregado' : 'Premio ganado', 'prize')),
-    g.email && h('div', { className: 'muted' }, g.email),
-    g.dietary && h('div', { className: 'diet' }, 'Restricción: ' + g.dietary),
-    g.pin && pinBox(g.pin),
+  // Compact row: who (name, email, PIN, flags) on the left, the one action on the right, so a phone shows several guests at once.
+  const card = h('article', { className: 'card guest' + (g.checkedInAt ? ' done' : '') },
+    h('div', { className: 'gwho' },
+      h('strong', {}, g.name),
+      h('div', { className: 'gmeta' }, g.pin && h('span', { className: 'gpin' }, 'PIN ', h('b', {}, g.pin)), g.email && h('span', {}, g.email)),
+      h('div', { className: 'gtop' },
+        g.checkedInAt ? chip('Acreditado ✓ ' + time(g.checkedInAt), 'ok') : !g.registered && chip('No confirmado'),
+        g.walkIn && chip('Agregado en puerta'),
+        g.pendingVerification && chip('Verificación pendiente', 'warn'),
+        g.duplicate && chip('Posible duplicado', 'warn'),
+        g.prizeWonAt && chip(g.prizeDeliveredAt ? 'Premio entregado' : 'Premio ganado', 'prize')),
+      g.dietary && h('div', { className: 'diet' }, 'Restricción: ' + g.dietary)),
     act,
     g.duplicate && deleteDupButton(g));
   card.onclick = (ev) => { if (!ev.target.closest('a, button')) showDetail(g.id); };
@@ -328,8 +334,10 @@ function resendButton(g) {
 async function showDetail(id) {
   const g = await run(() => api.adminGuest(id));
   if (!g) return;
-  const box = $('detail'); clear(box); box.hidden = false;
-  box.append(h('h2', {}, g.name),
+  const box = $('detail'); clear(box);
+  const close = h('button', { className: 'b sheet-x', type: 'button', ariaLabel: 'Cerrar' }, 'Cerrar');
+  close.onclick = () => box.close();
+  box.append(...[h('div', { className: 'sheet-head' }, h('h2', {}, g.name), close),
     h('p', { className: 'muted' }, g.checkedInAt ? 'Acreditado a las ' + time(g.checkedInAt) : 'Sin acreditar'),
     g.dietary && h('p', { className: 'diet' }, 'Restricción alimentaria: ' + g.dietary),
     g.pin && pinBox(g.pin),
@@ -338,9 +346,14 @@ async function showDetail(id) {
       ? h('table', {}, h('thead', {}, h('tr', {}, ...['Juego', 'Puntaje', 'Tiempo'].map((t) => h('th', {}, t)))),
         h('tbody', {}, ...g.attempts.map((a) => h('tr', {}, h('td', {}, a.game),
           h('td', {}, a.score ?? 'en curso'), h('td', {}, a.durationMs != null ? (a.durationMs / 1000).toFixed(1) + ' s' : '—')))))
-      : h('p', { className: 'muted' }, 'Sin intentos.'));
-  box.scrollIntoView({ block: 'nearest' });
+      : h('p', { className: 'muted' }, 'Sin intentos.')].filter((k) => k != null && k !== false)); // native append would print null/false
+  if (!box.open) box.showModal();
 }
+// Tap outside the sheet closes it (inside clicks land on its children or its own box).
+$('detail').addEventListener('click', (ev) => {
+  const r = ev.currentTarget.getBoundingClientRect();
+  if (ev.target === ev.currentTarget && (ev.clientY < r.top || ev.clientY > r.bottom || ev.clientX < r.left || ev.clientX > r.right)) ev.currentTarget.close();
+});
 
 // ---- Juegos
 function renderStock() {

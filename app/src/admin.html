@@ -38,6 +38,7 @@
         <div class="chips" id="gfilters" role="group" aria-label="Filtrar invitados"></div>
         <p class="sum" id="gsum" aria-live="polite"></p>
       </div>
+      <p class="door-closed" id="door-closed" hidden>La acreditación se habilita el lunes 30/11, el día del evento. Hasta entonces puedes buscar invitados y ver su PIN.</p>
       <button class="b primary newbar" id="verif-new" type="button" hidden></button>
       <div class="card" id="verif-card" hidden>
         <h2>Verificaciones pendientes</h2>
@@ -45,13 +46,6 @@
         <div id="verifs"></div>
         <p class="muted" id="verifs-empty" hidden>No hay verificaciones pendientes.</p>
       </div>
-      <p><a class="b" id="guests-csv" download>Exportar invitados</a></p>
-      <details class="card" id="import-box">
-        <summary>Subir lista de invitados</summary>
-        <label for="csv">Archivo Excel (.xlsx) o CSV con las columnas Nombre y apellido y Email</label>
-        <input id="csv" type="file" accept=".xlsx,.csv,text/csv">
-        <p class="muted">Los invitados nuevos se agregan; los que ya están se actualizan, y nadie se borra. <a id="guests-example" class="link" download>Descargar ejemplo</a></p>
-      </details>
       <details class="card" id="add-box">
         <summary>Agregar invitado</summary>
         <form id="add-guest">
@@ -64,7 +58,14 @@
       </details>
       <div class="gcards" id="guests"></div>
       <div class="note" id="guests-empty" hidden><p id="guests-empty-t"></p><button class="b primary" id="ag-from-q" type="button" hidden></button></div>
-      <div class="card" id="detail" hidden aria-live="polite"></div>
+      <details class="card" id="import-box">
+        <summary>Lista de invitados: exportar o subir</summary>
+        <a class="b" id="guests-csv" download>Exportar invitados (Excel)</a>
+        <label for="csv">Subir un archivo Excel (.xlsx) o CSV con las columnas Nombre y apellido y Email</label>
+        <input id="csv" type="file" accept=".xlsx,.csv,text/csv">
+        <p class="muted">Los invitados nuevos se agregan; los que ya están se actualizan, y nadie se borra. <a id="guests-example" class="link" download>Descargar ejemplo</a></p>
+      </details>
+      <dialog class="card sheet" id="detail" aria-label="Detalle del invitado"></dialog>
     </section>
 
     <section id="t-stage" class="pane" role="tabpanel" hidden>

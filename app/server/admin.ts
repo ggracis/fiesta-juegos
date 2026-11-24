@@ -197,7 +197,7 @@ export function registerAdmin(app: FastifyInstance, db: DatabaseSync, state: Sta
       pin: r.pin ?? null, ticketToken: r.ticket_token ?? null,
     }));
     const summary = { total: rows.length, confirmed: rows.filter((r) => r.registered).length, accredited: rows.filter((r) => r.checked_in_at).length };
-    return { guests, counts, summary };
+    return { guests, counts, summary, checkinOpen: checkinOpen() }; // the door screen locks "Acreditar" before event day
   });
 
   // Shared by CSV and XLSX. Re-import updates email but never blanks them and never deletes guests.
