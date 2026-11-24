@@ -644,7 +644,9 @@ export function registerAdmin(app: FastifyInstance, db: DatabaseSync, state: Sta
   }, async (req, reply) => {
     const p = req.body as Partial<ReturnType<State['stage']>>;
     if (p.winner && !db.prepare('SELECT 1 FROM raffle WHERE id = ? AND voided_at IS NULL').get(p.winner)) return reply.code(400).send({ error: 'unknown_winner' });
-    const next = { ...state.stage(), ...p, at: Date.now() };
+    const cur = state.stage();
+    // `at` restarts the video plate: only a scene or video change bumps it, so cueing the next speaker or award never replays it.
+    const next = { ...cur, ...p, at: p.scene !== undefined || p.video !== undefined ? Date.now() : cur.at };
     if (p.speakers) next.speakers = p.speakers.map((x) => ({ name: x.name.trim(), role: (x.role ?? '').trim(), ...(x.photo ? { photo: x.photo } : {}) })).filter((x) => x.name);
     if (p.awards) next.awards = p.awards.map((x) => ({ company: x.company.replace(/\s+/g, ' ').trim(), text: (x.text ?? '').replace(/\s+/g, ' ').trim() })).filter((x) => x.company);
     if (p.prizes) next.prizes = p.prizes.map((x) => x.trim()).filter(Boolean);

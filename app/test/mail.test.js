@@ -40,7 +40,7 @@ test('new registration sends one email through Brevo', async () => {
   const { url, init, body } = calls[0];
   assert.equal(url, 'https://api.brevo.com/v3/smtp/email');
   assert.equal(init.headers['api-key'], 'test-key');
-  assert.deepEqual(body.sender, { name: 'Gala Huawei Digital Power', email: 'invitaciones@galadigitalpower.com.ar' });
+  assert.deepEqual(body.sender, { name: 'Gala Digital Power 2026', email: 'invitaciones@galadigitalpower.com.ar' });
   assert.deepEqual(body.to, [{ email: 'zoe@example.com' }]);
   assert.equal(body.subject, 'Tu entrada · Gala Digital Power 2026');
   assert.match(body.htmlContent, /\/api\/ticket\/[\w-]+\/qr\.png/);

@@ -3,8 +3,8 @@ import { EVENT, PROGRAM, eventDetails, googleCalUrl, mapsUrl } from '../src/shar
 import { validEmail } from '../src/shared/identity.js';
 
 const BREVO_URL = 'https://api.brevo.com/v3/smtp/email';
-const FROM = { name: 'Gala Huawei Digital Power', email: 'invitaciones@galadigitalpower.com.ar' };
-const REPLY = { name: 'Gala Huawei Digital Power', email: 'gala@galadigitalpower.com.ar' };
+const FROM = { name: 'Gala Digital Power 2026', email: 'invitaciones@galadigitalpower.com.ar' };
+const REPLY = { name: 'Gala Digital Power 2026', email: 'gala@galadigitalpower.com.ar' };
 
 const baseUrl = () => (process.env.PUBLIC_URL || 'https://galadigitalpower.com.ar').replace(/\/+$/, '');
 export const checkinUrl = (checkinToken: string) => `${baseUrl()}/checkin.html?c=${encodeURIComponent(checkinToken)}`; // same URL the ticket page encodes

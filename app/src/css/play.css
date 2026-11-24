@@ -290,7 +290,7 @@ button.press, button.big:active { transform: scale(.94); }
 @keyframes spin { to { transform: rotate(360deg); } }
 #result.win { isolation: isolate; }
 #result.win .winglow { display: block; }
-#result.win #rtitle { font-size: 270px; line-height: 1; text-transform: uppercase; color: transparent; -webkit-background-clip: text; background-clip: text;
+#result.win #rtitle { font-size: 270px; line-height: 1; padding: .12em .04em .26em; margin: -.12em 0 -.26em; text-transform: uppercase; color: transparent; -webkit-background-clip: text; background-clip: text;
   background-image: var(--gold-text, linear-gradient(var(--sun), var(--sun))); }
 #result.win .medal { width: 360px; height: 360px; margin: 16px 0 14px; }
 #result.win .medal b { font-size: 180px; }

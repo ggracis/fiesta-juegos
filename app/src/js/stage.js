@@ -277,11 +277,17 @@ const MOMENT_MS = demo && !pin ? 8000 : 20000;
 if (panel) document.querySelectorAll('.petals i').forEach((el, i) => { if (i > 2) el.style.setProperty('--x', [1250, 1520, 1790][i - 3] + 'px'); }); // the LED layout spreads them over 3328 px
 let ambTimer = null, ambIdx = -1, ambSlide = -1;
 // The admin's phrases take turns over the four moments (phrase i -> moment i mod 4); an empty list falls back to the defaults.
+// A '|' in a phrase breaks it into lines ("Celebremos | lo logrado"); two or more lines are set smaller so the block still fits.
+const TWO_LINE_SCALE = 0.8;
 function setMoment(m, text) {
   const el = m.querySelector('[data-t]'), kind = m.dataset.m;
-  if (kind === 'lema') el.replaceChildren(...text.split(' ').flatMap((w, i) => [i ? ' ' : '', Object.assign(document.createElement('span'), { textContent: w, style: `--i:${i}` })]).filter(Boolean)); // one span per word for the stagger
-  else el.textContent = kind === 'oro' ? text.toUpperCase() : text;
-  fitText(el);
+  const lines = text.split('|').map((x) => x.trim()).filter(Boolean);
+  const br = (i) => (i ? [document.createElement('br')] : []);
+  let n = 0; // word index across lines, for the lema stagger
+  if (kind === 'lema') el.replaceChildren(...lines.flatMap((line, li) => [...br(li), ...line.split(' ').flatMap((w, i) => [i ? ' ' : '', Object.assign(document.createElement('span'), { textContent: w, style: `--i:${n++}` })])]).filter(Boolean)); // one span per word
+  else el.replaceChildren(...lines.flatMap((line, li) => [...br(li), kind === 'oro' ? line.toUpperCase() : line]));
+  el.style.fontSize = '';
+  fitText(el, lines.length > 1 ? parseFloat(getComputedStyle(el).fontSize) * TWO_LINE_SCALE : 0);
 }
 function ambient(on) {
   clearInterval(ambTimer); ambTimer = null;

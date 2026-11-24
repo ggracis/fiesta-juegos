@@ -1,7 +1,7 @@
 // Single source for the "add to calendar" links (Google + .ics) on the invitation and the ticket.
 // The program below and the "Agenda" list in src/index.html must be updated together; final agenda confirmed by the client on 2026-11-19.
 export const EVENT = {
-  title: 'Gala Digital Power 2026 · Huawei',
+  title: 'Gala Digital Power 2026', // brand rule: the event name alone, never "Huawei" glued to it
   start: '20261130T213000Z', // 18:30 Buenos Aires (UTC-3)
   end: '20261201T030000Z', // 00:00
   tz: 'America/Argentina/Buenos_Aires',

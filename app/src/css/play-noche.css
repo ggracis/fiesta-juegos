@@ -113,7 +113,7 @@ html.noche #attract.show-board .board li.new { background: rgba(212, 175, 106, .
 
 /* ---------- PIN ---------- */
 html.noche .pincard { padding: 40px 0 34px; border: 0; border-radius: 28px; background: rgba(255, 255, 255, .025); box-shadow: inset 0 0 0 1px rgba(212, 175, 106, .5), var(--shadow-card); }
-html.noche .pincard h2 { font-size: 88px; color: transparent; background: var(--gold-text); -webkit-background-clip: text; background-clip: text; }
+html.noche .pincard h2 { font-size: 88px; padding: .1em .04em .26em; margin-bottom: -.26em; color: transparent; background: var(--gold-text); -webkit-background-clip: text; background-clip: text; }
 html.noche #dots { gap: 22px; margin-top: 18px; }
 html.noche #dots i { width: 68px; height: 76px; border-radius: 0; background: none; box-shadow: inset 0 -3px 0 rgba(212, 175, 106, .55); }
 html.noche #dots i.on { border-radius: 0; box-shadow: inset 0 -3px 0 var(--gold); background: radial-gradient(circle 20px at 50% 50%, #F8E7BC, #D4AF6A 70%, rgba(212, 175, 106, 0) 72%); }

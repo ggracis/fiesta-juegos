@@ -35,7 +35,7 @@ label { font-weight: 600; font-size: .9rem; }
 
 input:not([type=checkbox]), select, textarea { width: 100%; min-height: 44px; padding: 8px 12px; font: inherit; color: var(--card-ink); background: var(--field); border: 2px solid var(--field-line); border-radius: 10px; }
 ::placeholder { color: var(--soft); opacity: 1; }
-textarea { font-family: ui-monospace, Consolas, monospace; font-size: .9rem; min-height: 80px; }
+textarea { font-family: var(--font); font-size: .9rem; min-height: 80px; }
 input[type=file] { padding: 8px; }
 input[type=checkbox] { width: 22px; height: 22px; accent-color: var(--red); }
 .sw { display: flex; align-items: center; gap: 10px; min-height: 44px; }
@@ -44,7 +44,7 @@ input[type=checkbox] { width: 22px; height: 22px; accent-color: var(--red); }
 details.card { display: block; }
 summary { display: flex; align-items: center; min-height: 44px; font: 800 1.1rem var(--font-display); cursor: pointer; }
 #add-guest { display: grid; gap: 8px; margin-top: 8px; }
-kbd { padding: 0 6px; border: 1px solid currentColor; border-radius: 6px; font: 700 .9rem ui-monospace, Consolas, monospace; }
+kbd { padding: 0 6px; border: 1px solid currentColor; border-radius: 6px; font: 700 .9rem var(--font); }
 
 .b { min-height: 44px; padding: 0 18px; border: 0; border-radius: 10px; font: 700 .95rem var(--font); color: var(--cream); background: rgba(255, 255, 255, .14); cursor: pointer; white-space: nowrap; }
 .card .b { color: var(--btn-ink); background: var(--btn); }
@@ -85,7 +85,7 @@ a.b { display: inline-flex; align-items: center; justify-self: start; text-decor
 .diet { padding: 6px 10px; border-radius: 8px; font-weight: 700; color: var(--ink); background: var(--sun); }
 .pinrow { display: flex; align-items: center; gap: 12px; padding: 6px 12px; border-radius: 12px; background: var(--tint); }
 .pinrow .muted { font-weight: 700; letter-spacing: .08em; }
-.pin { font: 800 2.2rem/1.1 ui-monospace, Consolas, monospace; letter-spacing: .18em; color: var(--card-ink); }
+.pin { font: 700 2.2rem/1.1 var(--font); font-variant-numeric: tabular-nums; letter-spacing: .18em; color: var(--card-ink); }
 /* Compact guest row: who on the left, the one action on the right; several guests fit on a phone screen. */
 .guest { grid-template-columns: minmax(0, 1fr) auto; align-items: center; column-gap: 12px; padding: 12px 14px; }
 .guest.done { opacity: .8; }
@@ -94,7 +94,7 @@ a.b { display: inline-flex; align-items: center; justify-self: start; text-decor
 .gmeta { display: flex; flex-wrap: wrap; gap: 2px 10px; font-size: .9rem; color: var(--soft); }
 .gmeta > span:not(.gpin) { min-width: 0; max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .gpin { color: var(--card-ink); font-weight: 700; }
-.gpin b { font: 800 1.15rem ui-monospace, Consolas, monospace; letter-spacing: .12em; }
+.gpin b { font: 700 1.15rem var(--font); font-variant-numeric: tabular-nums; letter-spacing: .12em; }
 .gtop:empty { display: none; }
 .guest > .b, .guest > a.b { display: inline-flex; align-items: center; justify-content: center; min-height: 52px; padding: 0 14px; font-size: 1.05rem; }
 .guest > .b.danger { grid-column: 1 / -1; min-height: 44px; font-size: .95rem; }

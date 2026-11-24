@@ -28,7 +28,7 @@ export const ytId = (url) =>
 
 // WOW cue: a gold sweep crosses panel 1 -> 4 and lands on the stage as the title appears, all off the server clock.
 export const PANELS = 4;
-export const CUE_LEAD_MS = 6500; // panels poll every 5 s outside raffle mode: every screen must see the cue before it fires
+export const CUE_LEAD_MS = 1500; // panels and the stage poll every 1 s: the cue reaches every screen before it fires, near-instant for the operator
 export const CUE_STEP_MS = 450; // delay between neighbouring screens
 export const CUE_SWEEP_MS = 900; // one screen's sweep
 // Start of the sweep on screen `slot` (1..PANELS for the panels, PANELS + 1 for the stage) relative to cueAt.

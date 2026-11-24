@@ -524,10 +524,11 @@ function renderMixer(winners) {
     }));
   }
   markOn(ST.scene);
-  $('st-sp').textContent = sp ? `${ST.speaker + 1} de ${ST.speakers.length}: ${sp.name}` : 'Sin oradores';
+  const live = (k) => (ST.scene === k ? 'En pantalla · ' : 'Preparado · ');
+  $('st-sp').textContent = sp ? `${live('speaker')}${ST.speaker + 1} de ${ST.speakers.length}: ${sp.name}` : 'Sin oradores';
   $('st-prev').disabled = ST.speaker <= 0;
   $('st-next').disabled = ST.speaker >= ST.speakers.length - 1;
-  $('st-aw').textContent = aw ? `${ST.award + 1} de ${ST.awards.length}: ${aw.company}${aw.text ? ' · ' + aw.text : ''}` : 'Sin reconocimientos';
+  $('st-aw').textContent = aw ? `${live('award')}${ST.award + 1} de ${ST.awards.length}: ${aw.company}${aw.text ? ' · ' + aw.text : ''}` : 'Sin reconocimientos';
   $('st-aprev').disabled = ST.award <= 0;
   $('st-anext').disabled = ST.award >= ST.awards.length - 1;
   renderPrizes(winners.filter((x) => !x.voidedAt));
@@ -627,21 +628,17 @@ function renderRaffleMode() {
 function initStage() {
   stReady = true;
   $('st-link').href = new URL('stage.html', location.href).href;
-  $('st-prev').onclick = () => setStage({ scene: 'speaker', speaker: ST.speaker - 1 });
-  $('st-next').onclick = () => setStage({ scene: 'speaker', speaker: ST.speaker + 1 });
-  $('st-aprev').onclick = () => setStage({ scene: 'award', award: ST.award - 1 });
-  $('st-anext').onclick = () => setStage({ scene: 'award', award: ST.award + 1 });
+  // Prev/next only pick who is next: the screen changes when that scene is on air (or when its tile is pressed).
+  $('st-prev').onclick = () => setStage({ speaker: ST.speaker - 1 });
+  $('st-next').onclick = () => setStage({ speaker: ST.speaker + 1 });
+  $('st-aprev').onclick = () => setStage({ award: ST.award - 1 });
+  $('st-anext').onclick = () => setStage({ award: ST.award + 1 });
   $('st-cue').onclick = async () => {
-    if (!confirm('¿Lanzar el momento WOW? Empieza en 6 segundos en los paneles y en el escenario.')) return;
     const b = $('st-cue'); b.disabled = true; // a second tap would restart the cue
     if (!(await run(api.adminCue))) { b.disabled = false; return; }
-    toast('Momento WOW en 6 segundos'); loadStage();
-    let n = 9;
-    const t = setInterval(() => {
-      if (n < 0) { clearInterval(t); b.textContent = 'Momento WOW'; b.disabled = false; return; }
-      b.textContent = n > 4 ? `WOW en ${n - 4}…` : 'WOW en curso…'; n--;
-    }, 1000);
-    b.textContent = 'WOW en 6…';
+    toast('Momento WOW'); loadStage();
+    b.textContent = 'WOW en curso…';
+    setTimeout(() => { b.textContent = 'Momento WOW'; b.disabled = false; }, 5000); // lead + sweep across the 4 panels and the stage
   };
   $('st-prize').onchange = () => { prizeTouched = true; $('st-prize-other').hidden = $('st-prize').value !== OTHER; if (!$('st-prize-other').hidden) $('st-prize-other').focus(); };
   $('st-draw').onclick = async () => {

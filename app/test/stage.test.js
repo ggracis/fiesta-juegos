@@ -116,3 +116,16 @@ test('ytId: YouTube links give the video id, anything else gives none', () => {
   for (const u of ['', null, undefined, 'media/intro.mp4', 'https://cdn.example.com/a.mp4', `https://evil.com/watch?v=${id}`,
     `https://www.youtube.com.evil.com/watch?v=${id}`, 'https://www.youtube.com/watch?v=short', `https://www.youtube.com/watch?v=${id}x`, 'https://www.youtube.com/']) assert.equal(ytId(u), '', String(u));
 });
+
+test('stage: picking the next speaker or award off air keeps the scene and does not replay the video', async () => {
+  const { app, h } = await adminApp();
+  const v = (await put(app, '/api/admin/stage', { scene: 'video', video: 'media/intro.mp4' }, h)).json();
+  const r = (await put(app, '/api/admin/stage', { speaker: 1, award: 2 }, h)).json();
+  assert.equal(r.scene, 'video');
+  assert.equal(r.at, v.at);
+  assert.equal(r.speaker, 1);
+  assert.equal(r.award, 2);
+  const s = (await put(app, '/api/admin/stage', { scene: 'speaker' }, h)).json();
+  assert.ok(s.at >= v.at);
+  assert.deepEqual((await live(app)).stage.speaker, DEFAULT_STAGE.speakers[1]);
+});

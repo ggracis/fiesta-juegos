@@ -411,9 +411,8 @@ function poll() {
       () => { if (netOk) { netOk = false; if (current === 'menu') renderMenu(); } showNet(); }) // keep last good state
     .finally(() => { inflight = null; }));
 }
-// Every 1 s in raffle mode (so every panel sees a draw well before its show starts), otherwise every 5 s.
-let ticks = 0;
-setInterval(() => { if (liveState?.raffleMode || raffleOn || ++ticks % 5 === 0) poll(); }, 1000);
+// Every 1 s: a draw or a WOW cue must reach every panel within CUE_LEAD_MS (4 panels polling a tiny payload is nothing for the server).
+setInterval(poll, 1000);
 
 const setOv = (id, on) => { $(id).hidden = !on; };
 const gone = (s) => !!gameId && !s.games.some((g) => g.id === gameId);
@@ -675,7 +674,7 @@ function scheduleCue(s) {
   if (!at || at === cueSeen) return;
   cueSeen = at;
   const ms = cueMs(Date.now(), clockOffset, at, panelSlot);
-  if (ms < 0) setTimeout(playCue, -ms); // missed it (late poll): skip
+  if (ms < 400) setTimeout(playCue, Math.max(0, -ms)); // a slightly late poll still plays (a bit behind); a really late one skips
 }
 function playCue() {
   const ov = $('#ov-cue'), total = CUE_SWEEP_MS + 500;
