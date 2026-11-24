@@ -211,9 +211,29 @@ function fill(d) {
   }
 }
 
+// Content transitions (the background stays): a new plate's lines rise in one after another; on the same plate
+// (next speaker or award) the old lines lift out first, then the new ones come in.
+const ANIMATED = new Set(['title', 'speaker', 'award', 'raffle']);
+let swapTok = 0, shownKey = null;
+const lines = (view) => [...plate(view).children];
+function enter(view) {
+  const kids = lines(view);
+  gsap.killTweensOf(kids);
+  gsap.fromTo(kids, { opacity: 0, y: 50 }, { opacity: 1, y: 0, duration: 0.7, ease: 'power3.out', stagger: 0.08, delay: 0.15, clearProps: 'opacity,transform' });
+}
 function show(d) {
+  const swap = !RM && d.view === curView && ANIMATED.has(d.view) && shownKey !== null && shownKey !== d.key;
+  shownKey = d.key;
+  const tok = ++swapTok; // a newer show() cancels a swap still lifting out
+  if (swap) {
+    const kids = lines(d.view);
+    gsap.killTweensOf(kids);
+    gsap.to(kids, { opacity: 0, y: -40, duration: 0.35, ease: 'power2.in', stagger: 0.04, onComplete: () => { if (tok === swapTok) { fill(d); enter(d.view); } } });
+    return;
+  }
   splits.forEach((x) => x.revert()); splits = [];
   prevView = curView; curView = d.view;
+  if (ANIMATED.has(d.view)) { gsap.killTweensOf(lines(d.view)); gsap.set(lines(d.view), { clearProps: 'opacity,transform' }); } // undo an interrupted swap
   fill(d);
   wall.classList.toggle('off', d.view === 'black');
   for (const p of plates) p.classList.toggle('on', p.dataset.view === d.view);
@@ -223,6 +243,7 @@ function show(d) {
   if (RM) return;
   if (d.cue) cueIntro();
   else if (d.view === 'winner' && prevView === 'suspense') revealWinner();
+  else if (ANIMATED.has(d.view) && d.view !== prevView) enter(d.view);
 }
 
 // ---------- the two big moments ----------
