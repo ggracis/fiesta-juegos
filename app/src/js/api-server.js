@@ -78,10 +78,19 @@ export const adminHideRaffle = () => call('api/admin/raffle/hide', undefined, 'P
 export const adminStage = () => call('api/admin/stage');
 export const adminSetStage = (patch) => call('api/admin/stage', patch, 'PUT');
 export const adminCue = () => call('api/admin/stage/cue', undefined, 'POST');
+export const adminResetRaffle = () => call('api/admin/raffle/reset', undefined, 'POST');
 export const adminClearRaffle = () => call('api/admin/raffle/clear', undefined, 'POST');
 export const adminVoidRaffle = (id) => call('api/admin/raffle/' + e(id) + '/void', undefined, 'POST');
 export const adminDeliverRaffle = (id) => call('api/admin/raffle/' + e(id) + '/deliver', undefined, 'POST');
 export const adminPrizeWinners = () => call('api/admin/winners');
+// Speaker photo: the raw JPEG/PNG/WebP is the body; resolves { path } to store in the speaker.
+export const adminUploadImage = async (file) => {
+  let r;
+  try { r = await fetch(base + 'api/admin/media/image', { method: 'POST', headers: { 'content-type': file.type }, body: file, signal: AbortSignal.timeout(60000) }); } catch { throw Object.assign(new Error('network'), { code: 'network' }); }
+  const d = await r.json().catch(() => ({}));
+  if (!r.ok) throw Object.assign(new Error(d.error || 'http'), { ...d, code: d.error || 'http', status: r.status });
+  return d;
+};
 // fetch has no upload progress: XHR streams the file as the raw body (no 8 s timeout, a video takes a while).
 export const adminUploadMedia = (file, onProgress) => new Promise((resolve, reject) => {
   const x = new XMLHttpRequest();

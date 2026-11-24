@@ -22,7 +22,9 @@ const ERRORS = {
   too_soon: 'Ya se envió hace instantes. Espera un minuto.', no_email: 'Ese invitado no tiene email.', send_failed: 'No se pudo enviar el correo.',
   guest_exists: 'Ya existe un invitado con ese nombre: búscalo en la lista.',
   not_duplicate: 'Ya no hay otro invitado con ese nombre: no se elimina.', guest_in_use: 'Ese invitado ya jugó o participó del sorteo: no se puede eliminar.',
-  already_voided: 'Ese sorteo ya estaba anulado.', already_resolved: 'Esa verificación ya fue resuelta.', http: 'Error del servidor.', already_checked_in: 'Ya estaba acreditado.', demo_unavailable: 'No disponible en el modo demo.',
+  already_voided: 'Ese sorteo ya estaba anulado.', already_resolved: 'Esa verificación ya fue resuelta.', http: 'Error del servidor.', already_checked_in: 'Ya estaba acreditado.',
+  checkin_not_open: 'La acreditación se habilita el lunes 30/11, el día del evento. Esta persona ya está confirmada y tiene su entrada.',
+  image_required: 'Elige una imagen JPG, PNG o WebP.', invalid_image: 'El archivo no es una imagen JPG, PNG o WebP válida.', demo_unavailable: 'No disponible en el modo demo.',
 };
 let toastTimer;
 function toast(msg, bad) {
@@ -224,7 +226,7 @@ function guestCard(g) {
       ev.stopPropagation();
       if (!confirm(`¿Acreditar a ${g.name}? No había confirmado asistencia.`)) return;
       const r = await run(() => api.adminWalkIn(g.id));
-      if (r) { lastAct = `${g.name} acreditado ${time(Date.now())}`; toast(`${g.name} acreditado · PIN ${r.pin}`); loadGuests(); } // the refreshed card shows the PIN and ticket
+      if (r) { const what = r.checkedIn ? 'acreditado' : 'confirmado (se acredita el 30/11)'; lastAct = `${g.name} ${what} ${time(Date.now())}`; toast(`${g.name} ${what} · PIN ${r.pin}`); loadGuests(); } // the refreshed card shows the PIN and ticket
     };
   }
   const card = h('article', { className: 'card guest' },
@@ -464,8 +466,8 @@ async function renderResults() {
 }
 
 // ---- Escenario: the LED wall behind the stage, driven like a vision mixer (plus the draw)
-const SCENE_LABELS = { title: 'Título', ambient: 'Ambiente', speaker: 'Orador', raffle: 'Premios y sorteos', winner: 'Ganador', video: 'Video', black: 'Negro' };
-const MIX = ['title', 'ambient', 'speaker', 'raffle', 'winner', 'video', 'black']; // keys 1-7 follow this order
+const SCENE_LABELS = { title: 'Título', ambient: 'Ambiente', speaker: 'Orador', award: 'Reconocimiento', raffle: 'Premios y sorteos', winner: 'Ganador', video: 'Video', black: 'Negro' };
+const MIX = ['title', 'ambient', 'speaker', 'award', 'raffle', 'winner', 'video', 'black']; // keys 1-8 follow this order
 let ST = null, stReady = false, spDraft = [], prizeTouched = false, stPending = 0, prizeOpts = [];
 const OTHER = 'other';
 async function loadStage(full) {
@@ -476,7 +478,7 @@ async function loadStage(full) {
   renderMixer(winners);
   renderRaffleMode();
   renderStrip();
-  if (full) { spDraft = ST.speakers.map((x) => ({ ...x })); renderSpeakers(); $('st-prize-list').value = ST.prizes.join('\n'); $('st-ambient').value = ST.ambient.join('\n'); $('st-video').value = ST.video; }
+  if (full) { spDraft = ST.speakers.map((x) => ({ ...x })); renderSpeakers(); $('st-awards').value = ST.awards.map((a) => a.company + (a.text ? ' | ' + a.text : '')).join('\n'); $('st-prize-list').value = ST.prizes.join('\n'); $('st-ambient').value = ST.ambient.join('\n'); $('st-video').value = ST.video; }
 }
 // Resolves true when the server accepted the change; the mixer is refreshed afterwards.
 const setStage = async (patch) => {
@@ -486,12 +488,14 @@ const setStage = async (patch) => {
 const markOn = (scene) => {
   for (const b of $('st-mixer').children) { const on = b.dataset.scene === scene; b.classList.toggle('on', on); b.setAttribute('aria-pressed', String(on)); }
   const sp = ST.speakers[ST.speaker];
-  $('st-now').textContent = 'En pantalla: ' + SCENE_LABELS[scene] + (scene === 'speaker' && sp ? ` (${sp.name})` : '');
+  const aw = ST.awards[ST.award];
+  $('st-now').textContent = 'En pantalla: ' + SCENE_LABELS[scene] + (scene === 'speaker' && sp ? ` (${sp.name})` : scene === 'award' && aw ? ` (${aw.company})` : '');
 };
 function renderMixer(winners) {
-  const sp = ST.speakers[ST.speaker], w = winners.find((x) => x.id === ST.winner && !x.voidedAt);
+  const sp = ST.speakers[ST.speaker], aw = ST.awards[ST.award], w = winners.find((x) => x.id === ST.winner && !x.voidedAt);
   const subs = {
     title: 'Gala Digital Power 2026', ambient: 'Animaciones suaves que rotan', speaker: sp ? sp.name + (sp.role ? ' · ' + sp.role : '') : 'Sin oradores',
+    award: aw ? aw.company + (aw.text ? ' · ' + aw.text : '') : 'Sin reconocimientos',
     raffle: 'Placa de premios', winner: w ? w.name + (w.prize ? ' · ' + w.prize : '') : 'Todavía no hay sorteos', video: ST.video || 'Sin video configurado', black: 'Pantalla apagada',
   };
   if (changed('mx', subs)) {
@@ -510,6 +514,9 @@ function renderMixer(winners) {
   $('st-sp').textContent = sp ? `${ST.speaker + 1} de ${ST.speakers.length}: ${sp.name}` : 'Sin oradores';
   $('st-prev').disabled = ST.speaker <= 0;
   $('st-next').disabled = ST.speaker >= ST.speakers.length - 1;
+  $('st-aw').textContent = aw ? `${ST.award + 1} de ${ST.awards.length}: ${aw.company}${aw.text ? ' · ' + aw.text : ''}` : 'Sin reconocimientos';
+  $('st-aprev').disabled = ST.award <= 0;
+  $('st-anext').disabled = ST.award >= ST.awards.length - 1;
   renderPrizes(winners.filter((x) => !x.voidedAt));
   if (changed('win', winners)) {
     $('st-winners').replaceChildren(...winners.map((x) => {
@@ -571,7 +578,23 @@ function renderSpeakers() {
     };
     const del = h('button', { type: 'button', className: 'b', ariaLabel: 'Quitar orador ' + (i + 1) }, '✕');
     del.onclick = () => { spDraft.splice(i, 1); renderSpeakers(); };
-    return h('div', { className: 'st-sprow' }, name, role, move('↑', -1, 'Subir'), move('↓', 1, 'Bajar'), del);
+    // Photo (optional): uploaded to the server, kept as a media/ path in the draft until "Guardar oradores".
+    const file = h('input', { type: 'file', accept: 'image/jpeg,image/png,image/webp', hidden: true });
+    file.onchange = async () => {
+      const f = file.files[0];
+      file.value = '';
+      if (!f) return;
+      if (f.size > 8 * 1024 * 1024) return toast('La foto supera 8 MB.', true);
+      const r = await run(() => api.adminUploadImage(f));
+      if (r) { x.photo = r.path; toast('Foto subida. Toca «Guardar oradores» para publicarla.'); renderSpeakers(); }
+    };
+    const pick = h('button', { type: 'button', className: 'b' }, x.photo ? 'Cambiar foto' : 'Foto');
+    pick.onclick = () => file.click();
+    const drop = x.photo && h('button', { type: 'button', className: 'b' }, 'Quitar foto');
+    if (drop) drop.onclick = () => { delete x.photo; renderSpeakers(); };
+    return h('div', { className: 'st-spitem' },
+      h('div', { className: 'st-sprow' }, name, role, move('↑', -1, 'Subir'), move('↓', 1, 'Bajar'), del),
+      h('div', { className: 'st-spphoto' }, x.photo && h('img', { src: new URL(x.photo, location.href).href, alt: 'Foto de ' + (x.name || 'orador ' + (i + 1)) }), pick, drop, file));
   }));
 }
 // Sorteo: the winner line mirrors what the panels are showing; "Ocultar" takes it off the screens.
@@ -593,6 +616,8 @@ function initStage() {
   $('st-link').href = new URL('stage.html', location.href).href;
   $('st-prev').onclick = () => setStage({ scene: 'speaker', speaker: ST.speaker - 1 });
   $('st-next').onclick = () => setStage({ scene: 'speaker', speaker: ST.speaker + 1 });
+  $('st-aprev').onclick = () => setStage({ scene: 'award', award: ST.award - 1 });
+  $('st-anext').onclick = () => setStage({ scene: 'award', award: ST.award + 1 });
   $('st-cue').onclick = async () => {
     if (!confirm('¿Lanzar el momento WOW? Empieza en 6 segundos en los paneles y en el escenario.')) return;
     const b = $('st-cue'); b.disabled = true; // a second tap would restart the cue
@@ -618,11 +643,23 @@ function initStage() {
     refresh(); loadStage();
   };
   $('hide-raffle').onclick = async () => { if (await run(api.adminClearRaffle)) { toast('Pantallas limpias: placa de premios sin nombre'); showRaffle(''); loadStage(); } };
+  $('reset-raffle').onclick = async () => {
+    if (!confirm('Se borran todos los sorteos hechos, incluidos los de prueba. No se puede deshacer.')) return;
+    const r = await run(api.adminResetRaffle);
+    if (!r) return;
+    toast(`Sorteos borrados (${r.deleted})`); showRaffle(''); prizeTouched = false; refresh(); loadStage();
+  };
   $('raffle-mode').onclick = async () => { if (await setting({ raffleMode: !S.settings.raffleMode })) renderRaffleMode(); };
   $('st-add').onclick = () => { spDraft.push({ name: '', role: '' }); renderSpeakers(); $('st-speakers').lastChild.querySelector('input').focus(); };
   $('st-save-sp').onclick = async () => {
-    const speakers = spDraft.map((x) => ({ name: x.name.trim(), role: x.role.trim() })).filter((x) => x.name);
+    const speakers = spDraft.map((x) => ({ name: x.name.trim(), role: x.role.trim(), ...(x.photo ? { photo: x.photo } : {}) })).filter((x) => x.name);
     if (await run(() => api.adminSetStage({ speakers }))) { toast('Oradores guardados'); loadStage(true); }
+  };
+  $('st-save-aw').onclick = async () => {
+    const awards = $('st-awards').value.split('\n').map((l) => { const i = l.indexOf('|'); return i < 0 ? { company: l.trim(), text: '' } : { company: l.slice(0, i).trim(), text: l.slice(i + 1).trim() }; }).filter((a) => a.company);
+    if (awards.length > 60) return toast('Máximo 60 reconocimientos.', true);
+    if (awards.some((a) => a.company.length > 80 || a.text.length > 120)) return toast('La empresa admite hasta 80 caracteres y el texto hasta 120.', true);
+    if (await run(() => api.adminSetStage({ awards }))) { toast('Reconocimientos guardados'); loadStage(true); }
   };
   $('st-save-amb').onclick = async () => {
     const ambient = $('st-ambient').value.split('\n').map((x) => x.replace(/\s+/g, ' ').trim()).filter(Boolean);
@@ -654,10 +691,11 @@ function initStage() {
 }
 // Mixer refresh: every 3 s while the Escenario tab is open (another operator may switch plates too); never mid-change.
 setInterval(() => { if (current === 'stage' && !document.hidden && !$('app').hidden && !stPending) loadStage(); }, 3000);
-// Keyboard on Escenario only: 1-7 scenes (mixer order), arrows speaker prev/next. Deliberately none for WOW or the draw.
+// Keyboard on Escenario only: 1-8 scenes (mixer order), arrows award prev/next while an award is on screen, speaker otherwise. Deliberately none for WOW or the draw.
 addEventListener('keydown', (ev) => {
   if (current !== 'stage' || $('app').hidden || ev.repeat || ev.ctrlKey || ev.metaKey || ev.altKey || ev.target.closest?.('input, textarea, select, [contenteditable]')) return;
-  const btn = /^[1-7]$/.test(ev.key) ? $('st-mixer').children[ev.key - 1] : ev.key === 'ArrowLeft' ? $('st-prev') : ev.key === 'ArrowRight' ? $('st-next') : null;
+  const aw = ST?.scene === 'award';
+  const btn = /^[1-8]$/.test(ev.key) ? $('st-mixer').children[ev.key - 1] : ev.key === 'ArrowLeft' ? $(aw ? 'st-aprev' : 'st-prev') : ev.key === 'ArrowRight' ? $(aw ? 'st-anext' : 'st-next') : null;
   if (btn && !btn.disabled) { ev.preventDefault(); btn.click(); }
 });
 
@@ -681,6 +719,7 @@ async function boot() {
   $('trans').onchange = async (ev) => { if (!(await setting({ transition: ev.target.checked }))) renderLive(); };
   $('trans-save').onclick = () => setting({ transitionText: $('trans-text').value }).then((r) => r && toast('Texto guardado'));
   $('guests-example').href = api.guestsExampleUrl;
+  $('guests-csv').href = api.guestsCsvUrl;
   $('verif-new').onclick = loadVerifs;
   $('ag-from-q').onclick = () => { $('ag-name').value = $('gq').value.trim(); $('add-box').open = true; $('ag-name').focus(); };
   $('add-guest').onsubmit = async (ev) => {

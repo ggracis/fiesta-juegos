@@ -139,3 +139,5 @@ export const adminVoidRaffle = unavailable;
 export const adminDeliverRaffle = unavailable;
 export const adminPrizeWinners = unavailable;
 export const adminUploadMedia = unavailable;
+export const adminUploadImage = unavailable;
+export const adminResetRaffle = unavailable;

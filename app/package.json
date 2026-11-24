@@ -11,7 +11,7 @@
     "start": "npm run build && node server/index.ts",
     "serve": "node server/index.ts",
     "gen:demo": "node scripts/gen-demo-roster.mjs",
-    "test": "node --test test/*.test.js",
+    "test": "node --import ./test/setup.mjs --test test/*.test.js",
     "reset": "node server/reset.ts",
     "deploy:pages": "node scripts/deploy-pages.mjs"
   },

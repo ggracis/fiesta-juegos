@@ -57,6 +57,7 @@ export function makeState(db: DatabaseSync) {
     return {
       scene: s.scene, at: s.at, cueAt: s.cueAt, video: s.video, ambient: s.ambient,
       speaker: s.speakers[s.speaker] ?? null, speakerIndex: s.speaker, speakerCount: s.speakers.length,
+      award: s.awards[s.award] ?? null, awardIndex: s.award, awardCount: s.awards.length,
       winner: w ? { id: w.id, name: w.name, prize: w.prize ?? '', drawnAt: w.drawn_at } : null,
     };
   };

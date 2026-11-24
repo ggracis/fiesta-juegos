@@ -46,3 +46,7 @@ export function csvLine(line: string): string[] {
   out.push(cur.trim());
   return out;
 }
+
+// Check-in opens on event day (Mon 30 Nov 2026, Buenos Aires). The env var is read per call so tests can move it.
+export const CHECKIN_FROM = Date.parse('2026-11-30T00:00:00-03:00');
+export const checkinOpen = (now = Date.now()) => now >= Number(process.env.CHECKIN_FROM ?? CHECKIN_FROM);

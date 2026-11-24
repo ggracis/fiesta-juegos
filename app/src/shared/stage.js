@@ -1,14 +1,22 @@
 // Stage screen (one LED wall, 3328x832) driven from the admin. Pure, shared by the server, the stage page, the panels and the tests.
 // ambient: soft rotating moments for when nothing else is happening on stage.
-export const SCENES = ['title', 'ambient', 'speaker', 'raffle', 'winner', 'video', 'black'];
+export const SCENES = ['title', 'ambient', 'speaker', 'award', 'raffle', 'winner', 'video', 'black'];
 export const DEFAULT_STAGE = {
-  scene: 'title', speaker: 0, winner: 0, video: '', cueAt: 0, at: 0,
+  scene: 'title', speaker: 0, award: 0, winner: 0, video: '', cueAt: 0, at: 0,
   // Confirmed by the client; Wilfred's surname is still pending.
   speakers: [
     { name: 'Binbing Xiao', role: 'CEO' },
     { name: 'Wilfred', role: 'Director' },
     { name: 'Ignacio Dapena', role: 'Director de Energía Digital' },
   ],
+  // Recognitions ceremony (company + what it is recognised for), shown one at a time after the speakers.
+  awards: [
+    ['SECCO', 'Biggest PV Project in Santa Fe'], ['PCR', 'Hybrid Wind & BESS project'], ['ARENGY', 'Biggest DG project'],
+    ['YPF LUZ', 'Biggest PV project in Argentina'], ['BAESA', 'Plan Verano BESS'], ['ACA', 'Best C&I Microgrid'],
+    ['BITAFAL', 'First EV Charger microgrid'], ['CEMDO', 'Biggest PV for cooperatives'],
+    ...['SISTEMAS DE RIEGO', 'BIOSOLARES', 'INGENIERIA COLOMBO', 'LUMAGER', 'NODEK', 'ECOVATIO'].map((c) => [c, 'TOP INSTALLER HUAWEI']),
+    ...['MULTISOLAR', 'EFERGIA', 'GREEN FUSION', 'SANBAI'].map((c) => [c, 'TOP PARTNER HUAWEI']),
+  ].map(([company, text]) => ({ company, text })),
   prizes: [],
   // Ambient phrases, cycled through the ambient moments (lema, luces, dragón, oro) in that order.
   ambient: ['Celebremos lo logrado.', 'Bienvenidos a la gala', '2026', 'Digital Power 2026', 'Imaginemos lo que viene.'],

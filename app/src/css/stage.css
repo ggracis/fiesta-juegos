@@ -112,6 +112,19 @@ html, body { margin: 0; height: 100%; overflow: hidden; background: #000; cursor
 .noche [data-view="raffle"] .name, .noche [data-view="winner"] .name { color: transparent; background: var(--gold-text); -webkit-background-clip: text; background-clip: text; padding-bottom: 14px; }
 .noche [data-view="suspense"] .name { color: var(--name); }
 .reel { opacity: .9; }
+
+/* Speaker with a photo: the portrait sits left, the text column right (grid; without a photo the plate stays the centred flex column). */
+.plate.has-photo { display: grid; grid-template-columns: 560px minmax(0, 1fr); column-gap: 100px; align-content: center; justify-items: center; padding: 0 600px; }
+.has-photo > :not(.sp-photo) { grid-column: 2; }
+.sp-photo { grid-column: 1; grid-row: 1 / span 5; width: 560px; height: 560px; border: 12px solid var(--gold); border-radius: 50%; object-fit: cover; background: #000; }
+
+/* Recognitions: a ceremony plate, not a name plate. Small spaced label between gold diamonds, the award in gold, a red rule, the company in cream. */
+.aw-label { display: flex; align-items: center; gap: 44px; font: 600 54px/1 var(--sans); letter-spacing: .42em; color: var(--gold); }
+.aw-label::before, .aw-label::after { content: ''; width: 24px; height: 24px; background: var(--gold); transform: rotate(45deg); }
+.aw-text { font: 700 124px/1.15 var(--display); letter-spacing: .03em; color: var(--red-deep); margin-top: 34px; }
+.noche .aw-text { color: transparent; background: var(--gold-text); -webkit-background-clip: text; background-clip: text; padding-bottom: 8px; }
+.aw-rule { width: 460px; height: 8px; border-radius: 4px; background: var(--red); margin: 30px 0 26px; }
+.aw-co { font: 700 250px/1 var(--display); letter-spacing: .02em; color: var(--name); font-variant-numeric: lining-nums; }
 [data-view="winner"] .role { font-size: 76px; }
 
 /* ---------- ambient: one moment at a time, crossfaded (.on); .run restarts its animations each time it comes back ---------- */
@@ -194,6 +207,13 @@ html, body { margin: 0; height: 100%; overflow: hidden; background: #000; cursor
 .panel .name { font-size: 190px; }
 .panel [data-view="raffle"] .name { font-size: 130px; }
 .panel .foot { font-size: 40px; }
+.panel .plate.has-photo { grid-template-columns: 400px minmax(0, 1fr); column-gap: 56px; padding: 0 340px; }
+.panel .sp-photo { width: 400px; height: 400px; border-width: 10px; }
+.panel .aw-label { font-size: 38px; gap: 30px; }
+.panel .aw-label::before, .panel .aw-label::after { width: 18px; height: 18px; }
+.panel .aw-text { font-size: 84px; margin-top: 26px; }
+.panel .aw-rule { width: 340px; height: 7px; margin: 24px 0 20px; }
+.panel .aw-co { font-size: 170px; }
 .panel [data-view="winner"] .role { font-size: 60px; }
 .panel .lema { font-size: 100px; }
 .panel .welcome { font-size: 110px; }

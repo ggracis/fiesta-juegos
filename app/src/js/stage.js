@@ -15,6 +15,7 @@ const quiet = preview || panel;
 
 // ---------- fixed canvas (3328x832 LED wall, or 1920x1080 panel), scaled to fit (letterboxed in black) ----------
 const W = panel ? 1920 : 3328, H = panel ? 1080 : 832, MAX_TEXT = panel ? 1200 : 1900;
+const MAX_PHOTO = panel ? 640 : 1350, MAX_AWARD = panel ? 1300 : 2300; // speaker text beside a photo; award lines (wider: nothing else on the plate)
 const wall = $('#wall');
 let scale = 1;
 const fit = () => { scale = Math.min(innerWidth / W, innerHeight / H); wall.style.transform = `translate(-50%, -50%) scale(${scale})`; };
@@ -117,27 +118,29 @@ async function poll() {
 
 // Demo: every plate in turn with fake data.
 const DEMO_SPEAKERS = [{ name: 'Binbing Xiao', role: 'CEO' }, { name: 'Wilfred', role: 'Director' }, { name: 'Ignacio Dapena', role: 'Director de Energía Digital' }];
+const DEMO_AWARDS = [{ company: 'YPF LUZ', text: 'Biggest PV project in Argentina' }, { company: 'INGENIERIA COLOMBO', text: 'TOP INSTALLER HUAWEI' }];
 const DEMO_NAMES = ['Lucía Fernández', 'Martín Gómez', 'Sofía Herrera', 'Diego Castro', 'Valentina Ruiz', 'Joaquín Paredes', 'Camila Ortega', 'Tomás Aguirre', 'Florencia Vidal', 'Agustín Molina', 'Julieta Sosa', 'Matías Romero'];
 const DEMO_PRIZES = ['Smart TV 55"', 'Notebook', 'Auriculares inalámbricos', 'Tablet', 'Reloj inteligente'];
 const DEMO_VIDEO = 'https://www.youtube.com/watch?v=mIFULvJIFaU';
-const DEMO_STEPS = [['title', 8000], ['ambient', 32000], ['speaker', 6000, 0], ['speaker', 6000, 1], ['speaker', 6000, 2], ['raffle', 6000], ['draw', 21000], ['video', 6000], ['cue', 9000]];
+const DEMO_STEPS = [['title', 8000], ['ambient', 32000], ['speaker', 6000, 0], ['speaker', 6000, 1], ['speaker', 6000, 2], ['award', 6000, 0], ['award', 6000, 1], ['raffle', 6000], ['draw', 21000], ['video', 6000], ['cue', 9000]];
 const DEMO_CYCLE = DEMO_STEPS.reduce((a, s) => a + s[1], 0);
 const demoT0 = Date.now(), pin = q.get('scene');
 function demoState(now) {
   const winner = (n, drawnAt) => ({ id: n + 1, name: DEMO_NAMES[(n * 5 + 3) % DEMO_NAMES.length], prize: DEMO_PRIZES[n % DEMO_PRIZES.length], drawnAt });
-  const base = { scene: 'title', at: 0, cueAt: 0, video: DEMO_VIDEO, speaker: null, winner: null, ambient: DEFAULT_STAGE.ambient };
+  const base = { scene: 'title', at: 0, cueAt: 0, video: DEMO_VIDEO, speaker: null, award: null, winner: null, ambient: DEFAULT_STAGE.ambient };
   if (pin) {
     const sp = DEMO_SPEAKERS[Number(q.get('speaker')) || 0] ?? DEMO_SPEAKERS[0];
     if (pin === 'suspense') return { ...base, scene: 'winner', winner: winner(0, now - LEAD_MS - 5000) }; // reel frozen mid-way
     if (pin === 'winner') return { ...base, scene: 'winner', winner: winner(0, 0) };
     if (pin === 'cue') return { ...base, cueAt: now - ((now - demoT0) % 9000) + 3000 }; // replays every 9 s
-    return { ...base, scene: pin, speaker: sp };
+    return { ...base, scene: pin, speaker: sp, award: DEMO_AWARDS[Number(q.get('award')) || 0] ?? DEMO_AWARDS[0] };
   }
   const round = Math.floor((now - demoT0) / DEMO_CYCLE);
   let t = (now - demoT0) % DEMO_CYCLE, start = now - t;
   for (const [kind, ms, arg] of DEMO_STEPS) {
     if (t < ms) {
       if (kind === 'speaker') return { ...base, scene: 'speaker', speaker: DEMO_SPEAKERS[arg] };
+      if (kind === 'award') return { ...base, scene: 'award', award: DEMO_AWARDS[arg] };
       if (kind === 'draw') return { ...base, scene: 'winner', winner: winner(round, start) };
       if (kind === 'video') return { ...base, scene: 'video', at: start };
       if (kind === 'cue') return { ...base, cueAt: start + 2500 };
@@ -160,7 +163,8 @@ function desired(now) {
     if (t >= 0 && t < 4000 && s.scene === 'title') return { view: 'title', key: 'title', cue: true };
   }
   switch (s.scene) {
-    case 'speaker': return s.speaker ? { view: 'speaker', key: `speaker|${s.speaker.name}|${s.speaker.role}` } : BLACK;
+    case 'speaker': return s.speaker ? { view: 'speaker', key: `speaker|${s.speaker.name}|${s.speaker.role}|${s.speaker.photo ?? ''}` } : BLACK;
+    case 'award': return s.award ? { view: 'award', key: `award|${s.award.company}|${s.award.text}` } : BLACK;
     case 'raffle': return { view: 'raffle', key: 'raffle' };
     case 'ambient': return { view: 'ambient', key: 'ambient' };
     case 'video': return { view: 'video', key: `video|${s.at}` };
@@ -175,11 +179,11 @@ function desired(now) {
   }
 }
 
-// Shrinks a one-line text until it fits MAX_TEXT (names and prizes are free text).
-function fitText(el, base) {
+// Shrinks a one-line text until it fits `max` (names and prizes are free text).
+function fitText(el, base, max = MAX_TEXT) {
   el.style.fontSize = base ? base + 'px' : '';
   const w = el.scrollWidth;
-  if (w > MAX_TEXT) el.style.fontSize = (parseFloat(getComputedStyle(el).fontSize) * MAX_TEXT) / w + 'px';
+  if (w > max) el.style.fontSize = (parseFloat(getComputedStyle(el).fontSize) * max) / w + 'px';
 }
 // NFC: names typed on some keyboards/CSVs arrive decomposed and the accent then drifts off its letter.
 const nice = (n) => cleanName(String(n)).normalize('NFC');
@@ -192,7 +196,14 @@ function fill(d) {
   if (d.view === 'speaker') {
     $('#sp-role').textContent = (s.speaker.role || '').normalize('NFC');
     $('#sp-name').textContent = nice(s.speaker.name);
-    fitText($('#sp-name'));
+    const photo = $('#sp-photo'), src = s.speaker.photo;
+    photo.hidden = !src; plate('speaker').classList.toggle('has-photo', !!src);
+    if (src) photo.src = new URL(src, location.href).href; else photo.removeAttribute('src');
+    fitText($('#sp-name'), 0, src ? MAX_PHOTO : MAX_TEXT);
+  } else if (d.view === 'award') {
+    $('#aw-text').textContent = (s.award.text || '').normalize('NFC');
+    $('#aw-co').textContent = nice(s.award.company);
+    fitText($('#aw-text'), 0, MAX_AWARD); fitText($('#aw-co'), 0, MAX_AWARD);
   } else if (d.view === 'winner' || d.view === 'suspense') {
     const w = s.winner, prize = w.prize ? 'Premio: ' + w.prize.normalize('NFC') : '';
     $(d.view === 'winner' ? '#wi-prize' : '#su-prize').textContent = prize;

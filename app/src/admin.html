@@ -45,6 +45,7 @@
         <div id="verifs"></div>
         <p class="muted" id="verifs-empty" hidden>No hay verificaciones pendientes.</p>
       </div>
+      <p><a class="b" id="guests-csv" download>Exportar invitados</a></p>
       <details class="card" id="import-box">
         <summary>Subir lista de invitados</summary>
         <label for="csv">Archivo Excel (.xlsx) o CSV con las columnas Nombre y apellido y Email</label>
@@ -79,7 +80,12 @@
           <span id="st-sp"></span>
           <button class="b" id="st-next" type="button">Mostrar orador siguiente › <kbd>→</kbd></button>
         </div>
-        <p class="muted">Atajos: teclas 1 a 7 para las escenas, flechas para el orador. Cada cambio sale al aire de inmediato.</p>
+        <div class="st-nav">
+          <button class="b" id="st-aprev" type="button">‹ Reconocimiento anterior</button>
+          <span id="st-aw"></span>
+          <button class="b" id="st-anext" type="button">Reconocimiento siguiente ›</button>
+        </div>
+        <p class="muted">Atajos: teclas 1 a 8 para las escenas, flechas para el orador o, con Reconocimiento en pantalla, para el reconocimiento. Cada cambio sale al aire de inmediato.</p>
       </div>
       <div class="card center">
         <button class="b primary big" id="st-cue" type="button">Momento WOW</button>
@@ -91,7 +97,7 @@
         <div class="row"><select id="st-prize"></select><button class="b primary" id="st-draw" type="button">Sortear ahora</button></div>
         <input id="st-prize-other" maxlength="80" placeholder="Nombre del premio" aria-label="Nombre del premio" autocomplete="off" hidden>
         <p class="winner" id="winner" aria-live="polite"></p>
-        <button class="b" id="hide-raffle" type="button">Limpiar</button>
+        <div class="row"><button class="b" id="hide-raffle" type="button">Limpiar</button><button class="b danger" id="reset-raffle" type="button">Borrar todos los sorteos</button></div>
         <p class="muted">Las pantallas y el escenario muestran el suspenso y el ganador. «Limpiar» deja la placa de premios sin nombre hasta el próximo sorteo. «Mostrar» vuelve a poner un ganador anterior; si el ganador no está, usa «Anular y volver a sortear».</p>
         <ol class="st-winners" id="st-winners"></ol>
         <p class="muted" id="st-winners-empty" hidden>Todavía no hay ganadores.</p>
@@ -153,6 +159,13 @@
         <p class="muted">En el orden en que suben al escenario. Los nombres y cargos se pueden corregir en cualquier momento.</p>
         <div class="st-speakers" id="st-speakers"></div>
         <div class="row"><button class="b" id="st-add" type="button">Agregar orador</button><button class="b primary" id="st-save-sp" type="button">Guardar oradores</button></div>
+      </div>
+      <div class="card">
+        <h2>Reconocimientos</h2>
+        <label for="st-awards">Uno por línea: EMPRESA | Texto del reconocimiento</label>
+        <textarea id="st-awards" rows="12" wrap="off"></textarea>
+        <p class="muted">Se muestran de a uno en la escena Reconocimiento, en este orden. Hasta 60, con la empresa de hasta 80 caracteres y el texto de hasta 120.</p>
+        <button class="b primary" id="st-save-aw" type="button">Guardar reconocimientos</button>
       </div>
       <div class="card">
         <h2>Frases de ambiente</h2>

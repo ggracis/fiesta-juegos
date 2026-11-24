@@ -1,12 +1,12 @@
 import type { FastifyInstance, FastifyReply, FastifyRequest } from 'fastify';
 import type { DatabaseSync } from 'node:sqlite';
 import { createHash, randomBytes, randomInt, timingSafeEqual } from 'node:crypto';
-import { createWriteStream, existsSync, renameSync, rmSync } from 'node:fs';
+import { createWriteStream, existsSync, renameSync, rmSync, writeFileSync } from 'node:fs';
 import { Transform, type Readable } from 'node:stream';
 import { pipeline } from 'node:stream/promises';
 import { join } from 'node:path';
 import { mailGuest } from './mail.ts';
-import { newToken, csvLine, PIXEL_DIR, MEDIA_DIR, createRegistration, canonical } from './lib.ts';
+import { newToken, csvLine, PIXEL_DIR, MEDIA_DIR, createRegistration, canonical, checkinOpen } from './lib.ts';
 import { nameTokens, normEmail, guestRow, validEmail } from '../src/shared/identity.js';
 import { gameById, PARAM_INFO } from '../src/shared/games.js';
 import { SCENES, CUE_LEAD_MS } from '../src/shared/stage.js';
@@ -17,12 +17,17 @@ const normalize = (s: string) => nameTokens(s).join(' ');
 const SESSION_MS = 86_400_000;
 const ONLINE_MS = 15_000;
 const sha = (s: string) => createHash('sha256').update(s).digest();
-const csvField = (v: unknown) => {
+// Quotes on ',' and ';' so one helper serves both the comma CSVs and the ';' guest export.
+const csvField = (v: unknown): string => {
   const s = v == null ? '' : String(v);
   // formula injection: neutralize strings only (numbers are never prefixed)
   if (typeof v === 'string' && /^[=+\-@\t\r]/.test(s)) return csvField("'" + s);
-  return /[",\r\n]/.test(s) ? '"' + s.replace(/"/g, '""') + '"' : s;
+  return /[",;\r\n]/.test(s) ? '"' + s.replace(/"/g, '""') + '"' : s;
 };
+// Buenos Aires wall-clock time for spreadsheets: 2026-11-30 21:05.
+const baFmt = new Intl.DateTimeFormat('sv-SE', { timeZone: 'America/Argentina/Buenos_Aires', year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit', hourCycle: 'h23' });
+const baTime = (ms: number | null) => (ms ? baFmt.format(ms) : '');
+const NO_DIETARY = /^(no|-+|ninguna|ninguno|n\/a|none)\.?$/i;
 // Door-mode filter chips on the guest list ("Sin acreditar" = anyone not checked in yet).
 const FILTERS = {
   all: () => true,
@@ -229,6 +234,22 @@ export function registerAdmin(app: FastifyInstance, db: DatabaseSync, state: Sta
     return importGuests(rows, roleIn(req));
   });
 
+  // Whole roster for catering: ';' separated with a BOM so Spanish-locale Excel opens it in columns, accents intact.
+  app.get('/api/admin/guests.csv', staff, async (_req, reply) => {
+    const rows = db.prepare(
+      `SELECT g.name, g.email, r.guest_id IS NOT NULL AS registered, r.created_at, r.checked_in_at, r.dietary
+       FROM guest g LEFT JOIN registration r ON r.guest_id = g.id`
+    ).all() as any[];
+    rows.sort((a, b) => a.name.localeCompare(b.name, 'es'));
+    const lines = [['Nombre', 'Email', 'Estado', 'Restricciones alimentarias', 'Inscripto el', 'Acreditado el'].join(';')];
+    for (const r of rows) {
+      const diet = (r.dietary ?? '').trim();
+      lines.push([r.name, r.email, r.checked_in_at ? 'Acreditado' : r.registered ? 'Inscripto' : 'Sin inscribir', NO_DIETARY.test(diet) ? '' : diet,
+        baTime(r.created_at), baTime(r.checked_in_at)].map(csvField).join(';'));
+    }
+    return reply.header('content-type', 'text/csv; charset=utf-8').header('content-disposition', 'attachment; filename="invitados-gala.csv"').send('﻿' + lines.join('\r\n') + '\r\n');
+  });
+
   app.get('/api/admin/guests/example.xlsx', staff, async (_req, reply) =>
     reply.header('content-type', XLSX_MIME).header('content-disposition', 'attachment; filename="invitados-ejemplo.xlsx"').send(exampleXlsx([
       ['Nombre y apellido', 'Email'], ['Ejemplo Uno', 'ejemplo1@example.com'], ['Ejemplo Dos', 'ejemplo2@example.com']])));
@@ -362,9 +383,9 @@ export function registerAdmin(app: FastifyInstance, db: DatabaseSync, state: Sta
   const walkIn = (guestId: number, role: string, detail: Record<string, unknown>) => {
     const reg = db.prepare('SELECT ticket_token FROM registration WHERE guest_id = ?').get(guestId) as { ticket_token: string } | undefined;
     const ticketToken = reg?.ticket_token ?? createRegistration(db, guestId, null);
-    db.prepare('UPDATE registration SET checked_in_at = COALESCE(checked_in_at, ?) WHERE guest_id = ?').run(Date.now(), guestId);
+    if (checkinOpen()) db.prepare('UPDATE registration SET checked_in_at = COALESCE(checked_in_at, ?) WHERE guest_id = ?').run(Date.now(), guestId); // before event day: confirmed and ticketed, not checked in
     if (!reg) { audit(role, 'walk_in', { guestId, ...detail }); void mailGuest(db, guestId); } // no-op without an email
-    return { guestId, ticketToken, pin: pinOf(guestId) };
+    return { guestId, ticketToken, pin: pinOf(guestId), checkedIn: checkinOpen() };
   };
 
   app.post('/api/admin/guests/:id/walkin', staff, async (req, reply) => {
@@ -395,6 +416,7 @@ export function registerAdmin(app: FastifyInstance, db: DatabaseSync, state: Sta
     if (!db.prepare('SELECT 1 FROM guest WHERE id = ?').get(id)) return reply.code(404).send({ error: 'not_found' });
     const reg = db.prepare('SELECT checked_in_at FROM registration WHERE guest_id = ?').get(id) as { checked_in_at: number | null } | undefined;
     if (!reg) return reply.code(409).send({ error: 'not_registered' });
+    if (!reg.checked_in_at && !checkinOpen()) return reply.code(409).send({ error: 'checkin_not_open' });
     const at = reg.checked_in_at ?? Date.now(); // idempotent: keeps the first check-in time
     if (!reg.checked_in_at) {
       db.prepare('UPDATE registration SET checked_in_at = ? WHERE guest_id = ?').run(at, id);
@@ -414,6 +436,7 @@ export function registerAdmin(app: FastifyInstance, db: DatabaseSync, state: Sta
     const now = Date.now();
     if (action === 'checkin') {
       if (v.checkedInAt) return reply.code(409).send({ error: 'already_checked_in' });
+      if (!checkinOpen()) return reply.code(409).send({ error: 'checkin_not_open' });
       db.prepare('UPDATE registration SET checked_in_at = ? WHERE checkin_token = ?').run(now, token);
     } else {
       if (!v.prizeWonAt) return reply.code(409).send({ error: 'no_prize' });
@@ -510,8 +533,9 @@ export function registerAdmin(app: FastifyInstance, db: DatabaseSync, state: Sta
     const rawPrize = (req.body as { prize?: unknown } | undefined)?.prize;
     if (rawPrize !== undefined && (typeof rawPrize !== 'string' || rawPrize.length > 80)) return reply.code(400).send({ error: 'invalid_input' });
     const prize = (rawPrize ?? '').replace(/\s+/g, ' ').trim() || null;
+    // Before event day nobody can be checked in: draws are rehearsals over every registration (wiped with /raffle/reset).
     const pool = db.prepare(
-      'SELECT guest_id FROM registration WHERE checked_in_at IS NOT NULL AND guest_id NOT IN (SELECT guest_id FROM raffle)'
+      `SELECT guest_id FROM registration WHERE ${checkinOpen() ? 'checked_in_at IS NOT NULL AND ' : ''}guest_id NOT IN (SELECT guest_id FROM raffle)`
     ).all() as { guest_id: number }[];
     if (!pool.length) return reply.code(409).send({ error: 'no_candidates' });
     const pick = pool[randomInt(pool.length)].guest_id;
@@ -547,6 +571,18 @@ export function registerAdmin(app: FastifyInstance, db: DatabaseSync, state: Sta
       audit(roleIn(req), 'raffle_clear');
     });
     return reply.code(204).send();
+  });
+  // Deletes every draw (test ones included) so the real raffle starts clean; the stage leaves the winner plate.
+  app.post('/api/admin/raffle/reset', admin, async (req) => {
+    const deleted = state.tx(() => {
+      const n = Number(db.prepare('DELETE FROM raffle').run().changes);
+      state.setSetting('raffleHidden', 0);
+      const s = state.stage();
+      state.setSetting('stage', { ...s, ...(s.scene === 'winner' ? { scene: 'raffle', at: Date.now() } : {}), winner: 0 });
+      audit(roleIn(req), 'raffle_reset', { deleted: n });
+      return n;
+    });
+    return { deleted };
   });
   // Absent winner: the draw is void (the guest stays out of later draws, the prize frees up) and no screen shows them any more.
   app.post('/api/admin/raffle/:id/void', admin, async (req, reply) => {
@@ -589,13 +625,17 @@ export function registerAdmin(app: FastifyInstance, db: DatabaseSync, state: Sta
 
   // ---- Stage (LED wall): a vision mixer. Partial patches merge into the stored state; `at` marks every change.
   const text = (max: number) => ({ type: 'string', maxLength: max });
+  const PHOTO_RE = /^(|media\/[\w.-]+\.(jpg|jpeg|png|webp))$/; // speaker photo: empty or an uploaded same-origin image
   app.get('/api/admin/stage', admin, async () => state.stage());
   app.put('/api/admin/stage', {
     ...admin,
     schema: { body: { type: 'object', additionalProperties: false, minProperties: 1, properties: {
       scene: { enum: SCENES }, speaker: { type: 'integer', minimum: 0, maximum: 49 }, winner: { type: 'integer', minimum: 0 },
       speakers: { type: 'array', maxItems: 50, items: { type: 'object', required: ['name'], additionalProperties: false,
-        properties: { name: { type: 'string', minLength: 1, maxLength: 60 }, role: text(60) } } },
+        properties: { name: { type: 'string', minLength: 1, maxLength: 60 }, role: text(60), photo: { type: 'string', maxLength: 120, pattern: PHOTO_RE.source } } } },
+      award: { type: 'integer', minimum: 0, maximum: 99 },
+      awards: { type: 'array', maxItems: 60, items: { type: 'object', required: ['company'], additionalProperties: false,
+        properties: { company: { type: 'string', minLength: 1, maxLength: 80 }, text: text(120) } } },
       prizes: { type: 'array', maxItems: 50, items: text(80) },
       ambient: { type: 'array', maxItems: 20, items: text(80) },
       // Same-origin path (media/intro.mp4) or an http(s) URL (a YouTube link included): it becomes a <video src>, or the stage builds the YouTube embed from the 11-char id.
@@ -605,10 +645,12 @@ export function registerAdmin(app: FastifyInstance, db: DatabaseSync, state: Sta
     const p = req.body as Partial<ReturnType<State['stage']>>;
     if (p.winner && !db.prepare('SELECT 1 FROM raffle WHERE id = ? AND voided_at IS NULL').get(p.winner)) return reply.code(400).send({ error: 'unknown_winner' });
     const next = { ...state.stage(), ...p, at: Date.now() };
-    if (p.speakers) next.speakers = p.speakers.map((x) => ({ name: x.name.trim(), role: (x.role ?? '').trim() })).filter((x) => x.name);
+    if (p.speakers) next.speakers = p.speakers.map((x) => ({ name: x.name.trim(), role: (x.role ?? '').trim(), ...(x.photo ? { photo: x.photo } : {}) })).filter((x) => x.name);
+    if (p.awards) next.awards = p.awards.map((x) => ({ company: x.company.replace(/\s+/g, ' ').trim(), text: (x.text ?? '').replace(/\s+/g, ' ').trim() })).filter((x) => x.company);
     if (p.prizes) next.prizes = p.prizes.map((x) => x.trim()).filter(Boolean);
     if (p.ambient) next.ambient = p.ambient.map((x) => x.replace(/\s+/g, ' ').trim()).filter(Boolean); // empty list: the stage falls back to the defaults
     next.speaker = Math.max(0, Math.min(next.speaker, next.speakers.length - 1));
+    next.award = Math.max(0, Math.min(next.award, next.awards.length - 1));
     state.tx(() => { state.setSetting('stage', next); audit(roleIn(req), 'stage', p); });
     return next;
   });
@@ -640,6 +682,23 @@ export function registerAdmin(app: FastifyInstance, db: DatabaseSync, state: Sta
     const video = 'media/' + name;
     state.tx(() => { state.setSetting('stage', { ...state.stage(), video, at: Date.now() }); audit(roleIn(req), 'media_upload', { file: name, size }); });
     return { video, size };
+  });
+  // Speaker photo upload: raw JPEG/PNG/WebP body (up to 8 MB), stored next to the videos. Unlike the video it does not touch the stage.
+  const MAX_IMAGE = 8 * 1024 * 1024;
+  const IMAGE_EXT: Record<string, string> = { 'image/jpeg': 'jpg', 'image/png': 'png', 'image/webp': 'webp' };
+  const imageKind = (b: Buffer) => b.subarray(0, 3).equals(Buffer.from([0xff, 0xd8, 0xff])) ? 'image/jpeg'
+    : b.subarray(0, 4).equals(Buffer.from([0x89, 0x50, 0x4e, 0x47])) ? 'image/png'
+    : b.toString('latin1', 0, 4) === 'RIFF' && b.toString('latin1', 8, 12) === 'WEBP' ? 'image/webp' : '';
+  for (const type of Object.keys(IMAGE_EXT)) app.addContentTypeParser(type, { parseAs: 'buffer', bodyLimit: MAX_IMAGE }, (_req, body, done) => done(null, body));
+  app.post('/api/admin/media/image', { ...admin, bodyLimit: MAX_IMAGE }, async (req, reply) => {
+    const type = (req.headers['content-type'] ?? '').split(';')[0].trim().toLowerCase();
+    if (!IMAGE_EXT[type]) return reply.code(415).send({ error: 'image_required' });
+    const body = req.body as Buffer;
+    if (!Buffer.isBuffer(body) || imageKind(body) !== type) return reply.code(400).send({ error: 'invalid_image' });
+    const name = `${Date.now()}-${randomBytes(4).toString('hex')}.${IMAGE_EXT[type]}`;
+    writeFileSync(join(MEDIA_DIR, name), body);
+    audit(roleIn(req), 'image_upload', { file: name, size: body.length });
+    return { path: 'media/' + name };
   });
   // WOW cue: every panel and the stage play their part of one sweep at cueAt (server clock), then the stage holds the title.
   app.post('/api/admin/stage/cue', admin, async (req) => {
