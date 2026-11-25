@@ -186,13 +186,13 @@ export function registerAdmin(app: FastifyInstance, db: DatabaseSync, state: Sta
     const pending = new Set((db.prepare("SELECT candidates FROM verification_request WHERE status = 'pending'").all() as { candidates: string }[])
       .flatMap((v) => JSON.parse(v.candidates) as number[]));
     // ponytail: filter in JS for accent-insensitive match; fine for a few hundred guests.
-    // Name tokens, or email substring.
+    // Name tokens, or email substring. A search ignores the filter chip: staff look someone up whatever their state.
     const hit = (r: any) => !rawQ.trim() || normalize(r.name).includes(q) || (mail.length >= 3 && normEmail(r.email).includes(mail));
     const found = rows.filter(hit);
     const counts = Object.fromEntries(Object.entries(FILTERS).map(([k, f]) => [k, found.filter(f).length]));
     // New inscriptions are not guests yet: the chip counts them and opens the approval queue instead of filtering.
     counts.newInscriptions = (db.prepare("SELECT COUNT(*) AS n FROM verification_request WHERE status = 'pending' AND kind = 'new'").get() as { n: number }).n;
-    const guests = found.filter(FILTERS[filter]).sort((a, b) => a.name.localeCompare(b.name, 'es')).slice(0, 300).map((r) => ({
+    const guests = (rawQ.trim() ? found : found.filter(FILTERS[filter])).sort((a, b) => a.name.localeCompare(b.name, 'es')).slice(0, 300).map((r) => ({
       id: r.id, name: r.name, email: r.email, walkIn: !!r.walk_in, raffleOut: !!r.raffle_out, onHold: r.on_hold === 1, rejected: r.on_hold === 2, registered: !!r.registered, checkedInAt: r.checked_in_at, prizeWonAt: r.prize_won_at,
       prizeDeliveredAt: r.prize_delivered_at, dietary: r.dietary, attempts: r.attempts, pendingVerification: pending.has(r.id), duplicate: r.dup,
       // Staff read the PIN straight off the card at the door (admin cookie only; public endpoints never carry it).

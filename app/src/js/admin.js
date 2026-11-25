@@ -203,7 +203,7 @@ async function loadGuests(bg) {
   gOpen = res.checkinOpen !== false; $('door-closed').hidden = gOpen;
   const y = scrollY; // refreshes must not move the list under the staff's finger
   $('gfilters').replaceChildren(...FILTER_LABELS.map(([k, label]) => {
-    const b = h('button', { type: 'button', className: 'chip', ariaPressed: String(k === gFilter) }, `${label} · ${counts[k]}`);
+    const b = h('button', { type: 'button', className: 'chip', ariaPressed: String(!q && k === gFilter) }, `${label} · ${counts[k]}`);
     b.onclick = k === 'newInscriptions' // not guests yet: jump to the approval queue
       ? () => { const c = $('verif-card'); c.open = true; loadVerifs(); c.scrollIntoView({ behavior: 'smooth' }); }
       : () => { gFilter = k; loadGuests(); };
@@ -213,7 +213,8 @@ async function loadGuests(bg) {
     lastAct && h('span', { className: 'last' }, 'Última acción: ' + lastAct));
   $('guests').replaceChildren(...[...guests].sort((a, b) => a.rejected - b.rejected).map(guestCard)); // rejected guests go last
   $('guests-empty').hidden = guests.length > 0;
-  $('guests-empty-t').textContent = 'Sin resultados.' + (gFilter === 'all' ? '' : ' Prueba con el filtro «Todos».');
+  $('guests-empty-t').textContent = 'Sin resultados.' + (q || gFilter === 'all' ? '' : ' Prueba con el filtro «Todos».');
+  filterVerifs(q);
   $('ag-from-q').hidden = !q; $('ag-from-q').textContent = `Agregar «${q}»`;
   scrollTo(0, y);
 }
@@ -316,6 +317,7 @@ function verifItem(v) {
     v.dietary && h('div', { className: 'muted' }, 'Restricción: ' + v.dietary),
     sel, h('div', { className: 'row' }, ok, no));
   item.dataset.vid = v.id;
+  item.dataset.key = fold(`${v.name} ${v.email || ''}`); // what the guest search matches
   ok.onclick = async () => {
     const guestId = reval ? v.candidates[0]?.id : sel && sel.value ? Number(sel.value) : null; // null: a new guest from the request
     const r = await run(() => api.adminApproveVerification(v.id, guestId));
@@ -346,6 +348,12 @@ async function loadRejected() {
   }));
   $('rejected-card').hidden = !rows.length;
 }
+// The guest search also narrows the approval queue (name or email, accents ignored).
+const fold = (t) => t.normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase();
+function filterVerifs(q) {
+  const f = fold(q);
+  for (const el of $('verifs').children) el.hidden = !!f && !(el.dataset.key ?? '').includes(f);
+}
 const vCount = () => { $('verif-n').textContent = $('verifs').querySelectorAll(':scope > :not([data-done])').length; }; // still to decide
 // Merges instead of rebuilding: rows already on screen keep their state (selection, search, approved ticket).
 async function loadVerifs() {
@@ -356,6 +364,7 @@ async function loadVerifs() {
   for (const el of [...box.children]) if (!ids.has(el.dataset.vid) && !el.dataset.done) el.remove();
   const have = new Set([...box.children].map((el) => el.dataset.vid));
   for (const v of rows) if (!have.has(String(v.id))) box.append(verifItem(v));
+  filterVerifs($('gq').value.trim());
   $('verifs-empty').hidden = box.children.length > 0;
   $('verif-card').hidden = !box.children.length; // the door screen stays short when there is nothing to verify
   vCount();
