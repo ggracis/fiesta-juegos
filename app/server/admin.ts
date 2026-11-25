@@ -33,7 +33,6 @@ const FILTERS = {
   all: () => true,
   unaccredited: (r: any) => !r.checked_in_at,
   accredited: (r: any) => !!r.checked_in_at,
-  unconfirmed: (r: any) => !r.registered,
   walkIn: (r: any) => !!r.walk_in,
   duplicates: (r: any) => !!r.dup,
 };
@@ -171,7 +170,7 @@ export function registerAdmin(app: FastifyInstance, db: DatabaseSync, state: Sta
   app.get('/api/admin/guests', {
     ...staff,
     schema: { querystring: { type: 'object', properties: {
-      q: { type: 'string', maxLength: 60 }, filter: { enum: ['all', 'unaccredited', 'accredited', 'unconfirmed', 'walkIn', 'duplicates'] } } } },
+      q: { type: 'string', maxLength: 60 }, filter: { enum: ['all', 'unaccredited', 'accredited', 'walkIn', 'duplicates'] } } } },
   }, async (req) => {
     const { q: rawQ = '', filter = 'all' } = req.query as { q?: string; filter?: keyof typeof FILTERS };
     const q = normalize(rawQ), mail = normEmail(rawQ);

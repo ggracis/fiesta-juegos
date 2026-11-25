@@ -188,7 +188,7 @@ const ticketLink = (token) => h('a', { className: 'b primary', href: ticketUrl(t
 const pinBox = (pin) => h('div', { className: 'pinrow' }, h('span', { className: 'muted' }, 'PIN'), h('code', { className: 'pin' }, pin));
 
 // Door mode: search, filter chips, one big card per guest with the action that fits its state.
-const FILTER_LABELS = [['all', 'Todos'], ['unaccredited', 'Sin acreditar'], ['accredited', 'Acreditados'], ['unconfirmed', 'No confirmados'], ['walkIn', 'Agregados en puerta'], ['duplicates', 'Posibles duplicados']];
+const FILTER_LABELS = [['all', 'Todos'], ['unaccredited', 'Sin acreditar'], ['accredited', 'Acreditados'], ['walkIn', 'Agregados a mano'], ['duplicates', 'Posibles duplicados']];
 let gFilter = 'unaccredited', gSeq = 0, lastAct = '', down = false, gOpen = true; // gOpen: check-in allowed today (server clock)
 // Background refreshes never replace cards while a finger or mouse button is down.
 addEventListener('pointerdown', () => { down = true; }, true);
@@ -243,7 +243,7 @@ function guestCard(g) {
       h('div', { className: 'gmeta' }, g.pin && h('span', { className: 'gpin' }, 'PIN ', h('b', {}, g.pin)), g.email && h('span', {}, g.email)),
       h('div', { className: 'gtop' },
         g.checkedInAt ? chip('Acreditado ✓ ' + time(g.checkedInAt), 'ok') : !g.registered && chip('No confirmado'),
-        g.walkIn && chip('Agregado en puerta'),
+        g.walkIn && chip('Agregado a mano'),
         g.pendingVerification && chip('Verificación pendiente', 'warn'),
         g.duplicate && chip('Posible duplicado', 'warn'),
         g.onHold && chip('Pendiente de validación', 'warn'),

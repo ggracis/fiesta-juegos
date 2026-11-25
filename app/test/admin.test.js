@@ -577,7 +577,7 @@ test('door list: search by name/email, filters with counts, pending flag', async
   await post(app, `/api/admin/guests/${jose}/walkin`, undefined, h);
   await post(app, '/api/register', { name: 'Josefina Paz Zarzuelo', email: 'x@x.com' }); // wrong data -> pending
   const r = await list('q=zarzuelo');
-  assert.deepEqual(r.counts, { all: 2, unaccredited: 1, accredited: 1, unconfirmed: 1, walkIn: 0, duplicates: 0 });
+  assert.deepEqual(r.counts, { all: 2, unaccredited: 1, accredited: 1, walkIn: 0, duplicates: 0 });
   assert.deepEqual((await list('q=zarzuelo&filter=accredited')).guests.map((g) => g.id), [jose]);
   assert.equal(r.guests.find((g) => g.id === paz).pendingVerification, true);
   const all = await list('');
