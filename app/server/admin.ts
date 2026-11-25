@@ -33,6 +33,7 @@ const FILTERS = {
   all: () => true,
   unaccredited: (r: any) => !r.checked_in_at,
   accredited: (r: any) => !!r.checked_in_at,
+  revalidate: (r: any) => r.on_hold === 1,
   walkIn: (r: any) => !!r.walk_in,
   duplicates: (r: any) => !!r.dup,
 };
@@ -170,7 +171,7 @@ export function registerAdmin(app: FastifyInstance, db: DatabaseSync, state: Sta
   app.get('/api/admin/guests', {
     ...staff,
     schema: { querystring: { type: 'object', properties: {
-      q: { type: 'string', maxLength: 60 }, filter: { enum: ['all', 'unaccredited', 'accredited', 'walkIn', 'duplicates'] } } } },
+      q: { type: 'string', maxLength: 60 }, filter: { enum: ['all', 'unaccredited', 'accredited', 'revalidate', 'walkIn', 'duplicates'] } } } },
   }, async (req) => {
     const { q: rawQ = '', filter = 'all' } = req.query as { q?: string; filter?: keyof typeof FILTERS };
     const q = normalize(rawQ), mail = normEmail(rawQ);
@@ -189,6 +190,8 @@ export function registerAdmin(app: FastifyInstance, db: DatabaseSync, state: Sta
     const hit = (r: any) => !rawQ.trim() || normalize(r.name).includes(q) || (mail.length >= 3 && normEmail(r.email).includes(mail));
     const found = rows.filter(hit);
     const counts = Object.fromEntries(Object.entries(FILTERS).map(([k, f]) => [k, found.filter(f).length]));
+    // New inscriptions are not guests yet: the chip counts them and opens the approval queue instead of filtering.
+    counts.newInscriptions = (db.prepare("SELECT COUNT(*) AS n FROM verification_request WHERE status = 'pending' AND kind = 'new'").get() as { n: number }).n;
     const guests = found.filter(FILTERS[filter]).sort((a, b) => a.name.localeCompare(b.name, 'es')).slice(0, 300).map((r) => ({
       id: r.id, name: r.name, email: r.email, walkIn: !!r.walk_in, raffleOut: !!r.raffle_out, onHold: r.on_hold === 1, rejected: r.on_hold === 2, registered: !!r.registered, checkedInAt: r.checked_in_at, prizeWonAt: r.prize_won_at,
       prizeDeliveredAt: r.prize_delivered_at, dietary: r.dietary, attempts: r.attempts, pendingVerification: pending.has(r.id), duplicate: r.dup,

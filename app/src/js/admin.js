@@ -188,7 +188,7 @@ const ticketLink = (token) => h('a', { className: 'b primary', href: ticketUrl(t
 const pinBox = (pin) => h('div', { className: 'pinrow' }, h('span', { className: 'muted' }, 'PIN'), h('code', { className: 'pin' }, pin));
 
 // Door mode: search, filter chips, one big card per guest with the action that fits its state.
-const FILTER_LABELS = [['all', 'Todos'], ['unaccredited', 'Sin acreditar'], ['accredited', 'Acreditados'], ['walkIn', 'Agregados a mano'], ['duplicates', 'Posibles duplicados']];
+const FILTER_LABELS = [['all', 'Todos'], ['unaccredited', 'Sin acreditar'], ['accredited', 'Acreditados'], ['revalidate', 'Por revalidar'], ['newInscriptions', 'Inscripciones nuevas'], ['walkIn', 'Agregados a mano'], ['duplicates', 'Posibles duplicados']];
 let gFilter = 'unaccredited', gSeq = 0, lastAct = '', down = false, gOpen = true; // gOpen: check-in allowed today (server clock)
 // Background refreshes never replace cards while a finger or mouse button is down.
 addEventListener('pointerdown', () => { down = true; }, true);
@@ -204,7 +204,9 @@ async function loadGuests(bg) {
   const y = scrollY; // refreshes must not move the list under the staff's finger
   $('gfilters').replaceChildren(...FILTER_LABELS.map(([k, label]) => {
     const b = h('button', { type: 'button', className: 'chip', ariaPressed: String(k === gFilter) }, `${label} · ${counts[k]}`);
-    b.onclick = () => { gFilter = k; loadGuests(); };
+    b.onclick = k === 'newInscriptions' // not guests yet: jump to the approval queue
+      ? () => { const c = $('verif-card'); c.open = true; loadVerifs(); c.scrollIntoView({ behavior: 'smooth' }); }
+      : () => { gFilter = k; loadGuests(); };
     return b;
   }));
   $('gsum').replaceChildren(`${summary.total} invitados · ${summary.confirmed} confirmados · ${summary.accredited} acreditados`,

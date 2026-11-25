@@ -80,6 +80,8 @@ test('rejections: a rejected revalidation stays blocked and marked, and both kin
   await post(app, '/api/register', { name: 'Colado Nuevo', email: 'colado@example.com' });
   const pending = (await app.inject({ url: '/api/admin/verifications', headers: h })).json();
   assert.deepEqual(pending.map((v) => v.kind).sort(), ['new', 'revalidate']);
+  const list = (await app.inject({ url: '/api/admin/guests?filter=revalidate', headers: h })).json();
+  assert.deepEqual([list.counts.revalidate, list.counts.newInscriptions, list.guests.map((x) => x.id)], [1, 1, [1]]);
   for (const v of pending) assert.equal((await post(app, `/api/admin/verifications/${v.id}/reject`, undefined, h)).statusCode, 200);
 
   const me = (await app.inject({ url: '/api/admin/guests', headers: h })).json().guests.find((x) => x.id === 1);
