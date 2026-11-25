@@ -107,6 +107,7 @@ a.b { display: inline-flex; align-items: center; justify-self: start; text-decor
 .ad.dark .sheet { background: var(--wine); }
 .sheet::backdrop { background: rgba(0, 0, 0, .6); }
 .sheet[open] { display: grid; }
+.sheet:not([open]) { display: none; } /* .card sets display:grid, which would otherwise keep a closed dialog on screen */
 .sheet-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
 .sheet-head h2 { margin: 0; }
 #import-box > .b { justify-self: start; display: inline-flex; align-items: center; }
