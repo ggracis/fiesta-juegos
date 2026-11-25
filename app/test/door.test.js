@@ -116,3 +116,13 @@ test('door approves an unknown name with "add to the list and approve"', async (
   assert.equal(app.db.prepare("SELECT COUNT(*) n FROM guest WHERE name = 'Persona Nueva'").get().n, 1);
   assert.equal((await post(`/api/admin/verifications/${v.id}/reject`)).statusCode, 409);
 });
+
+test('door role can send a registered guest back to validation', async () => {
+  const { app, door } = await setup();
+  const g = app.db.prepare('SELECT name, email FROM guest WHERE id = 1').get();
+  await app.inject({ method: 'POST', url: '/api/register', payload: g });
+  const r = await app.inject({ method: 'POST', url: '/api/admin/guests/1/revalidate', headers: door });
+  assert.deepEqual(r.json(), { onHold: true });
+  // raffle participation is a staff route too: the UI hides it for reception, the server accepts any staff role
+  assert.equal((await app.inject({ method: 'POST', url: '/api/admin/guests/1/raffle', headers: door, payload: { participates: false } })).statusCode, 200);
+});

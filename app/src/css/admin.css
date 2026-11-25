@@ -101,6 +101,7 @@ a.b { display: inline-flex; align-items: center; justify-self: start; text-decor
 .gtop:empty { display: none; }
 .guest > .b, .guest > a.b { display: inline-flex; align-items: center; justify-content: center; min-height: 52px; padding: 0 14px; font-size: 1.05rem; }
 .guest > .b.danger { grid-column: 1 / -1; min-height: 44px; font-size: .95rem; }
+.gsub:empty { display: none; }
 .gsub { grid-column: 1 / -1; display: flex; flex-wrap: wrap; gap: 8px; }
 .gsub .b { min-height: 40px; padding: 0 12px; font-size: .85rem; font-weight: 600; }
 .door-closed { margin: 10px 0; padding: 10px 14px; border-radius: 12px; font-weight: 700; color: var(--ink); background: var(--sun); }

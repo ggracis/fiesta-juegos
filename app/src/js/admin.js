@@ -252,7 +252,7 @@ function guestCard(g) {
       g.prizeWonAt && chip(g.prizeDeliveredAt ? 'Premio entregado' : 'Premio ganado', 'prize')),
       g.dietary && h('div', { className: 'diet' }, 'Restricción: ' + g.dietary)),
     act,
-    !door && h('div', { className: 'gsub' }, g.registered && !g.onHold && revalidateButton(g), raffleButton(g)),
+    h('div', { className: 'gsub' }, g.registered && !g.onHold && revalidateButton(g), !door && raffleButton(g)), // reception validates inscriptions too; raffles stay admin-only
     g.duplicate && deleteDupButton(g));
   card.onclick = (ev) => { if (!ev.target.closest('a, button')) showDetail(g.id); };
   return card;
