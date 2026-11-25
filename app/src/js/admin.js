@@ -319,12 +319,12 @@ function verifItem(v) {
     const r = await run(() => api.adminApproveVerification(v.id, guestId));
     if (!r) return;
     item.replaceChildren(h('strong', {}, 'Aprobado: ' + v.name), pinBox(r.pin), ticketLink(r.ticketToken));
-    item.dataset.done = '1'; vSeen--; // stays on screen (PIN and ticket link) until the tab is left
+    item.dataset.done = '1'; vSeen--; vCount(); // stays on screen (PIN and ticket link) until the tab is left
     toast(v.name + (reval ? ' aprobado' : ' aprobado · se le envió el mail')); refresh(); loadGuests();
   };
   no.onclick = async () => {
     if (!confirm(`¿Rechazar a ${v.name}? ${reval ? 'Su QR y su PIN siguen bloqueados.' : 'No recibe ninguna entrada.'} Queda en «Rechazados», al final de la página.`)) return;
-    if (await run(() => api.adminRejectVerification(v.id))) { item.remove(); vSeen--; $('verifs-empty').hidden = $('verifs').children.length > 0; refresh(); loadGuests(); loadRejected(); }
+    if (await run(() => api.adminRejectVerification(v.id))) { item.remove(); vSeen--; vCount(); $('verifs-empty').hidden = $('verifs').children.length > 0; refresh(); loadGuests(); loadRejected(); }
   };
   return item;
 }
@@ -344,6 +344,7 @@ async function loadRejected() {
   }));
   $('rejected-card').hidden = !rows.length;
 }
+const vCount = () => { $('verif-n').textContent = $('verifs').querySelectorAll(':scope > :not([data-done])').length; }; // still to decide
 // Merges instead of rebuilding: rows already on screen keep their state (selection, search, approved ticket).
 async function loadVerifs() {
   const rows = await run(api.adminVerifications);
@@ -355,6 +356,7 @@ async function loadVerifs() {
   for (const v of rows) if (!have.has(String(v.id))) box.append(verifItem(v));
   $('verifs-empty').hidden = box.children.length > 0;
   $('verif-card').hidden = !box.children.length; // the door screen stays short when there is nothing to verify
+  vCount();
 }
 function resendButton(g) {
   const b = h('button', { className: 'b', type: 'button' }, 'Reenviar entrada por mail');
@@ -760,7 +762,7 @@ async function boot() {
   $('trans-save').onclick = () => setting({ transitionText: $('trans-text').value }).then((r) => r && toast('Texto guardado'));
   $('guests-example').href = api.guestsExampleUrl;
   $('guests-csv').href = api.guestsCsvUrl;
-  $('verif-new').onclick = loadVerifs;
+  $('verif-new').onclick = () => { $('verif-card').open = true; loadVerifs(); }; // a collapsed list opens when new ones arrive
   $('ag-from-q').onclick = () => { $('ag-name').value = $('gq').value.trim(); $('add-box').open = true; $('ag-name').focus(); };
   $('add-guest').onsubmit = async (ev) => {
     ev.preventDefault();

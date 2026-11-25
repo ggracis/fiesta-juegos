@@ -40,12 +40,12 @@
       </div>
       <p class="door-closed" id="door-closed" hidden>La acreditación se habilita el lunes 30/11, el día del evento. Hasta entonces puedes buscar invitados y ver su PIN.</p>
       <button class="b primary newbar" id="verif-new" type="button" hidden></button>
-      <div class="card" id="verif-card" hidden>
-        <h2>Inscripciones para aprobar</h2>
+      <details class="card" id="verif-card" open hidden>
+        <summary>Inscripciones para aprobar<span class="badge prize" id="verif-n"></span></summary>
         <p class="muted">Personas que se inscribieron y esperan aprobación. Al aprobar una inscripción nueva se le envía el mail con su PIN y su QR. Una revalidación aprobada recupera su mismo PIN y QR, sin mail.</p>
         <div id="verifs"></div>
         <p class="muted" id="verifs-empty" hidden>No hay inscripciones para aprobar.</p>
-      </div>
+      </details>
       <details class="card" id="add-box">
         <summary>Agregar invitado</summary>
         <form id="add-guest">

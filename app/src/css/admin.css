@@ -160,3 +160,4 @@ a.b { display: inline-flex; align-items: center; justify-self: start; text-decor
 .st-spphoto img { width: 44px; height: 44px; border-radius: 50%; object-fit: cover; }
 @media (max-width: 900px) { .mixer { grid-template-columns: repeat(2, 1fr); } }
 @media (max-width: 560px) { .st-sprow { grid-template-columns: 1fr 1fr; } }
+#verif-n { margin: 0 0 0 10px; }
