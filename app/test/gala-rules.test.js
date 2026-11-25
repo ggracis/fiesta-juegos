@@ -70,3 +70,31 @@ test('revalidar: QR and PIN stop working until a verification approves the same 
   assert.equal((await login()).statusCode, 200);
   assert.equal((await post(app, '/api/admin/checkin/' + t.checkinToken, { action: 'checkin' }, h)).statusCode, 200);
 });
+
+test('rejections: a rejected revalidation stays blocked and marked, and both kinds can still be approved later', async () => {
+  const { app, h } = await adminApp();
+  await put(app, '/api/admin/settings', { registrationValidation: 'manual' }, h);
+  const g = app.db.prepare('SELECT name, email FROM guest WHERE id = 1').get();
+  app.db.prepare('INSERT INTO registration(guest_id, pin, ticket_token, checkin_token, created_at) VALUES (1, ?, ?, ?, ?)').run('111222', 't-1', 'c-1', Date.now());
+  await post(app, '/api/admin/guests/1/revalidate', undefined, h);
+  await post(app, '/api/register', { name: 'Colado Nuevo', email: 'colado@example.com' });
+  const pending = (await app.inject({ url: '/api/admin/verifications', headers: h })).json();
+  assert.deepEqual(pending.map((v) => v.kind).sort(), ['new', 'revalidate']);
+  for (const v of pending) assert.equal((await post(app, `/api/admin/verifications/${v.id}/reject`, undefined, h)).statusCode, 200);
+
+  const me = (await app.inject({ url: '/api/admin/guests', headers: h })).json().guests.find((x) => x.id === 1);
+  assert.equal(me.rejected, true);
+  assert.equal(me.onHold, false);
+  assert.equal((await post(app, '/api/login', { pin: '111222', screenId: 'screen-test-2' })).json().error, 'pending_validation');
+  const rejected = (await app.inject({ url: '/api/admin/verifications?status=rejected', headers: h })).json();
+  assert.equal(rejected.length, 2);
+
+  const reval = rejected.find((v) => v.kind === 'revalidate'), fresh = rejected.find((v) => v.kind === 'new');
+  assert.equal((await post(app, `/api/admin/verifications/${reval.id}/approve`, { guestId: 1 }, h)).json().ticketToken, 't-1');
+  assert.equal((await post(app, '/api/login', { pin: '111222', screenId: 'screen-test-2' })).statusCode, 200);
+  const added = await post(app, `/api/admin/verifications/${fresh.id}/approve`, { add: true }, h);
+  assert.equal(added.statusCode, 200);
+  assert.ok(app.db.prepare("SELECT 1 FROM guest g JOIN registration r ON r.guest_id = g.id WHERE g.name = 'Colado Nuevo'").get());
+  assert.equal((await app.inject({ url: '/api/admin/verifications?status=rejected', headers: h })).json().length, 0);
+  void g;
+});

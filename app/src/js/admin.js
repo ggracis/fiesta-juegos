@@ -134,7 +134,7 @@ async function select(tab) {
   if (!(await refresh()) || current !== tab) return;
   if (!ST && tab !== 'stage' && !door) run(api.adminStage).then((st) => { if (st) { ST = st; renderStrip(); } }); // LED scene for the strip
   ({
-    guests: () => { loadVerifs(); loadGuests(); }, live: renderLive, games: () => { renderStock(); renderGames(); }, results: renderResults,
+    guests: () => { loadVerifs(); loadGuests(); loadRejected(); }, live: renderLive, games: () => { renderStock(); renderGames(); }, results: renderResults,
     stage: () => { const pv = $('st-preview'); if (!pv.getAttribute('src')) pv.src = new URL('stage.html', location.href).href + '?preview=1'; loadStage(); loadRaffle(); },
     setup: () => { renderContent(); loadStage(true); },
   })[tab]();
@@ -209,7 +209,7 @@ async function loadGuests(bg) {
   }));
   $('gsum').replaceChildren(`${summary.total} invitados · ${summary.confirmed} confirmados · ${summary.accredited} acreditados`,
     lastAct && h('span', { className: 'last' }, 'Última acción: ' + lastAct));
-  $('guests').replaceChildren(...guests.map(guestCard));
+  $('guests').replaceChildren(...[...guests].sort((a, b) => a.rejected - b.rejected).map(guestCard)); // rejected guests go last
   $('guests-empty').hidden = guests.length > 0;
   $('guests-empty-t').textContent = 'Sin resultados.' + (gFilter === 'all' ? '' : ' Prueba con el filtro «Todos».');
   $('ag-from-q').hidden = !q; $('ag-from-q').textContent = `Agregar «${q}»`;
@@ -218,7 +218,7 @@ async function loadGuests(bg) {
 function guestCard(g) {
   const chip = (text, cls = '') => h('span', { className: 'badge ' + cls }, text);
   let act;
-  if (g.onHold) act = null; // back under validation: nothing to do here until it is approved
+  if (g.onHold || g.rejected) act = null; // back under validation: nothing to do here until it is approved
   else if (g.checkedInAt) act = h('a', { className: 'b', href: ticketUrl(g.ticketToken), target: '_blank', rel: 'noopener' }, 'Ver entrada');
   else if (g.registered && !gOpen) act = null; // before event day: nothing to press (the banner explains why)
   else if (g.registered) {
@@ -247,6 +247,7 @@ function guestCard(g) {
         g.pendingVerification && chip('Verificación pendiente', 'warn'),
         g.duplicate && chip('Posible duplicado', 'warn'),
         g.onHold && chip('Pendiente de validación', 'warn'),
+      g.rejected && chip('Rechazado', 'bad'),
       g.raffleOut && chip('No participa de sorteos', 'warn'),
       g.prizeWonAt && chip(g.prizeDeliveredAt ? 'Premio entregado' : 'Premio ganado', 'prize')),
       g.dietary && h('div', { className: 'diet' }, 'Restricción: ' + g.dietary)),
@@ -297,48 +298,51 @@ function checkVerifs() {
   b.hidden = n <= 0;
   b.textContent = `${n} ${n === 1 ? 'verificación nueva' : 'verificaciones nuevas'} · Ver`;
 }
-const sfx = (g) => ` · ${g.email || '—'}`; // the email tells homonyms apart
+// One inscription to approve. New: approving creates the guest and mails the ticket. Revalidation: approving gives back the same
+// ticket without mail. A new name that matches someone already on the list offers that guest too (namesakes).
 function verifItem(v) {
-  const opt = (g) => h('option', { value: g.id }, g.name + sfx(g) + (g.registered ? ' (ya confirmado)' : ''));
-  const sel = h('select', { ariaLabel: 'Invitado para ' + v.name },
-    h('option', { value: '' }, v.candidates.length ? 'Elige el invitado' : 'Sin coincidencias: busca abajo'),
-    v.candidates.map((c) => opt(c)));
-  const found = h('optgroup', { label: 'Búsqueda' });
-  const q = h('input', { type: 'search', placeholder: 'Buscar otro invitado', autocomplete: 'off', ariaLabel: 'Buscar otro invitado' });
-  let qt;
-  q.oninput = () => {
-    clearTimeout(qt);
-    qt = setTimeout(async () => {
-      const res = q.value.trim() ? (await run(() => api.adminGuests(q.value.trim())))?.guests : [];
-      if (!res) return;
-      found.replaceChildren(...res.slice(0, 20).map((g) => opt(g)));
-      if (res.length) { sel.append(found); sel.options[0].textContent = 'Elige el invitado'; } else found.remove(); // never pre-selects: approving issues a PIN and cannot be undone
-    }, 300);
-  };
+  const reval = v.kind === 'revalidate';
+  const known = !reval && v.candidates.length > 0;
+  const sel = known && h('select', { ariaLabel: 'Invitado para ' + v.name },
+    h('option', { value: '' }, 'Es una persona nueva'),
+    v.candidates.map((g) => h('option', { value: g.id }, `Es ${g.name} · ${g.email || '—'}` + (g.registered ? ' (ya confirmado)' : ''))));
   const ok = h('button', { className: 'b primary', type: 'button' }, 'Aprobar');
   const no = h('button', { className: 'b', type: 'button' }, 'Rechazar');
-  // Not on the roster at all: create the guest from the request's name and email, then approve.
-  const add = !v.candidates.length && h('button', { className: 'b primary', type: 'button' }, 'Agregar a la lista y aprobar');
   const item = h('div', { className: 'card' },
-    h('strong', {}, v.name),
+    h('div', { className: 'gtop' }, h('strong', {}, v.name), h('span', { className: 'badge ' + (reval ? 'warn' : 'ok') }, reval ? 'Revalidación' : 'Inscripción nueva')),
     h('div', { className: 'muted' }, `${v.email || '—'} · ${time(v.createdAt)}`),
     v.dietary && h('div', { className: 'muted' }, 'Restricción: ' + v.dietary),
-    sel, q, h('div', { className: 'row' }, add, ok, no));
+    sel, h('div', { className: 'row' }, ok, no));
   item.dataset.vid = v.id;
-  const approve = async (guestId, name) => {
+  ok.onclick = async () => {
+    const guestId = reval ? v.candidates[0]?.id : sel && sel.value ? Number(sel.value) : null; // null: a new guest from the request
     const r = await run(() => api.adminApproveVerification(v.id, guestId));
     if (!r) return;
-    item.replaceChildren(h('strong', {}, 'Aprobado: ' + name), pinBox(r.pin), ticketLink(r.ticketToken));
+    item.replaceChildren(h('strong', {}, 'Aprobado: ' + v.name), pinBox(r.pin), ticketLink(r.ticketToken));
     item.dataset.done = '1'; vSeen--; // stays on screen (PIN and ticket link) until the tab is left
-    toast(name + ' aprobado'); refresh(); loadGuests();
+    toast(v.name + (reval ? ' aprobado' : ' aprobado · se le envió el mail')); refresh(); loadGuests();
   };
-  ok.onclick = () => (sel.value ? approve(Number(sel.value), sel.selectedOptions[0].textContent.split(' · ')[0]) : toast('Elige un invitado.', true));
-  if (add) add.onclick = () => approve(null, v.name);
   no.onclick = async () => {
-    if (!confirm('¿Rechazar el registro de ' + v.name + '?')) return;
-    if (await run(() => api.adminRejectVerification(v.id))) { item.remove(); vSeen--; $('verifs-empty').hidden = $('verifs').children.length > 0; refresh(); }
+    if (!confirm(`¿Rechazar a ${v.name}? ${reval ? 'Su QR y su PIN siguen bloqueados.' : 'No recibe ninguna entrada.'} Queda en «Rechazados», al final de la página.`)) return;
+    if (await run(() => api.adminRejectVerification(v.id))) { item.remove(); vSeen--; $('verifs-empty').hidden = $('verifs').children.length > 0; refresh(); loadGuests(); loadRejected(); }
   };
   return item;
+}
+// Rejected inscriptions at the bottom of Puerta: still approvable if the rejection was a mistake.
+async function loadRejected() {
+  const rows = await run(() => api.adminVerifications('rejected'));
+  if (!rows) return;
+  $('rejected').replaceChildren(...rows.map((v) => {
+    const reval = v.kind === 'revalidate';
+    const ok = h('button', { className: 'b', type: 'button' }, 'Aprobar');
+    ok.onclick = async () => {
+      if (!confirm(`¿Aprobar a ${v.name}?${reval ? ' Recupera su mismo QR y PIN.' : ' Se le envía el mail con su PIN y su QR.'}`)) return;
+      if (await run(() => api.adminApproveVerification(v.id, reval ? v.candidates[0]?.id : null))) { toast(v.name + ' aprobado'); loadRejected(); loadGuests(); }
+    };
+    return h('div', { className: 'card rej' }, h('div', { className: 'gtop' }, h('strong', {}, v.name), h('span', { className: 'badge' }, reval ? 'Revalidación rechazada' : 'Inscripción rechazada')),
+      h('div', { className: 'muted' }, v.email || '—'), ok);
+  }));
+  $('rejected-card').hidden = !rows.length;
 }
 // Merges instead of rebuilding: rows already on screen keep their state (selection, search, approved ticket).
 async function loadVerifs() {

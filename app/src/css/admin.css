@@ -68,6 +68,9 @@ tr.click:hover { background: rgba(228, 0, 43, .06); }
 a.b { display: inline-flex; align-items: center; justify-self: start; text-decoration: none; }
 .card .card { border: 2px solid var(--line); }
 .badge.warn { background: var(--orange); color: var(--ink); }
+.badge.bad { background: var(--red); color: #fff; }
+.rej { grid-template-columns: minmax(0, 1fr) auto; align-items: center; }
+.rej > .b { grid-column: 2; grid-row: 1 / span 2; }
 
 /* ---------- Puerta: door mode (phone first) ---------- */
 .door-bar { position: sticky; top: 0; z-index: 5; display: grid; gap: 8px; margin: 0 -16px; padding: 10px 16px; background: var(--wine); box-shadow: 0 8px 16px -12px #000; }

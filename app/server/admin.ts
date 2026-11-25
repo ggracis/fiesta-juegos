@@ -191,7 +191,7 @@ export function registerAdmin(app: FastifyInstance, db: DatabaseSync, state: Sta
     const found = rows.filter(hit);
     const counts = Object.fromEntries(Object.entries(FILTERS).map(([k, f]) => [k, found.filter(f).length]));
     const guests = found.filter(FILTERS[filter]).sort((a, b) => a.name.localeCompare(b.name, 'es')).slice(0, 300).map((r) => ({
-      id: r.id, name: r.name, email: r.email, walkIn: !!r.walk_in, raffleOut: !!r.raffle_out, onHold: !!r.on_hold, registered: !!r.registered, checkedInAt: r.checked_in_at, prizeWonAt: r.prize_won_at,
+      id: r.id, name: r.name, email: r.email, walkIn: !!r.walk_in, raffleOut: !!r.raffle_out, onHold: r.on_hold === 1, rejected: r.on_hold === 2, registered: !!r.registered, checkedInAt: r.checked_in_at, prizeWonAt: r.prize_won_at,
       prizeDeliveredAt: r.prize_delivered_at, dietary: r.dietary, attempts: r.attempts, pendingVerification: pending.has(r.id), duplicate: r.dup,
       // Staff read the PIN straight off the card at the door (admin cookie only; public endpoints never carry it).
       pin: r.pin ?? null, ticketToken: r.ticket_token ?? null,
@@ -314,7 +314,7 @@ export function registerAdmin(app: FastifyInstance, db: DatabaseSync, state: Sta
     const rows = db.prepare('SELECT * FROM verification_request WHERE status = ? ORDER BY created_at').all(String((req.query as any).status ?? 'pending')) as any[];
     const cand = db.prepare('SELECT g.id, g.name, g.email, r.guest_id IS NOT NULL AS registered FROM guest g LEFT JOIN registration r ON r.guest_id = g.id WHERE g.id = ?');
     return rows.map((v) => ({
-      id: v.id, name: v.name, email: v.email, dietary: v.dietary, createdAt: v.created_at, status: v.status,
+      id: v.id, name: v.name, email: v.email, dietary: v.dietary, createdAt: v.created_at, status: v.status, kind: v.kind,
       resolvedGuestId: v.resolved_guest_id, resolvedAt: v.resolved_at,
       candidates: (JSON.parse(v.candidates) as number[]).map((id) => cand.get(id) as any).filter(Boolean)
         .map((g) => ({ id: g.id, name: g.name, email: g.email, registered: !!g.registered })),
@@ -322,8 +322,8 @@ export function registerAdmin(app: FastifyInstance, db: DatabaseSync, state: Sta
   });
 
   const pinOf = (guestId: number) => (db.prepare('SELECT pin FROM registration WHERE guest_id = ?').get(guestId) as { pin: string }).pin;
-  const verification = (id: unknown) => db.prepare('SELECT name, email, status, resolved_guest_id, dietary FROM verification_request WHERE id = ?').get(id as number) as
-    { name: string; email: string; status: string; resolved_guest_id: number | null; dietary: string | null } | undefined;
+  const verification = (id: unknown) => db.prepare('SELECT name, email, status, resolved_guest_id, dietary, kind, candidates FROM verification_request WHERE id = ?').get(id as number) as
+    { name: string; email: string; status: string; resolved_guest_id: number | null; dietary: string | null; kind: string; candidates: string } | undefined;
 
   // Body: { guestId } picks a roster guest; { add: true } creates the guest from the request's name and email (no roster match), then approves.
   app.post('/api/admin/verifications/:id/approve', {
@@ -340,7 +340,7 @@ export function registerAdmin(app: FastifyInstance, db: DatabaseSync, state: Sta
       let guestId = picked as number;
       if (add) {
         if (v.status === 'approved' && v.resolved_guest_id) guestId = v.resolved_guest_id; // replay: same guest, same ticket
-        else if (v.status !== 'pending') return reply.code(409).send({ error: 'already_resolved' });
+        else if (v.status === 'approved') return reply.code(409).send({ error: 'already_resolved' }); // pending or rejected: a rejection can be undone by approving
         else {
           const g = db.prepare('SELECT id FROM guest WHERE name = ?').get(v.name) as { id: number } | undefined; // exact name already on the list: reuse it
           guestId = g?.id ?? Number(db.prepare('INSERT INTO guest(name, email, walk_in) VALUES (?,?,1)').run(v.name, v.email).lastInsertRowid);
@@ -348,11 +348,11 @@ export function registerAdmin(app: FastifyInstance, db: DatabaseSync, state: Sta
         }
       }
       // Approving twice with the same guest is a no-op that hands back the same ticket.
-      if (v.status !== 'pending' && !(v.status === 'approved' && v.resolved_guest_id === guestId)) return reply.code(409).send({ error: 'already_resolved' });
+      if (v.status === 'approved' && v.resolved_guest_id !== guestId) return reply.code(409).send({ error: 'already_resolved' });
       if (!db.prepare('SELECT 1 FROM guest WHERE id = ?').get(guestId)) return reply.code(404).send({ error: 'not_found' });
       const reg = db.prepare('SELECT ticket_token FROM registration WHERE guest_id = ?').get(guestId) as { ticket_token: string } | undefined;
       const ticketToken = reg?.ticket_token ?? createRegistration(db, guestId, v.dietary);
-      if (v.status === 'pending') {
+      if (v.status !== 'approved') {
         if (reg && v.dietary) db.prepare('UPDATE registration SET dietary = ? WHERE guest_id = ?').run(v.dietary, guestId);
         db.prepare('UPDATE registration SET on_hold = 0 WHERE guest_id = ?').run(guestId); // revalidated: same QR and PIN work again (no new mail: email_sent_at is kept)
         db.prepare("UPDATE verification_request SET status = 'approved', resolved_guest_id = ?, resolved_at = ?, resolved_by = ? WHERE id = ?")
@@ -374,6 +374,7 @@ export function registerAdmin(app: FastifyInstance, db: DatabaseSync, state: Sta
       if (v.status === 'approved') return reply.code(409).send({ error: 'already_resolved' });
       if (v.status === 'pending') {
         db.prepare("UPDATE verification_request SET status = 'rejected', resolved_at = ?, resolved_by = ? WHERE id = ?").run(Date.now(), roleIn(req), id);
+        if (v.kind === 'revalidate') for (const gid of JSON.parse(v.candidates) as number[]) db.prepare('UPDATE registration SET on_hold = 2 WHERE guest_id = ?').run(gid); // stays blocked, shown as rejected
         audit(roleIn(req), 'verification_reject', { id });
       }
       return { status: 'rejected' };
@@ -397,10 +398,11 @@ export function registerAdmin(app: FastifyInstance, db: DatabaseSync, state: Sta
       const g = db.prepare('SELECT g.name, g.email, r.on_hold, r.dietary FROM guest g JOIN registration r ON r.guest_id = g.id WHERE g.id = ?').get(id) as
         { name: string; email: string | null; on_hold: number; dietary: string | null } | undefined;
       if (!g) return reply.code(409).send({ error: 'not_registered' });
-      if (g.on_hold) return reply.code(409).send({ error: 'already_pending' });
+      if (g.on_hold === 1) return reply.code(409).send({ error: 'already_pending' }); // a rejected one (2) can be sent back to review
       db.prepare('UPDATE registration SET on_hold = 1 WHERE guest_id = ?').run(id);
-      db.prepare('INSERT INTO verification_request(name, dni, email, candidates, created_at, dietary) VALUES (?,?,?,?,?,?)')
-        .run(g.name, '', g.email ?? '', JSON.stringify([id]), Date.now(), null);
+      db.prepare("UPDATE verification_request SET status = 'replaced' WHERE kind = 'revalidate' AND status = 'rejected' AND candidates = ?").run(JSON.stringify([id])); // its old rejection leaves the Rechazados list
+      db.prepare('INSERT INTO verification_request(name, dni, email, candidates, created_at, dietary, kind) VALUES (?,?,?,?,?,?,?)')
+        .run(g.name, '', g.email ?? '', JSON.stringify([id]), Date.now(), null, 'revalidate');
       audit(roleIn(req), 'guest_revalidate', { guestId: id });
       return { onHold: true };
     });

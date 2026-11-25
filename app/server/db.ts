@@ -42,6 +42,7 @@ export function openDb(file: string, csvPath: string) {
   addColumn(db, 'verification_request', 'status', "TEXT NOT NULL DEFAULT 'pending'");
   for (const c of ['resolved_guest_id', 'resolved_at']) addColumn(db, 'verification_request', c, 'INTEGER');
   addColumn(db, 'verification_request', 'resolved_by', 'TEXT'); // admin role that approved/rejected
+  addColumn(db, 'verification_request', 'kind', "TEXT NOT NULL DEFAULT 'new'"); // 'new' inscription or 'revalidate' (an existing guest sent back to review)
   addColumn(db, 'registration', 'on_hold', 'INTEGER NOT NULL DEFAULT 0'); // sent back to validation by staff: QR and PIN blocked until approved again
   addColumn(db, 'guest', 'raffle_out', 'INTEGER NOT NULL DEFAULT 0'); // staff took the guest out of the raffles (everyone takes part by default)
   addColumn(db, 'guest', 'walk_in', 'INTEGER NOT NULL DEFAULT 0'); // added by staff at the door, not from the invite list

@@ -41,10 +41,10 @@
       <p class="door-closed" id="door-closed" hidden>La acreditación se habilita el lunes 30/11, el día del evento. Hasta entonces puedes buscar invitados y ver su PIN.</p>
       <button class="b primary newbar" id="verif-new" type="button" hidden></button>
       <div class="card" id="verif-card" hidden>
-        <h2>Verificaciones pendientes</h2>
-        <p class="muted">Registros que no coincidieron con la lista. Confirma la identidad y elige el invitado.</p>
+        <h2>Inscripciones para aprobar</h2>
+        <p class="muted">Personas que se inscribieron y esperan aprobación. Al aprobar una inscripción nueva se le envía el mail con su PIN y su QR. Una revalidación aprobada recupera su mismo PIN y QR, sin mail.</p>
         <div id="verifs"></div>
-        <p class="muted" id="verifs-empty" hidden>No hay verificaciones pendientes.</p>
+        <p class="muted" id="verifs-empty" hidden>No hay inscripciones para aprobar.</p>
       </div>
       <details class="card" id="add-box">
         <summary>Agregar invitado</summary>
@@ -58,6 +58,11 @@
       </details>
       <div class="gcards" id="guests"></div>
       <div class="note" id="guests-empty" hidden><p id="guests-empty-t"></p><button class="b primary" id="ag-from-q" type="button" hidden></button></div>
+      <div class="card" id="rejected-card" hidden>
+        <h2>Rechazados</h2>
+        <p class="muted">Inscripciones rechazadas: no tienen entrada válida. Si fue un error, apruébalas desde aquí.</p>
+        <div id="rejected"></div>
+      </div>
       <details class="card" id="import-box">
         <summary>Lista de invitados: exportar o subir</summary>
         <a class="b" id="guests-csv" download>Exportar invitados (Excel)</a>

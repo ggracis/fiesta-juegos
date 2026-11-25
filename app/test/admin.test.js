@@ -421,13 +421,13 @@ test('verifications: list without PIN, approve once, dietary carries over, rejec
   assert.equal(row.resolved_by, 'admin');
 
   assert.equal((await post(app, `/api/admin/verifications/${v2.id}/reject`, undefined, h)).json().status, 'rejected');
-  assert.equal((await approve(v2.id, g[1].id)).statusCode, 409);
   assert.equal((await post(app, `/api/admin/verifications/${v1.id}/reject`, undefined, h)).statusCode, 409);
   assert.equal((await post(app, '/api/admin/verifications/999/reject', undefined, h)).statusCode, 404);
   assert.equal((await app.inject({ url: '/api/admin/verifications', headers: h })).json().length, 0);
   assert.equal((await app.inject({ url: '/api/admin/verifications?status=rejected', headers: h })).json()[0].id, v2.id);
+  assert.equal((await approve(v2.id, g[1].id)).statusCode, 200); // a rejection can be undone by approving later
   const actions = db.prepare("SELECT action FROM audit_log WHERE action LIKE 'verification_%' ORDER BY id").all().map((r) => r.action);
-  assert.deepEqual(actions, ['verification_approve', 'verification_reject']);
+  assert.deepEqual(actions, ['verification_approve', 'verification_reject', 'verification_approve']);
 });
 
 test('walk-ins: accredit an unconfirmed guest once, add a guest at the door, no PIN in lists', async () => {

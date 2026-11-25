@@ -70,7 +70,7 @@ export const adminRevalidate = (id) => call('api/admin/guests/' + e(id) + '/reva
 export const adminSetRaffle = (id, participates) => call('api/admin/guests/' + e(id) + '/raffle', { participates });
 export const adminDeleteGuest = (id) => call('api/admin/guests/' + e(id), undefined, 'DELETE');
 export const adminAddGuest = (guest) => call('api/admin/guests', guest);
-export const adminVerifications = () => call('api/admin/verifications?status=pending');
+export const adminVerifications = (status = 'pending') => call('api/admin/verifications?status=' + e(status));
 export const adminApproveVerification = (id, guestId) => call('api/admin/verifications/' + e(id) + '/approve', guestId ? { guestId } : { add: true }); // no guestId: create the guest from the request
 export const adminRejectVerification = (id) => call('api/admin/verifications/' + e(id) + '/reject', undefined, 'POST');
 export const adminRanking = (game) => call('api/admin/ranking/' + e(game));
