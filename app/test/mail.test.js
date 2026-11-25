@@ -40,9 +40,9 @@ test('new registration sends one email through Brevo', async () => {
   const { url, init, body } = calls[0];
   assert.equal(url, 'https://api.brevo.com/v3/smtp/email');
   assert.equal(init.headers['api-key'], 'test-key');
-  assert.deepEqual(body.sender, { name: 'Gala Digital Power 2026', email: 'invitaciones@galadigitalpower.com.ar' });
+  assert.deepEqual(body.sender, { name: 'Digital Power - Gala 2026', email: 'invitaciones@galadigitalpower.com.ar' });
   assert.deepEqual(body.to, [{ email: 'zoe@example.com' }]);
-  assert.equal(body.subject, 'Tu entrada · Gala Digital Power 2026');
+  assert.equal(body.subject, 'Tu entrada · Digital Power - Gala 2026');
   assert.match(body.htmlContent, /\/api\/ticket\/[\w-]+\/qr\.png/);
   assert.ok(body.textContent.includes('PIN'));
   assert.ok(app.db.prepare('SELECT email_sent_at FROM registration').get().email_sent_at);
@@ -54,7 +54,7 @@ test('MAIL_REDIRECT_TO changes the recipient and prefixes the subject', async ()
   await register(app);
   await mailIdle();
   assert.deepEqual(calls[0].body.to, [{ email: 'org@example.com' }]);
-  assert.equal(calls[0].body.subject, '[PRUEBA → zoe@example.com] Tu entrada · Gala Digital Power 2026');
+  assert.equal(calls[0].body.subject, '[PRUEBA → zoe@example.com] Tu entrada · Digital Power - Gala 2026');
 });
 
 test('lost-ticket recovery does not send again', async () => {

@@ -97,10 +97,12 @@ html, body { margin: 0; height: 100%; overflow: hidden; background: #000; cursor
 .logo { width: 240px; margin-bottom: 70px; } /* clear space: the brand manual forbids crowding the logo */
 .mark { width: 120px; margin: 4px 0 16px; }
 .t-main, .year, .name { font-variant-numeric: lining-nums; }
-.t-main { font: 700 250px/.95 var(--display); letter-spacing: .07em; margin-right: -.07em; }
+.t-main { font: 700 190px/.95 var(--display); letter-spacing: .06em; margin-right: -.06em; }
 .t-main span { color: var(--title-a); }
 .noche .t-main span, .noche .gold { color: transparent; background: var(--gold-text); -webkit-background-clip: text; background-clip: text; padding: .1em 0 .26em; }
 .t-sub { font: 600 66px/1 var(--sans); letter-spacing: .42em; margin-right: -.42em; color: var(--ink); }
+.slogan { font: 500 44px/1.2 var(--sans); letter-spacing: .08em; margin-top: 22px; color: var(--soft); }
+.noche .slogan { color: var(--gold); }
 .knot { width: 440px; height: 56px; margin: 26px 0; stroke: var(--red); stroke-width: 3; }
 
 .role { font: 600 64px/1.1 var(--sans); letter-spacing: .14em; margin-right: -.14em; color: var(--red-deep); }
@@ -200,7 +202,8 @@ html, body { margin: 0; height: 100%; overflow: hidden; background: #000; cursor
 .panel .plate { padding: 0 400px; }
 .panel .logo { width: 220px; margin-bottom: 60px; }
 .panel .mark { width: 100px; }
-.panel .t-main { font-size: 270px; }
+.panel .t-main { font-size: 112px; }
+.panel .slogan { font-size: 30px; margin-top: 16px; }
 .panel .t-sub { font-size: 50px; letter-spacing: .36em; margin-right: -.36em; }
 .panel .knot { width: 360px; height: 46px; margin: 22px 0; }
 .panel [data-m="oro"] .knot { width: 520px; height: 66px; margin: 0 0 24px; }

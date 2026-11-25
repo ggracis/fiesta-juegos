@@ -47,12 +47,12 @@
 .title { margin: 0; display: flex; flex-direction: column; align-items: center; font: 300 1em/1 var(--display); }
 .title > span { display: block; white-space: nowrap; }
 .title { font-variant-numeric: lining-nums; }
-.t1 { font-size: calc(var(--w) * .165); line-height: .92; letter-spacing: .1em; margin-right: -.1em; color: var(--red); }
-.t3 { font-size: calc(var(--w) * .082); line-height: 1.25; letter-spacing: .42em; margin-right: -.42em; color: var(--ink-soft); font-weight: 400; }
-.t4 { font-size: calc(var(--w) * .05); line-height: 1.6; letter-spacing: .15em; margin-right: -.15em; color: var(--red-deep); font-weight: 500; }
+.t1 { font-size: calc(var(--w) * .09); line-height: 1.1; letter-spacing: .08em; margin-right: -.08em; color: var(--red); }
+.t3 { font-size: calc(var(--w) * .052); line-height: 1.5; letter-spacing: .3em; margin-right: -.3em; color: var(--ink-soft); font-weight: 400; }
 .ch { display: inline-block; }
 .title { will-change: transform, opacity; }
 
+.slogan { max-width: 18em; margin: calc(var(--w) * .02) 0 0; font: 400 calc(var(--w) * .032)/1.45 var(--sans); letter-spacing: .06em; color: var(--ink-soft); text-wrap: balance; }
 .tag { margin: calc(var(--w) * .035) 0 0; font: 500 calc(var(--w) * .026)/1.7 var(--sans); letter-spacing: .24em; color: var(--ink-soft); }
 .knot { width: calc(var(--w) * .5); height: auto; margin: calc(var(--w) * .03) 0; }
 .invite { max-width: 21.5em; margin: 0; font: 400 calc(var(--w) * .03)/1.5 var(--sans); color: var(--ink-soft); text-wrap: balance; }

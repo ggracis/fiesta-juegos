@@ -46,11 +46,11 @@ html.noche .gala {
   font-family: var(--font-display); font-variant-numeric: lining-nums;
 }
 html.noche .gala p { margin: 0; white-space: nowrap; }
-html.noche .g1, html.noche .g4 { color: transparent; background: var(--gold-text); -webkit-background-clip: text; background-clip: text; }
-html.noche .g1 { font-weight: 500; font-size: 220px; line-height: .9; letter-spacing: .1em; margin-right: -.1em; }
+html.noche .g1, html.noche .g3 { color: transparent; background: var(--gold-text); -webkit-background-clip: text; background-clip: text; }
+html.noche .g1 { font-weight: 500; font-size: 112px; line-height: 1.05; letter-spacing: .06em; margin-right: -.06em; padding-bottom: .12em; }
 html.noche .glogo { display: block; width: 137px; height: auto; margin: 0 0 22px; } /* official logo, white wordmark on the dark panel */
-html.noche .g3 { margin-top: 18px; font-weight: 500; font-size: 60px; line-height: 1.2; letter-spacing: .24em; margin-right: -.24em; color: var(--ink); }
-html.noche .g4 { margin-top: 6px; font-weight: 500; font-size: 112px; line-height: 1.1; letter-spacing: .36em; margin-right: -.36em; }
+html.noche .g3 { margin-top: 6px; font-weight: 500; font-size: 64px; line-height: 1.3; letter-spacing: .3em; margin-right: -.3em; padding-bottom: .12em; }
+html.noche .gslogan { margin-top: 18px; font: 400 34px/1.3 var(--font-display); letter-spacing: .05em; color: var(--gold); }
 html.noche .gtag { margin-top: 34px; padding-top: 26px; font: 500 50px/1 var(--font-display); letter-spacing: .04em; color: var(--ink-soft); position: relative; }
 html.noche .gtag::before { content: ""; position: absolute; left: 50%; top: 0; width: 120px; height: 2px; margin-left: -60px; background: var(--nx-red); }
 

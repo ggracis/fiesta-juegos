@@ -17,8 +17,8 @@
 .noche .eyebrow::after { content: ''; display: block; width: calc(var(--w) * .1); height: 1px; margin: calc(var(--w) * .035) auto 0; background: var(--red); }
 .noche .title { font-weight: 500; }
 .noche .t1 .ch, .noche .t3 .ch { padding-bottom: .2em; color: transparent; background: var(--gold-text); -webkit-background-clip: text; background-clip: text; }
-.noche .t4 { color: var(--ink); font-weight: 400; }
-.noche .t3 { letter-spacing: .2em; margin-right: -.2em; font-size: calc(var(--w) * .11); line-height: 1.1; }
+.noche .t3 { letter-spacing: .3em; margin-right: -.3em; font-size: calc(var(--w) * .062); line-height: 1.3; }
+.noche .slogan { color: var(--gold); letter-spacing: .05em; text-shadow: 0 1px 2px #000, 0 0 12px #000; }
 .noche .tag { font: 400 calc(var(--w) * .036)/1.45 var(--sans); letter-spacing: .04em; color: var(--ink); }
 .noche .knot { stroke: #E3283A; }
 .noche .invite { padding: 6px 4px; color: var(--ink); text-shadow: 0 1px 2px #000, 0 0 12px #000; background: radial-gradient(ellipse 60% 62% at 50% 50%, rgba(10, 6, 6, .7) 50%, rgba(10, 6, 6, 0) 100%); }

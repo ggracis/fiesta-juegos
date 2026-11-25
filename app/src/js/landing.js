@@ -49,7 +49,7 @@ function intro() {
     .from('.logo', { opacity: 0, duration: 1, ...CP }, t + 0.1)
     .from($$('.eyebrow'), { y: 12, opacity: 0, duration: 0.8, ...CP }, t + 0.2)
     .from($$('.title .ch'),{ y: 40, opacity: 0, duration: 1, stagger: 0.07, ...CP }, t + 0.35)
-    .from('.tag', { y: 18, opacity: 0, duration: 0.9, ...CP }, t + 1.0)
+    .from(['.slogan', '.tag'], { y: 18, opacity: 0, duration: 0.9, ...CP }, t + 1.0)
     .from('.knot .kl', { scaleX: 0, transformOrigin: '100% 50%', duration: 0.8, ease: 'power2.out', ...CP }, t + 1.15)
     .from('.knot .kr', { scaleX: 0, transformOrigin: '0% 50%', duration: 0.8, ease: 'power2.out', ...CP }, t + 1.15)
     .from('.knot .kc', { scale: 0, opacity: 0, transformOrigin: '50% 50%', duration: 0.6, ease: 'back.out(1.8)', ...CP }, t + 1.05)

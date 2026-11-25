@@ -1,7 +1,7 @@
 // Single source for the "add to calendar" links (Google + .ics) on the invitation and the ticket.
 // The program below and the "Agenda" list in src/index.html must be updated together; final agenda confirmed by the client on 2026-11-19.
 export const EVENT = {
-  title: 'Gala Digital Power 2026', // brand rule: the event name alone, never "Huawei" glued to it
+  title: 'Digital Power - Gala 2026', // brand rule: the event name alone, never "Huawei" glued to it
   start: '20261130T213000Z', // 18:30 Buenos Aires (UTC-3)
   end: '20261201T030000Z', // 00:00
   tz: 'America/Argentina/Buenos_Aires',
@@ -75,12 +75,12 @@ export function icsUrl(ticket) {
   const d = eventDetails(ticket);
   const alarm = (trigger, text) => ['BEGIN:VALARM', 'ACTION:DISPLAY', `TRIGGER:${trigger}`, `DESCRIPTION:${icsText(text)}`, 'END:VALARM'];
   const lines = [
-    'BEGIN:VCALENDAR', 'VERSION:2.0', 'PRODID:-//Gala Digital Power 2026//ES', 'CALSCALE:GREGORIAN', 'METHOD:PUBLISH', 'BEGIN:VEVENT',
+    'BEGIN:VCALENDAR', 'VERSION:2.0', 'PRODID:-//Digital Power - Gala 2026//ES', 'CALSCALE:GREGORIAN', 'METHOD:PUBLISH', 'BEGIN:VEVENT',
     `UID:gala-digital-power-2026@${location.hostname}`, `DTSTAMP:${new Date().toISOString().replace(/[-:]|\.\d+/g, '')}`,
     `DTSTART:${EVENT.start}`, `DTEND:${EVENT.end}`, 'STATUS:CONFIRMED', 'TRANSP:OPAQUE',
     `SUMMARY:${icsText(EVENT.title)}`, `LOCATION:${icsText(EVENT.location)}`, `URL:${ticket ? ticket.url : invitationUrl()}`,
     `DESCRIPTION:${icsText(d.text)}`, `X-ALT-DESC;FMTTYPE=text/html:${icsText(`<html><body>${d.html}</body></html>`)}`,
-    ...alarm('-P1D', 'Mañana: Gala Digital Power 2026'), ...alarm('-PT2H', 'Hoy 18:30: Gala Digital Power 2026'),
+    ...alarm('-P1D', 'Mañana: Digital Power - Gala 2026'), ...alarm('-PT2H', 'Hoy 18:30: Digital Power - Gala 2026'),
     'END:VEVENT', 'END:VCALENDAR',
   ];
   return 'data:text/calendar;charset=utf-8,' + encodeURIComponent(lines.map(fold).join('\r\n') + '\r\n');

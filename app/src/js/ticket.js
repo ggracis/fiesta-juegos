@@ -37,8 +37,9 @@ async function ticketPng(d, qr) {
   const lw = 102; x.drawImage(logo, (W - lw) / 2, 80, lw, Math.round(lw * logo.naturalHeight / logo.naturalWidth));
   x.fillStyle = '#C8102E'; x.font = `300 54px ${serif}`;
   if ('letterSpacing' in x) x.letterSpacing = '12px';
-  x.fillText('GALA DIGITAL', W / 2 + 6, 255);
-  x.fillText('POWER 2026', W / 2 + 6, 318);
+  x.font = `300 62px ${serif}`; x.fillText('DIGITAL POWER', W / 2 + 6, 255, W - 160);
+  x.font = `300 40px ${serif}`; if ('letterSpacing' in x) x.letterSpacing = '16px';
+  x.fillText('GALA 2026', W / 2 + 8, 315);
   if ('letterSpacing' in x) x.letterSpacing = '0px';
   x.fillStyle = '#2E2A28'; x.font = `500 50px ${serif}`; x.fillText(cleanName(d.name), W / 2, 395, W - 160);
   const img = new Image();

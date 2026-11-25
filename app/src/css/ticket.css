@@ -26,6 +26,7 @@ body.tk { min-height: 100svh; background: radial-gradient(120% 80% at 50% 0, #FB
 .ticket::before { content: ''; position: absolute; inset: 7px; border: 1px solid rgba(201, 164, 92, .65); border-radius: 7px; pointer-events: none; }
 .ticket header { padding: 34px 20px 18px; }
 .ticket .logo { display: block; width: 62px; height: auto; margin: 0 auto 16px; }
+.kicker span { display: block; margin-top: .25em; font-size: .72em; letter-spacing: .3em; margin-right: -.3em; }
 .kicker { margin: 0; font: 300 1.5rem/1.15 var(--display); letter-spacing: .12em; margin-right: -.12em; white-space: nowrap; color: var(--red); font-variant-numeric: lining-nums; }
 .ticket .who { margin: 12px 0 0; font: 500 1.45rem/1.2 var(--display); color: var(--ink); }
 .ticket .body { padding: 0 22px 30px; }
