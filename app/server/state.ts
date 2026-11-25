@@ -45,9 +45,9 @@ export function makeState(db: DatabaseSync) {
     (db.prepare('SELECT * FROM game_config ORDER BY sort, game').all() as GameRow[])
       .map((r) => fromRow(r.game, r)).filter((g) => !!g);
   const checkinView = (token: string) => db.prepare(
-    `SELECT g.name, r.checked_in_at AS checkedInAt, r.prize_won_at AS prizeWonAt, r.prize_delivered_at AS prizeDeliveredAt
+    `SELECT g.name, r.on_hold AS onHold, r.checked_in_at AS checkedInAt, r.prize_won_at AS prizeWonAt, r.prize_delivered_at AS prizeDeliveredAt
      FROM registration r JOIN guest g ON g.id = r.guest_id WHERE r.checkin_token = ?`
-  ).get(token) as { name: string; checkedInAt: number | null; prizeWonAt: number | null; prizeDeliveredAt: number | null } | undefined;
+  ).get(token) as { name: string; onHold: number; checkedInAt: number | null; prizeWonAt: number | null; prizeDeliveredAt: number | null } | undefined;
   const stage = () => ({ ...DEFAULT_STAGE, ...getSetting('stage') }) as typeof DEFAULT_STAGE;
   // Public stage payload for /api/live: only what the LED wall shows (names, roles, prize), never guest data beyond the winner's name.
   const stageView = () => {

@@ -40,8 +40,8 @@ export function registerPanel(app: FastifyInstance, db: DatabaseSync, state: Sta
     const counts: Record<number, Record<string, number>> = {};
     for (const r of db.prepare('SELECT guest_id, game, COUNT(*) AS n FROM attempt GROUP BY guest_id, game').all() as any[]) (counts[r.guest_id] ??= {})[r.game] = r.n;
     // Old PINs of deleted duplicates log in as the guest that stayed (same id, so attempt counts are shared).
-    const guests = (db.prepare(`SELECT g.id, g.name, r.pin FROM registration r JOIN guest g ON g.id = r.guest_id
-      UNION ALL SELECT g.id, g.name, a.pin FROM token_alias a JOIN guest g ON g.id = a.guest_id JOIN registration r ON r.guest_id = g.id ORDER BY 1`).all() as any[])
+    const guests = (db.prepare(`SELECT g.id, g.name, r.pin FROM registration r JOIN guest g ON g.id = r.guest_id WHERE r.on_hold = 0
+      UNION ALL SELECT g.id, g.name, a.pin FROM token_alias a JOIN guest g ON g.id = a.guest_id JOIN registration r ON r.guest_id = g.id WHERE r.on_hold = 0 ORDER BY 1`).all() as any[])
       .map((g) => ({ id: g.id, name: g.name, h: hashPin(g.pin), a: counts[g.id] ?? {} }));
     const games = state.allGames().filter((g) => g!.ready && g!.enabled)
       .map((g) => ({ id: g!.id, name: g!.name, params: g!.params, threshold: g!.threshold, maxAttempts: g!.maxAttempts, offline: !ROUND_GAMES.includes(g!.id) }));

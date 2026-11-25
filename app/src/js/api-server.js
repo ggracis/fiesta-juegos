@@ -66,6 +66,8 @@ export const adminGuest = (id) => call('api/admin/guests/' + e(id));
 export const adminCheckinGuest = (id) => call('api/admin/guests/' + e(id) + '/checkin', undefined, 'POST');
 export const adminWalkIn = (id) => call('api/admin/guests/' + e(id) + '/walkin', undefined, 'POST');
 export const adminResendEmail = (id) => call('api/admin/guests/' + e(id) + '/resend-email', undefined, 'POST');
+export const adminRevalidate = (id) => call('api/admin/guests/' + e(id) + '/revalidate', undefined, 'POST');
+export const adminSetRaffle = (id, participates) => call('api/admin/guests/' + e(id) + '/raffle', { participates });
 export const adminDeleteGuest = (id) => call('api/admin/guests/' + e(id), undefined, 'DELETE');
 export const adminAddGuest = (guest) => call('api/admin/guests', guest);
 export const adminVerifications = () => call('api/admin/verifications?status=pending');

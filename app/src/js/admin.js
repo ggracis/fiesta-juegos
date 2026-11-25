@@ -23,6 +23,8 @@ const ERRORS = {
   guest_exists: 'Ya existe un invitado con ese nombre: búscalo en la lista.',
   not_duplicate: 'Ya no hay otro invitado con ese nombre: no se elimina.', guest_in_use: 'Ese invitado ya jugó o participó del sorteo: no se puede eliminar.',
   already_voided: 'Ese sorteo ya estaba anulado.', already_resolved: 'Esa verificación ya fue resuelta.', http: 'Error del servidor.', already_checked_in: 'Ya estaba acreditado.',
+  pending_validation: 'La inscripción de esta persona está pendiente de validación. Apruébala en Verificaciones pendientes.',
+  already_pending: 'Esa inscripción ya está pendiente de validación.',
   checkin_not_open: 'La acreditación se habilita el lunes 30/11, el día del evento. Esta persona ya está confirmada y tiene su entrada.',
   image_required: 'Elige una imagen JPG, PNG o WebP.', invalid_image: 'El archivo no es una imagen JPG, PNG o WebP válida.', demo_unavailable: 'No disponible en el modo demo.',
 };
@@ -216,7 +218,8 @@ async function loadGuests(bg) {
 function guestCard(g) {
   const chip = (text, cls = '') => h('span', { className: 'badge ' + cls }, text);
   let act;
-  if (g.checkedInAt) act = h('a', { className: 'b', href: ticketUrl(g.ticketToken), target: '_blank', rel: 'noopener' }, 'Ver entrada');
+  if (g.onHold) act = null; // back under validation: nothing to do here until it is approved
+  else if (g.checkedInAt) act = h('a', { className: 'b', href: ticketUrl(g.ticketToken), target: '_blank', rel: 'noopener' }, 'Ver entrada');
   else if (g.registered && !gOpen) act = null; // before event day: nothing to press (the banner explains why)
   else if (g.registered) {
     act = h('button', { className: 'b primary', type: 'button' }, 'Acreditar'); // no confirm: speed at the door matters
@@ -243,12 +246,35 @@ function guestCard(g) {
         g.walkIn && chip('Agregado en puerta'),
         g.pendingVerification && chip('Verificación pendiente', 'warn'),
         g.duplicate && chip('Posible duplicado', 'warn'),
-        g.prizeWonAt && chip(g.prizeDeliveredAt ? 'Premio entregado' : 'Premio ganado', 'prize')),
+        g.onHold && chip('Pendiente de validación', 'warn'),
+      g.raffleOut && chip('No participa de sorteos', 'warn'),
+      g.prizeWonAt && chip(g.prizeDeliveredAt ? 'Premio entregado' : 'Premio ganado', 'prize')),
       g.dietary && h('div', { className: 'diet' }, 'Restricción: ' + g.dietary)),
     act,
+    !door && h('div', { className: 'gsub' }, g.registered && !g.onHold && revalidateButton(g), raffleButton(g)),
     g.duplicate && deleteDupButton(g));
   card.onclick = (ev) => { if (!ev.target.closest('a, button')) showDetail(g.id); };
   return card;
+}
+// "Revalidar inscripción": back to the validation queue (QR and PIN blocked until approved; approving sends no new mail).
+function revalidateButton(g) {
+  const b = h('button', { className: 'b sub', type: 'button' }, 'Revalidar inscripción');
+  b.onclick = async (ev) => {
+    ev.stopPropagation();
+    if (!confirm(`¿Revalidar la inscripción de ${g.name}? Su QR y su PIN dejan de funcionar hasta que se apruebe en Verificaciones pendientes. No se le envía ningún mail.`)) return;
+    if (await run(() => api.adminRevalidate(g.id))) { toast(`${g.name}: pendiente de validación`); loadGuests(); refresh(); }
+  };
+  return b;
+}
+// Raffle participation toggle (admin only): everyone takes part unless staff takes them out.
+function raffleButton(g) {
+  const b = h('button', { className: 'b sub', type: 'button' }, g.raffleOut ? 'Incluir en sorteos' : 'Excluir de sorteos');
+  b.onclick = async (ev) => {
+    ev.stopPropagation();
+    const r = await run(() => api.adminSetRaffle(g.id, !!g.raffleOut));
+    if (r) { toast(`${g.name}: ${r.participates ? 'participa' : 'no participa'} de los sorteos`); loadGuests(); }
+  };
+  return b;
 }
 function deleteDupButton(g) {
   const b = h('button', { className: 'b danger', type: 'button' }, 'Eliminar duplicado');
@@ -507,7 +533,7 @@ const markOn = (scene) => {
 function renderMixer(winners) {
   const sp = ST.speakers[ST.speaker], aw = ST.awards[ST.award], w = winners.find((x) => x.id === ST.winner && !x.voidedAt);
   const subs = {
-    title: 'Gala Digital Power 2026', ambient: 'Animaciones suaves que rotan', speaker: sp ? sp.name + (sp.role ? ' · ' + sp.role : '') : 'Sin oradores',
+    title: 'Digital Power - Gala 2026', ambient: 'Animaciones suaves que rotan', speaker: sp ? sp.name + (sp.role ? ' · ' + sp.role : '') : 'Sin oradores',
     award: aw ? aw.company + (aw.text ? ' · ' + aw.text : '') : 'Sin reconocimientos',
     raffle: 'Placa de premios', winner: w ? w.name + (w.prize ? ' · ' + w.prize : '') : 'Todavía no hay sorteos', video: ST.video || 'Sin video configurado', black: 'Pantalla apagada',
   };

@@ -36,9 +36,12 @@ addEventListener('mousemove', () => {
 
 // ---------- sound: browsers need one click before a video may play with sound ----------
 const vid = $('#vi');
-let soundOn = false;
+// Sound on by default. Without a click the browser only allows it when Chrome runs with
+// --autoplay-policy=no-user-gesture-required (the LED PC); if it refuses, the video plays muted and the button shows up.
+let soundOn = !quiet;
 const sound = $('#sound');
-sound.hidden = quiet || demo;
+sound.hidden = true;
+const soundBlocked = () => { soundOn = false; sound.hidden = quiet || demo; };
 addEventListener('pointerdown', () => {
   if (quiet || soundOn) return;
   soundOn = true; sound.hidden = true;
@@ -97,7 +100,7 @@ function playVideo() {
   if (!vid.getAttribute('src')) return;
   vid.currentTime = 0;
   vid.muted = quiet || !soundOn;
-  vid.play().catch(() => { vid.muted = true; vid.play().catch(() => {}); });
+  vid.play().catch(() => { if (!vid.muted) soundBlocked(); vid.muted = true; vid.play().catch(() => {}); });
 }
 
 // ---------- state: polled from /api/live (or faked in demo mode) ----------

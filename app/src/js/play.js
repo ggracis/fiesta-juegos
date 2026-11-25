@@ -43,8 +43,9 @@ function tap(el, fn) {
   });
 }
 
-// ---------- sound: off by default, tiny oscillator blips ----------
-let ac = null, soundOn = false;
+// ---------- sound: on by default, tiny oscillator blips; the first touch unlocks the browser's audio ----------
+let ac = null, soundOn = true;
+addEventListener('pointerdown', () => { if (!soundOn) return; ac ??= new (window.AudioContext || window.webkitAudioContext)(); if (ac.state === 'suspended') ac.resume(); }, { capture: true });
 function blip(freq, dur = 0.1, type = 'sine', gain = 0.07, at = 0) {
   if (!soundOn || !ac) return;
   const t = ac.currentTime + at, o = ac.createOscillator(), g = ac.createGain();
@@ -66,6 +67,7 @@ tap($('#snd'), () => {
   $('#snd').setAttribute('aria-label', soundOn ? 'Silenciar' : 'Activar sonido');
   sfx.key();
 });
+$('#snd').setAttribute('aria-pressed', soundOn); $('#snd').setAttribute('aria-label', 'Silenciar'); // the button now starts in the "on" state
 
 // ---------- characters ----------
 // Blink scheduler: toggles a class on a couple of random visible characters (cheap, no per-node timers).
@@ -298,6 +300,7 @@ async function submitPin() {
     dots.classList.add('wrong'); sfx.bad();
     setTimeout(() => { pin = ''; renderDots(); }, 380);
     if (e.code === 'locked' || e.locked) lock(e.retryAfter || 30);
+    else if (e.code === 'pending_validation') setMsg('Tu inscripción está pendiente de validación. Acércate a la recepción.');
     else if (e.code === 'wrong_pin') setMsg(`PIN incorrecto. Te quedan ${e.remaining} intentos.`);
     else setMsg('No hay conexión. Inténtalo de nuevo.');
   }

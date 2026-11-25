@@ -138,7 +138,7 @@ button.press, button.big:active { transform: scale(.94); }
 .caps li.on { opacity: 1; color: var(--sun); transform: scale(1.08); transition: transform 320ms var(--spring), opacity 200ms; }
 .startwrap { position: relative; width: 520px; height: 170px; margin-top: 40px; display: grid; place-items: center; }
 .startwrap .big { width: 480px; font-size: 64px; }
-.ring { position: absolute; inset: 0; width: 100%; height: 100%; overflow: visible; }
+.ring { position: absolute; inset: 0; width: 100%; height: 100%; overflow: visible; pointer-events: none; } /* the countdown ring sits over EMPEZAR: taps must reach the button */
 .ring rect { fill: none; stroke: var(--sun); stroke-width: 8; stroke-linecap: round; stroke-dasharray: 100; animation: drain 10s linear forwards; }
 @keyframes drain { from { stroke-dashoffset: 0; } to { stroke-dashoffset: 100; } }
 

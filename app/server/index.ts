@@ -62,7 +62,7 @@ export function buildApp(dbPath = DB_PATH, csvPath = CSV_PATH, opts: { adminPass
   mkdirSync(MEDIA_DIR, { recursive: true });
   app.register(fastifyStatic, { root: MEDIA_DIR, prefix: '/media/', decorateReply: false });
 
-  const validationMode =() => state.getSetting('registrationValidation') as 'name_only' | 'name_email' | 'open';
+  const validationMode =() => state.getSetting('registrationValidation') as 'name_only' | 'name_email' | 'open' | 'manual';
 
   // Found / not found plus the active validation mode: never echo roster data.
   app.post('/api/lookup', {
@@ -107,11 +107,13 @@ export function buildApp(dbPath = DB_PATH, csvPath = CSV_PATH, opts: { adminPass
     const matches = roster().filter((g) => matchesName(g.name, name));
     // An unknown name (zero matches) is not an error: it needs an email and goes to staff as a pending request.
     if ((mode !== 'name_only' || matches.length !== 1) && !validEmail(email)) return reply.code(400).send({ error: 'invalid_input' });
-    const r = verify(matches, { email }, mode);
-    if (!r.guest) {
+    // manual: staff validates every new registration; only an already registered guest gets the ticket back (lost-ticket recovery).
+    const r = verify(matches, { email }, mode === 'manual' ? 'name_email' : mode);
+    const held = mode === 'manual' && r.guest && !db.prepare('SELECT 1 FROM registration WHERE guest_id = ?').get(r.guest.id);
+    if (!r.guest || held) {
       // dni '' on purpose: pilot DBs created the column as NOT NULL without a default.
       db.prepare('INSERT INTO verification_request(name, dni, email, candidates, created_at, dietary) VALUES (?,?,?,?,?,?)')
-        .run(name.trim(), '', normEmail(email), JSON.stringify(r.pending), Date.now(), dietary);
+        .run(name.trim(), '', normEmail(email), JSON.stringify(held ? [r.guest!.id] : r.pending), Date.now(), dietary);
       return { status: 'pending' };
     }
     // Already registered with matching data: hand back the existing ticket (lost-ticket recovery).
@@ -149,8 +151,9 @@ export function buildApp(dbPath = DB_PATH, csvPath = CSV_PATH, opts: { adminPass
     const f = fails.get(screenId) ?? { n: 0, until: 0 };
     if (f.until > now) return reply.code(429).send({ error: 'locked', retryAfter: Math.ceil((f.until - now) / 1000) });
     const row = db.prepare(
-      'SELECT g.id, g.name FROM registration r JOIN guest g ON g.id = r.guest_id WHERE r.pin = ?'
-    ).get(canonical(db, 'pin', (req.body as any).pin)) as { id: number; name: string } | undefined;
+      'SELECT g.id, g.name, r.on_hold FROM registration r JOIN guest g ON g.id = r.guest_id WHERE r.pin = ?'
+    ).get(canonical(db, 'pin', (req.body as any).pin)) as { id: number; name: string; on_hold: number } | undefined;
+    if (row?.on_hold) return reply.code(403).send({ error: 'pending_validation' }); // right PIN, inscription back under review
     if (!row) {
       f.n++;
       if (f.n >= MAX_FAILS) { f.n = 0; f.until = now + LOCK_MS; }

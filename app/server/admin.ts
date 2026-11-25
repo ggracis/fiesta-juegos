@@ -127,7 +127,7 @@ export function registerAdmin(app: FastifyInstance, db: DatabaseSync, state: Sta
           paused: { type: 'boolean' }, transition: { type: 'boolean' }, transitionText: { type: 'string', maxLength: 200 },
           prizeStock: { type: 'integer', minimum: 0 }, raffleShowSeconds: { type: 'integer', minimum: 1, maximum: 600 },
           raffleMode: { type: 'boolean' },
-          registrationValidation: { enum: ['name_only', 'name_email', 'open'] },
+          registrationValidation: { enum: ['name_only', 'name_email', 'open', 'manual'] },
         },
       },
     },
@@ -176,7 +176,7 @@ export function registerAdmin(app: FastifyInstance, db: DatabaseSync, state: Sta
     const { q: rawQ = '', filter = 'all' } = req.query as { q?: string; filter?: keyof typeof FILTERS };
     const q = normalize(rawQ), mail = normEmail(rawQ);
     const rows = db.prepare(
-      `SELECT g.id, g.name, g.email, g.walk_in, r.guest_id IS NOT NULL AS registered, r.pin, r.ticket_token, r.checked_in_at, r.prize_won_at, r.prize_delivered_at, r.dietary,
+      `SELECT g.id, g.name, g.email, g.walk_in, g.raffle_out, r.on_hold, r.guest_id IS NOT NULL AS registered, r.pin, r.ticket_token, r.checked_in_at, r.prize_won_at, r.prize_delivered_at, r.dietary,
          (SELECT COUNT(*) FROM attempt a WHERE a.guest_id = g.id) AS attempts
        FROM guest g LEFT JOIN registration r ON r.guest_id = g.id`
     ).all() as any[];
@@ -191,7 +191,7 @@ export function registerAdmin(app: FastifyInstance, db: DatabaseSync, state: Sta
     const found = rows.filter(hit);
     const counts = Object.fromEntries(Object.entries(FILTERS).map(([k, f]) => [k, found.filter(f).length]));
     const guests = found.filter(FILTERS[filter]).sort((a, b) => a.name.localeCompare(b.name, 'es')).slice(0, 300).map((r) => ({
-      id: r.id, name: r.name, email: r.email, walkIn: !!r.walk_in, registered: !!r.registered, checkedInAt: r.checked_in_at, prizeWonAt: r.prize_won_at,
+      id: r.id, name: r.name, email: r.email, walkIn: !!r.walk_in, raffleOut: !!r.raffle_out, onHold: !!r.on_hold, registered: !!r.registered, checkedInAt: r.checked_in_at, prizeWonAt: r.prize_won_at,
       prizeDeliveredAt: r.prize_delivered_at, dietary: r.dietary, attempts: r.attempts, pendingVerification: pending.has(r.id), duplicate: r.dup,
       // Staff read the PIN straight off the card at the door (admin cookie only; public endpoints never carry it).
       pin: r.pin ?? null, ticketToken: r.ticket_token ?? null,
@@ -354,6 +354,7 @@ export function registerAdmin(app: FastifyInstance, db: DatabaseSync, state: Sta
       const ticketToken = reg?.ticket_token ?? createRegistration(db, guestId, v.dietary);
       if (v.status === 'pending') {
         if (reg && v.dietary) db.prepare('UPDATE registration SET dietary = ? WHERE guest_id = ?').run(v.dietary, guestId);
+        db.prepare('UPDATE registration SET on_hold = 0 WHERE guest_id = ?').run(guestId); // revalidated: same QR and PIN work again (no new mail: email_sent_at is kept)
         db.prepare("UPDATE verification_request SET status = 'approved', resolved_guest_id = ?, resolved_at = ?, resolved_by = ? WHERE id = ?")
           .run(guestId, Date.now(), roleIn(req), id);
         audit(roleIn(req), 'verification_approve', { id, guestId });
@@ -388,6 +389,31 @@ export function registerAdmin(app: FastifyInstance, db: DatabaseSync, state: Sta
     return { guestId, ticketToken, pin: pinOf(guestId), checkedIn: checkinOpen() };
   };
 
+  // "Revalidar": the inscription goes back to staff validation. QR and PIN stop working until a verification approves it again;
+  // approving keeps the same ticket and sends no new mail.
+  app.post('/api/admin/guests/:id/revalidate', staff, async (req, reply) => {
+    const id = Number((req.params as any).id);
+    return state.tx(() => {
+      const g = db.prepare('SELECT g.name, g.email, r.on_hold, r.dietary FROM guest g JOIN registration r ON r.guest_id = g.id WHERE g.id = ?').get(id) as
+        { name: string; email: string | null; on_hold: number; dietary: string | null } | undefined;
+      if (!g) return reply.code(409).send({ error: 'not_registered' });
+      if (g.on_hold) return reply.code(409).send({ error: 'already_pending' });
+      db.prepare('UPDATE registration SET on_hold = 1 WHERE guest_id = ?').run(id);
+      db.prepare('INSERT INTO verification_request(name, dni, email, candidates, created_at, dietary) VALUES (?,?,?,?,?,?)')
+        .run(g.name, '', g.email ?? '', JSON.stringify([id]), Date.now(), null);
+      audit(roleIn(req), 'guest_revalidate', { guestId: id });
+      return { onHold: true };
+    });
+  });
+
+  // Raffle participation per guest (default: everyone takes part).
+  app.post('/api/admin/guests/:id/raffle', { ...staff, schema: { body: { type: 'object', required: ['participates'], additionalProperties: false, properties: { participates: { type: 'boolean' } } } } }, async (req, reply) => {
+    const id = Number((req.params as any).id), { participates } = req.body as { participates: boolean };
+    if (!db.prepare('UPDATE guest SET raffle_out = ? WHERE id = ?').run(participates ? 0 : 1, id).changes) return reply.code(404).send({ error: 'not_found' });
+    audit(roleIn(req), 'guest_raffle', { guestId: id, participates });
+    return { participates };
+  });
+
   app.post('/api/admin/guests/:id/walkin', staff, async (req, reply) => {
     const id = Number((req.params as any).id);
     return state.tx(() => {
@@ -416,6 +442,7 @@ export function registerAdmin(app: FastifyInstance, db: DatabaseSync, state: Sta
     if (!db.prepare('SELECT 1 FROM guest WHERE id = ?').get(id)) return reply.code(404).send({ error: 'not_found' });
     const reg = db.prepare('SELECT checked_in_at FROM registration WHERE guest_id = ?').get(id) as { checked_in_at: number | null } | undefined;
     if (!reg) return reply.code(409).send({ error: 'not_registered' });
+    if (!reg.checked_in_at && db.prepare('SELECT on_hold FROM registration WHERE guest_id = ?').get(id)?.on_hold) return reply.code(409).send({ error: 'pending_validation' });
     if (!reg.checked_in_at && !checkinOpen()) return reply.code(409).send({ error: 'checkin_not_open' });
     const at = reg.checked_in_at ?? Date.now(); // idempotent: keeps the first check-in time
     if (!reg.checked_in_at) {
@@ -436,6 +463,7 @@ export function registerAdmin(app: FastifyInstance, db: DatabaseSync, state: Sta
     const now = Date.now();
     if (action === 'checkin') {
       if (v.checkedInAt) return reply.code(409).send({ error: 'already_checked_in' });
+      if (v.onHold) return reply.code(409).send({ error: 'pending_validation' });
       if (!checkinOpen()) return reply.code(409).send({ error: 'checkin_not_open' });
       db.prepare('UPDATE registration SET checked_in_at = ? WHERE checkin_token = ?').run(now, token);
     } else {
@@ -535,7 +563,7 @@ export function registerAdmin(app: FastifyInstance, db: DatabaseSync, state: Sta
     const prize = (rawPrize ?? '').replace(/\s+/g, ' ').trim() || null;
     // Before event day nobody can be checked in: draws are rehearsals over every registration (wiped with /raffle/reset).
     const pool = db.prepare(
-      `SELECT guest_id FROM registration WHERE ${checkinOpen() ? 'checked_in_at IS NOT NULL AND ' : ''}guest_id NOT IN (SELECT guest_id FROM raffle)`
+      `SELECT guest_id FROM registration WHERE ${checkinOpen() ? 'checked_in_at IS NOT NULL AND ' : ''}on_hold = 0 AND guest_id NOT IN (SELECT guest_id FROM raffle) AND guest_id NOT IN (SELECT id FROM guest WHERE raffle_out = 1)`
     ).all() as { guest_id: number }[];
     if (!pool.length) return reply.code(409).send({ error: 'no_candidates' });
     const pick = pool[randomInt(pool.length)].guest_id;
