@@ -9,7 +9,7 @@ const ERR = {
   already_checked_in: 'Esta persona ya estaba acreditada.',
   no_prize: 'Esta persona no ganó premio.',
   already_delivered: 'El premio ya fue entregado.',
-  pending_validation: 'La inscripción de esta persona está pendiente de validación. Apruébala en Verificaciones pendientes.',
+  pending_validation: 'La inscripción de esta persona está pendiente de validación. Apruébala en «Inscripciones para aprobar».',
   checkin_not_open: 'La acreditación se habilita el lunes 30/11, el día del evento. Esta persona ya está confirmada y tiene su entrada.',
   unauthorized: 'Tu sesión de staff venció. Ingresa de nuevo.',
 };

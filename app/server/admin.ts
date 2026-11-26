@@ -7,7 +7,7 @@ import { pipeline } from 'node:stream/promises';
 import { join } from 'node:path';
 import { mailGuest } from './mail.ts';
 import { newToken, csvLine, PIXEL_DIR, MEDIA_DIR, createRegistration, canonical, checkinOpen } from './lib.ts';
-import { nameTokens, normEmail, guestRow, validEmail } from '../src/shared/identity.js';
+import { nameTokens, normEmail, guestRow, validEmail, samePerson } from '../src/shared/identity.js';
 import { gameById, PARAM_INFO } from '../src/shared/games.js';
 import { SCENES, CUE_LEAD_MS } from '../src/shared/stage.js';
 import { XLSX_MIME, readXlsx, exampleXlsx } from './xlsx.ts';
@@ -344,7 +344,9 @@ export function registerAdmin(app: FastifyInstance, db: DatabaseSync, state: Sta
         if (v.status === 'approved' && v.resolved_guest_id) guestId = v.resolved_guest_id; // replay: same guest, same ticket
         else if (v.status === 'approved') return reply.code(409).send({ error: 'already_resolved' }); // pending or rejected: a rejection can be undone by approving
         else {
-          const g = db.prepare('SELECT id FROM guest WHERE name = ?').get(v.name) as { id: number } | undefined; // exact name already on the list: reuse it
+          // Exact name or same email already on the list: reuse that guest (a second spelling never makes a second guest).
+          const g = (db.prepare('SELECT id FROM guest WHERE name = ?').get(v.name) ?? (db.prepare('SELECT id, name FROM guest WHERE email = ?').all(v.email ?? '') as { id: number; name: string }[])
+            .find((x) => samePerson(x.name, v.name))) as { id: number } | undefined;
           guestId = g?.id ?? Number(db.prepare('INSERT INTO guest(name, email, walk_in) VALUES (?,?,1)').run(v.name, v.email).lastInsertRowid);
           if (!g) audit(roleIn(req), 'guest_add', { guestId, added: v.name, from: 'verification' });
         }
@@ -360,6 +362,9 @@ export function registerAdmin(app: FastifyInstance, db: DatabaseSync, state: Sta
         db.prepare("UPDATE verification_request SET status = 'approved', resolved_guest_id = ?, resolved_at = ?, resolved_by = ? WHERE id = ?")
           .run(guestId, Date.now(), roleIn(req), id);
         audit(roleIn(req), 'verification_approve', { id, guestId });
+        // Copies of the same inscription (same email and name) are done too: they leave the queue without a "Rechazados" entry.
+        if (v.kind === 'new' && v.email) for (const c of db.prepare("SELECT id, name FROM verification_request WHERE status = 'pending' AND kind = 'new' AND email = ? AND id <> ?").all(v.email, id) as { id: number; name: string }[])
+          if (samePerson(c.name, v.name)) db.prepare("UPDATE verification_request SET status = 'replaced', resolved_guest_id = ?, resolved_at = ? WHERE id = ?").run(guestId, Date.now(), c.id);
         send = { guestId, to: v.email };
       }
       return { ticketToken, pin: pinOf(guestId) };

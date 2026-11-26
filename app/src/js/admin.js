@@ -23,7 +23,7 @@ const ERRORS = {
   guest_exists: 'Ya existe un invitado con ese nombre: búscalo en la lista.',
   not_duplicate: 'Ya no hay otro invitado con ese nombre: no se elimina.', guest_in_use: 'Ese invitado ya jugó o participó del sorteo: no se puede eliminar.',
   already_voided: 'Ese sorteo ya estaba anulado.', already_resolved: 'Esa verificación ya fue resuelta.', http: 'Error del servidor.', already_checked_in: 'Ya estaba acreditado.',
-  pending_validation: 'La inscripción de esta persona está pendiente de validación. Apruébala en Verificaciones pendientes.',
+  pending_validation: 'La inscripción de esta persona está pendiente de validación. Apruébala en «Inscripciones para aprobar».',
   already_pending: 'Esa inscripción ya está pendiente de validación.',
   checkin_not_open: 'La acreditación se habilita el lunes 30/11, el día del evento. Esta persona ya está confirmada y tiene su entrada.',
   image_required: 'Elige una imagen JPG, PNG o WebP.', invalid_image: 'El archivo no es una imagen JPG, PNG o WebP válida.', demo_unavailable: 'No disponible en el modo demo.',
@@ -78,7 +78,7 @@ function enter(role) {
   TABS = door ? ALL_TABS.slice(0, 1) : ALL_TABS; // the other panes stay hidden and their loaders never run
   $('tabs').replaceChildren(...TABS.map(([k, label]) => {
     const b = h('button', { type: 'button', role: 'tab', id: 'tab-' + k }, label,
-      k === 'guests' && h('span', { className: 'badge prize', id: 'verif-count', hidden: true, title: 'Verificaciones pendientes' }));
+      k === 'guests' && h('span', { className: 'badge prize', id: 'verif-count', hidden: true, title: 'Inscripciones para aprobar' }));
     b.dataset.tab = k; b.onclick = () => select(k);
     return b;
   }));
@@ -247,7 +247,7 @@ function guestCard(g) {
       h('div', { className: 'gtop' },
         g.checkedInAt ? chip('Acreditado ✓ ' + time(g.checkedInAt), 'ok') : !g.registered && chip('No confirmado'),
         g.walkIn && chip('Agregado a mano'),
-        g.pendingVerification && chip('Verificación pendiente', 'warn'),
+        g.pendingVerification && !g.onHold && chip('Verificación pendiente', 'warn'), // on hold already says it
         g.duplicate && chip('Posible duplicado', 'warn'),
         g.onHold && chip('Pendiente de validación', 'warn'),
       g.rejected && chip('Rechazado', 'bad'),
@@ -265,7 +265,7 @@ function revalidateButton(g) {
   const b = h('button', { className: 'b sub', type: 'button' }, 'Revalidar inscripción');
   b.onclick = async (ev) => {
     ev.stopPropagation();
-    if (!confirm(`¿Revalidar la inscripción de ${g.name}? Su QR y su PIN dejan de funcionar hasta que se apruebe en Verificaciones pendientes. No se le envía ningún mail.`)) return;
+    if (!confirm(`¿Revalidar la inscripción de ${g.name}? Su QR y su PIN dejan de funcionar hasta que se apruebe en «Inscripciones para aprobar». No se le envía ningún mail.`)) return;
     if (await run(() => api.adminRevalidate(g.id))) { toast(`${g.name}: pendiente de validación`); loadGuests(); refresh(); }
   };
   return b;
@@ -299,7 +299,7 @@ let vSeen = 0;
 function checkVerifs() {
   const n = S.pendingVerifications - vSeen, b = $('verif-new');
   b.hidden = n <= 0;
-  b.textContent = `${n} ${n === 1 ? 'verificación nueva' : 'verificaciones nuevas'} · Ver`;
+  b.textContent = `${n} ${n === 1 ? 'inscripción nueva para aprobar' : 'inscripciones nuevas para aprobar'} · Ver`;
 }
 // One inscription to approve. New: approving creates the guest and mails the ticket. Revalidation: approving gives back the same
 // ticket without mail. A new name that matches someone already on the list offers that guest too (namesakes).

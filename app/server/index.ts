@@ -11,7 +11,7 @@ import { registerPanel } from './panel.ts';
 import QRCode from 'qrcode';
 import { mailGuest, checkinUrl } from './mail.ts';
 import { createRegistration, newToken, canonical, PIXEL_DIR, MEDIA_DIR } from './lib.ts';
-import { matchesName, verify, validEmail, normEmail, cleanDietary } from '../src/shared/identity.js';
+import { matchesName, samePerson, verify, validEmail, normEmail, cleanDietary } from '../src/shared/identity.js';
 import { buildRounds, publicRounds, mulberry32, ROUND_GAMES, ROUND_POINTS } from '../src/shared/rounds.js';
 import { leaderboards } from '../src/shared/leaderboard.js';
 
@@ -111,6 +111,13 @@ export function buildApp(dbPath = DB_PATH, csvPath = CSV_PATH, opts: { adminPass
     const r = verify(matches, { email }, mode === 'manual' ? 'name_email' : mode);
     const held = mode === 'manual' && r.guest && !db.prepare('SELECT 1 FROM registration WHERE guest_id = ?').get(r.guest.id);
     if (!r.guest || held) {
+      // Sent twice (double tap, or again with a fix): the open request is updated, never copied.
+      const same = (db.prepare("SELECT id, name FROM verification_request WHERE status = 'pending' AND kind = 'new' AND email = ?").all(normEmail(email)) as { id: number; name: string }[])
+        .find((v) => samePerson(v.name, name)); // same email and name: a copy (two people may share an inbox)
+      if (same) {
+        db.prepare('UPDATE verification_request SET name = ?, dietary = COALESCE(?, dietary) WHERE id = ?').run(name.trim(), dietary, same.id);
+        return { status: 'pending' };
+      }
       // dni '' on purpose: pilot DBs created the column as NOT NULL without a default.
       db.prepare('INSERT INTO verification_request(name, dni, email, candidates, created_at, dietary) VALUES (?,?,?,?,?,?)')
         .run(name.trim(), '', normEmail(email), JSON.stringify(held ? [r.guest!.id] : r.pending), Date.now(), dietary);

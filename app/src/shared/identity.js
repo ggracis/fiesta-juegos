@@ -13,6 +13,9 @@ export function matchesName(rosterName, typed) {
   return want.size >= 2 && [...want].every((t) => have.has(t));
 }
 
+// Same person written two ways (case, accents, a middle name more or less). Used with a matching email to spot copies.
+export const samePerson = (a, b) => matchesName(a, b) || matchesName(b, a);
+
 export const normEmail = (s) => String(s ?? '').trim().toLowerCase();
 // Plain ASCII only: no accents, ñ, spaces or odd symbols (a typed "ĺucas@" bounced). Dots never lead, trail or repeat.
 export const validEmail = (s) => /^[a-z0-9_%+-]+(\.[a-z0-9_%+-]+)*@([a-z0-9]([a-z0-9-]*[a-z0-9])?\.)+[a-z]{2,}$/.test(normEmail(s));

@@ -100,3 +100,31 @@ test('rejections: a rejected revalidation stays blocked and marked, and both kin
   assert.equal((await app.inject({ url: '/api/admin/verifications?status=rejected', headers: h })).json().length, 0);
   void g;
 });
+
+test('duplicate inscriptions: sending the form twice keeps one request, approving one clears its copies and reuses the guest by email', async () => {
+  const { app, h } = await adminApp();
+  await put(app, '/api/admin/settings', { registrationValidation: 'manual' }, h);
+  const pend = async () => (await app.inject({ url: '/api/admin/verifications', headers: h })).json();
+  await post(app, '/api/register', { name: 'Pablo IBAÑEZ', email: 'pibanez@pcr.energy' });
+  await post(app, '/api/register', { name: 'Pablo Ibañez', email: ' PIBANEZ@pcr.energy ', dietary: 'Vegano' });
+  let list = await pend();
+  assert.equal(list.length, 1); // the second send updates the first request
+  assert.deepEqual([list[0].name, list[0].dietary], ['Pablo Ibañez', 'Vegano']);
+  await post(app, '/api/register', { name: 'Pablo Ibañez', email: 'pibanez@pcr.energy' }); // no dietary: the earlier one stays
+  assert.equal((await pend())[0].dietary, 'Vegano');
+
+  // Two copies that already exist (sent before this rule): approving one clears the other.
+  app.db.prepare("INSERT INTO verification_request(name, dni, email, candidates, created_at) VALUES ('Pablo IBAÑEZ', '', 'pibanez@pcr.energy', '[]', ?)").run(Date.now());
+  list = await pend();
+  assert.equal(list.length, 2);
+  const a = await post(app, `/api/admin/verifications/${list[0].id}/approve`, { add: true }, h);
+  assert.equal(a.statusCode, 200);
+  assert.deepEqual(await pend(), []);
+  // A late copy with another spelling reuses the guest that has that email: no second guest, same ticket.
+  app.db.prepare("INSERT INTO verification_request(name, dni, email, candidates, created_at) VALUES ('PABLO IBANEZ', '', 'pibanez@pcr.energy', '[]', ?)").run(Date.now());
+  const late = (await pend())[0];
+  const b = await post(app, `/api/admin/verifications/${late.id}/approve`, { add: true }, h);
+  assert.equal(b.json().ticketToken, a.json().ticketToken);
+  assert.equal(app.db.prepare("SELECT COUNT(*) AS n FROM guest WHERE email = 'pibanez@pcr.energy'").get().n, 1);
+  await app.close();
+});
