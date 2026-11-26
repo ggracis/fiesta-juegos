@@ -79,7 +79,7 @@ test('guests.csv: staff only, BOM, ; separated, dietary normalised, Buenos Aires
   assert.ok(r.body.startsWith('﻿Nombre;Email;Estado;Restricciones alimentarias;Inscripto el;Acreditado el;Origen\r\n'));
   const g1 = app.db.prepare('SELECT name FROM guest WHERE id = 1').get().name, g2 = app.db.prepare('SELECT name FROM guest WHERE id = 2').get().name;
   const line = (name) => r.body.split('\r\n').find((l) => l.startsWith(name + ';'));
-  assert.match(line(g1), /;Acreditado;"Celíaca; sin lactosa";2026-11-01 09:00;2026-11-30 21:05;Lista$/);
+  assert.match(line(g1), /;Acreditado;"Celíaca; sin lactosa";2026-11-01 09:00;2026-11-30 21:05;Formulario web$/);
   assert.match(line(g2), /;Inscripto;;/); // "No" becomes empty
   assert.ok(!line(g2).includes('No'));
   assert.equal(r.body.split('\r\n').length - 2, app.db.prepare('SELECT COUNT(*) AS n FROM guest').get().n); // header + one row per guest + trailing newline
@@ -97,6 +97,9 @@ test('guests.csv: shows revalidate, rejected, pending and rejected new inscripti
   await post(app, '/api/register', { name: 'Persona Rechazada', email: 'rech@example.com' });
   const rej = app.db.prepare("SELECT id FROM verification_request WHERE email = 'rech@example.com'").get();
   await post(app, `/api/admin/verifications/${rej.id}/reject`, undefined, h);
+  await post(app, '/api/register', { name: 'Persona Aprobada', email: 'apro@example.com' });
+  const ok = app.db.prepare("SELECT id FROM verification_request WHERE email = 'apro@example.com'").get();
+  await post(app, `/api/admin/verifications/${ok.id}/approve`, { add: true }, h);
   app.db.prepare("INSERT INTO guest(name, email, walk_in) VALUES ('Mano Puerta', 'mano@example.com', 1)").run();
   const body = (await app.inject({ url: '/api/admin/guests.csv', headers: h })).body;
   assert.ok(body.startsWith('﻿Nombre;Email;Estado;Restricciones alimentarias;Inscripto el;Acreditado el;Origen\r\n'));
@@ -104,10 +107,11 @@ test('guests.csv: shows revalidate, rejected, pending and rejected new inscripti
   const name = (id) => app.db.prepare('SELECT name FROM guest WHERE id = ?').get(id).name;
   assert.match(line(name(1)), /;Por revalidar;/);
   assert.match(line(name(2)), /;Rechazado;/);
-  assert.match(line(name(3)), /;Sin inscribir;.*;Lista$/);
-  assert.match(line('Persona Nueva'), /^Persona Nueva;nueva@example\.com;Inscripción nueva \(por aprobar\);Vegano;\d{4}-.*;;Formulario$/);
-  assert.match(line('Persona Rechazada'), /;Inscripción nueva rechazada;.*;Formulario$/);
+  assert.match(line(name(3)), /;Sin inscribir;.*;Formulario web$/);
+  assert.match(line('Persona Nueva'), /^Persona Nueva;nueva@example\.com;Inscripción nueva \(por aprobar\);Vegano;\d{4}-.*;;Formulario web$/);
+  assert.match(line('Persona Rechazada'), /;Inscripción nueva rechazada;.*;Formulario web$/);
   assert.match(line('Mano Puerta'), /;Sin inscribir;.*;Agregado a mano$/);
+  assert.match(line('Persona Aprobada'), /;Inscripto;.*;Formulario web \(aprobado por el equipo\)$/);
   await app.close();
 });
 
