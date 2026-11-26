@@ -239,15 +239,21 @@ export function registerAdmin(app: FastifyInstance, db: DatabaseSync, state: Sta
   // Whole roster for catering: ';' separated with a BOM so Spanish-locale Excel opens it in columns, accents intact.
   app.get('/api/admin/guests.csv', staff, async (_req, reply) => {
     const rows = db.prepare(
-      `SELECT g.name, g.email, r.guest_id IS NOT NULL AS registered, r.created_at, r.checked_in_at, r.dietary
-       FROM guest g LEFT JOIN registration r ON r.guest_id = g.id`
+      `SELECT g.name, g.email, r.guest_id IS NOT NULL AS registered, r.created_at, r.checked_in_at, r.dietary, r.on_hold, g.walk_in, NULL AS req
+       FROM guest g LEFT JOIN registration r ON r.guest_id = g.id
+       UNION ALL
+       -- New inscriptions not yet guests: waiting for approval or rejected (a later approved copy already shows as a guest).
+       SELECT v.name, v.email, 0, v.created_at, NULL, v.dietary, 0, 0, v.status FROM verification_request v
+       WHERE v.kind = 'new' AND v.status IN ('pending', 'rejected') AND v.email NOT IN (SELECT email FROM guest WHERE email IS NOT NULL)`
     ).all() as any[];
     rows.sort((a, b) => a.name.localeCompare(b.name, 'es'));
-    const lines = [['Nombre', 'Email', 'Estado', 'Restricciones alimentarias', 'Inscripto el', 'Acreditado el'].join(';')];
+    const state = (r: any) => r.req === 'pending' ? 'Inscripción nueva (por aprobar)' : r.req ? 'Inscripción nueva rechazada'
+      : r.checked_in_at ? 'Acreditado' : r.on_hold === 1 ? 'Por revalidar' : r.on_hold === 2 ? 'Rechazado' : r.registered ? 'Inscripto' : 'Sin inscribir';
+    const lines = [['Nombre', 'Email', 'Estado', 'Restricciones alimentarias', 'Inscripto el', 'Acreditado el', 'Origen'].join(';')];
     for (const r of rows) {
       const diet = (r.dietary ?? '').trim();
-      lines.push([r.name, r.email, r.checked_in_at ? 'Acreditado' : r.registered ? 'Inscripto' : 'Sin inscribir', NO_DIETARY.test(diet) ? '' : diet,
-        baTime(r.created_at), baTime(r.checked_in_at)].map(csvField).join(';'));
+      lines.push([r.name, r.email, state(r), NO_DIETARY.test(diet) ? '' : diet,
+        baTime(r.created_at), baTime(r.checked_in_at), r.req ? 'Formulario' : r.walk_in ? 'Agregado a mano' : 'Lista'].map(csvField).join(';'));
     }
     return reply.header('content-type', 'text/csv; charset=utf-8').header('content-disposition', 'attachment; filename="invitados-gala.csv"').send('﻿' + lines.join('\r\n') + '\r\n');
   });
