@@ -202,7 +202,7 @@ function renderBoard(b) {
     return li;
   });
   boardSeen.set(b.key, keys);
-  $('#board-rows').replaceChildren(...(rows.length ? rows : [el('li', 'empty', '¡Todavía nadie!\nSé el primero en aparecer aquí')]));
+  $('#board-rows').replaceChildren(...(rows.length ? rows : [el('li', 'empty', '¡Todavía nadie!\nJugá y aparecé primero acá')]));
 }
 function nextScene() {
   const a = $('#attract');
@@ -269,7 +269,7 @@ function lock(seconds) {
   let left = seconds;
   const tick = () => {
     if (left <= 0) { locked = false; padEl.classList.remove('lock'); setMsg(''); return; }
-    setMsg(`Demasiados intentos. Espera ${left} s.`);
+    setMsg(`Demasiados intentos. Esperá ${left} s.`);
     left--; lockTimer = setTimeout(tick, 1000);
   };
   clearTimeout(lockTimer); tick();
@@ -300,9 +300,9 @@ async function submitPin() {
     dots.classList.add('wrong'); sfx.bad();
     setTimeout(() => { pin = ''; renderDots(); }, 380);
     if (e.code === 'locked' || e.locked) lock(e.retryAfter || 30);
-    else if (e.code === 'pending_validation') setMsg('Tu inscripción está pendiente de validación. Acércate a la recepción.');
+    else if (e.code === 'pending_validation') setMsg('Tu inscripción está pendiente de validación. Acercate a la acreditación.');
     else if (e.code === 'wrong_pin') setMsg(`PIN incorrecto. Te quedan ${e.remaining} intentos.`);
-    else setMsg('No hay conexión. Inténtalo de nuevo.');
+    else setMsg('No hay conexión. Intentalo de nuevo.');
   }
 }
 
@@ -312,7 +312,7 @@ function showConfirm() {
   $('#avatar').innerHTML = mascot({ h: 350, shape: 'round', acc: 'hat' }) + '<b></b>';
   $('#avatar b').textContent = (fn[0] || '?').toUpperCase();
   $('#hola').textContent = `¡Hola, ${fn}!`;
-  $('#full').textContent = `¿Eres ${cleanName(playerName)}?`;
+  $('#full').textContent = `¿Sos ${cleanName(playerName)}?`;
   show('confirm');
   holaSplit?.revert();
   holaSplit = SplitText.create('#hola', { type: 'chars' });
@@ -401,7 +401,7 @@ async function pick(id) {
   } catch (e) {
     if (myGid !== gid) return;
     picking = false;
-    menuMsg(e.code === 'max_attempts' ? 'Ya usaste tus intentos en este juego.' : e.code === 'game_unavailable' ? 'Este juego no está disponible ahora.' : 'No hay conexión. Inténtalo de nuevo.');
+    menuMsg(e.code === 'max_attempts' ? 'Ya usaste tus intentos en este juego.' : e.code === 'game_unavailable' ? 'Este juego no está disponible ahora.' : 'No hay conexión. Intentalo de nuevo.');
     await poll();
     if (myGid === gid && current === 'menu') renderMenu();
   }
@@ -425,10 +425,10 @@ const setOv = (id, on) => { $(id).hidden = !on; };
 const gone = (s) => !!gameId && !s.games.some((g) => g.id === gameId);
 // Why a round can't start yet (null = it can). Shown above the overlays, so a tap on EMPEZAR is never silently ignored.
 const blockReason = () => !liveState ? null
-  : raffleOn || liveState.raffleMode ? 'Los sorteos están por comenzar. Espera un momento.'
-  : liveState.transition.on ? 'Hay un aviso en pantalla. Espera un momento.'
-  : liveState.paused ? 'Los juegos están en pausa. Espera un momento.'
-  : gone(liveState) ? 'Este juego no está disponible ahora. Espera un momento.' : null;
+  : raffleOn || liveState.raffleMode ? 'Los sorteos están por comenzar. Esperá un momento.'
+  : liveState.transition.on ? 'Hay un aviso en pantalla. Esperá un momento.'
+  : liveState.paused ? 'Los juegos están en pausa. Esperá un momento.'
+  : gone(liveState) ? 'Este juego no está disponible ahora. Esperá un momento.' : null;
 const showMsOf = (r) => Math.max(3, r.showSeconds || 15) * 1000;
 // Priority raffle > raffle-mode plate > transition > pause. Nothing interrupts a running round; they show once it ends.
 function applyOverlays() {

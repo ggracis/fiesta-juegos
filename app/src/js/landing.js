@@ -137,11 +137,11 @@ function show(step, focusEl) {
   if (!RM) step.animate([{ opacity: 0, transform: 'translateY(10px)' }, { opacity: 1, transform: 'none' }], { duration: 350, easing: 'ease-out' });
   focusEl.focus({ preventScroll: true });
 }
-const netErr = (e) => (e.code === 'rate_limited' ? 'Demasiados intentos. Espera unos segundos e inténtalo de nuevo.' : 'No se pudo completar la acción. Revisa tu conexión e inténtalo de nuevo.');
+const netErr = (e) => (e.code === 'rate_limited' ? 'Demasiados intentos. Esperá unos segundos e intentalo de nuevo.' : 'No se pudo completar la acción. Revisá tu conexión e intentalo de nuevo.');
 
 fName.addEventListener('submit', async (e) => {
   e.preventDefault();
-  if (q.value.trim().split(/\s+/).filter(Boolean).length < 2) return showErr('Escribe tu nombre y apellido completos.', q);
+  if (q.value.trim().split(/\s+/).filter(Boolean).length < 2) return showErr('Escribí tu nombre y apellido completos.', q);
   const b = $('button[type=submit]', fName);
   busy(b, true); showErr('');
   try {
@@ -149,8 +149,8 @@ fName.addEventListener('submit', async (e) => {
     // Not on the list is not a dead end: the guest still leaves an email and staff verify the request.
     nameOnly = found && mode === 'name_only';
     $$('[data-ident]', fId).forEach((el) => { el.hidden = nameOnly; });
-    $('#found').textContent = mode === 'open' ? 'Escribe tu correo electrónico y te enviaremos tu entrada con el QR y el PIN.'
-      : !found ? 'No te encontramos en la lista, pero puedes dejar tus datos y lo verificamos.'
+    $('#found').textContent = mode === 'open' ? 'Escribí tu correo electrónico y te mandamos tu entrada con el QR y el PIN.'
+      : !found ? 'No te encontramos en la lista, pero podés dejar tus datos y lo verificamos.'
       : nameOnly ? 'Te encontramos en la lista. Solo falta confirmar tu inscripción.' : foundText;
     show(fId, nameOnly ? diet : email);
   } catch (err) { showErr(netErr(err)); }
@@ -162,7 +162,7 @@ $('#again').addEventListener('click', () => { [q, email, diet].forEach((f) => { 
 
 fId.addEventListener('submit', async (e) => {
   e.preventDefault();
-  if (!nameOnly && !validEmail(email.value)) return showErr('Revisa tu correo electrónico: debe estar completo y sin tildes, ñ ni espacios.', email);
+  if (!nameOnly && !validEmail(email.value)) return showErr('Revisá tu correo electrónico: tiene que estar completo y sin tildes, ñ ni espacios.', email);
   const b = $('button[type=submit]', fId);
   busy(b, true); showErr('');
   try {
@@ -174,7 +174,7 @@ fId.addEventListener('submit', async (e) => {
     setTimeout(() => { location.href = href; }, RM ? 0 : 650);
   } catch (err) {
     busy(b, false);
-    showErr(err.code === 'invalid_input' ? 'Revisa tu correo electrónico.'
-      : err.code === 'email_in_use' ? 'Ese correo ya está inscripto con otro nombre. Escribe el mismo nombre que usaste.' : netErr(err));
+    showErr(err.code === 'invalid_input' ? 'Revisá tu correo electrónico.'
+      : err.code === 'email_in_use' ? 'Ese correo ya está inscripto con otro nombre. Escribí el mismo nombre que usaste.' : netErr(err));
   }
 });

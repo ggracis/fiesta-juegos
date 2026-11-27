@@ -160,6 +160,6 @@ function playRound(root, { base, odd, oddIndex, cells }, lvl, idx, { sfx, signal
 
 export default {
   id: 'distinto',
-  howTo: { title: 'Así se juega', steps: ['Mira', 'Encuentra', 'Toca'], art },
+  howTo: { title: 'Así se juega', steps: ['Mirá', 'Encontrá', 'Tocá'], art },
   play,
 };

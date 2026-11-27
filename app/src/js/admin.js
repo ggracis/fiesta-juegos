@@ -14,19 +14,19 @@ const seen = {};
 const changed = (k, v) => { const j = JSON.stringify(v); return seen[k] !== j && ((seen[k] = j), true); };
 
 const ERRORS = {
-  wrong_password: 'Contraseña incorrecta.', rate_limited: 'Demasiados intentos. Espera un minuto.',
+  wrong_password: 'Contraseña incorrecta.', rate_limited: 'Demasiados intentos. Esperá un minuto.',
   admin_disabled: 'El panel no está habilitado en el servidor.', network: 'Sin conexión con el servidor.',
   not_registered: 'Ese invitado todavía no confirmó su asistencia.', no_candidates: 'No quedan invitados acreditados para sortear.',
-  unknown_game: 'Juego desconocido.', not_found: 'No encontrado.', csv_required: 'Selecciona un archivo .xlsx o .csv.',
-  file_invalid: 'No pudimos leer el archivo. Sube un Excel (.xlsx) o un CSV válido; puedes bajar el ejemplo.', file_empty: 'No encontramos invitados en el archivo. Revisa que el nombre esté en la columna A.',
-  too_soon: 'Ya se envió hace instantes. Espera un minuto.', no_email: 'Ese invitado no tiene email.', send_failed: 'No se pudo enviar el correo.',
-  guest_exists: 'Ya existe un invitado con ese nombre: búscalo en la lista.',
+  unknown_game: 'Juego desconocido.', not_found: 'No encontrado.', csv_required: 'Seleccioná un archivo .xlsx o .csv.',
+  file_invalid: 'No pudimos leer el archivo. Subí un Excel (.xlsx) o un CSV válido; podés bajar el ejemplo.', file_empty: 'No encontramos invitados en el archivo. Revisá que el nombre esté en la columna A.',
+  too_soon: 'Ya se envió hace instantes. Esperá un minuto.', no_email: 'Ese invitado no tiene email.', send_failed: 'No se pudo enviar el correo.',
+  guest_exists: 'Ya existe un invitado con ese nombre: buscalo en la lista.',
   not_duplicate: 'Ya no hay otro invitado con ese nombre: no se elimina.', guest_in_use: 'Ese invitado ya jugó o participó del sorteo: no se puede eliminar.',
   already_voided: 'Ese sorteo ya estaba anulado.', already_resolved: 'Esa verificación ya fue resuelta.', http: 'Error del servidor.', already_checked_in: 'Ya estaba acreditado.',
-  pending_validation: 'La inscripción de esta persona está pendiente de validación. Apruébala en «Inscripciones para aprobar».',
+  pending_validation: 'La inscripción de esta persona está pendiente de validación. Aprobala en «Inscripciones para aprobar».',
   already_pending: 'Esa inscripción ya está pendiente de validación.',
   checkin_not_open: 'La acreditación se habilita el lunes 30/11, el día del evento. Esta persona ya está confirmada y tiene su entrada.',
-  image_required: 'Elige una imagen JPG, PNG o WebP.', invalid_image: 'El archivo no es una imagen JPG, PNG o WebP válida.', demo_unavailable: 'No disponible en el modo demo.',
+  image_required: 'Elegí una imagen JPG, PNG o WebP.', invalid_image: 'El archivo no es una imagen JPG, PNG o WebP válida.', demo_unavailable: 'No disponible en el modo demo.',
 };
 let toastTimer;
 function toast(msg, bad) {
@@ -214,7 +214,7 @@ async function loadGuests(bg) {
     lastAct && h('span', { className: 'last' }, 'Última acción: ' + lastAct));
   $('guests').replaceChildren(...[...guests].sort((a, b) => a.rejected - b.rejected).map(guestCard)); // rejected guests go last
   $('guests-empty').hidden = guests.length > 0;
-  $('guests-empty-t').textContent = 'Sin resultados.' + (q || gFilter === 'all' ? '' : ' Prueba con el filtro «Todos».');
+  $('guests-empty-t').textContent = 'Sin resultados.' + (q || gFilter === 'all' ? '' : ' Probá con el filtro «Todos».');
   filterVerifs(q);
   $('ag-from-q').hidden = !q; $('ag-from-q').textContent = `Agregar «${q}»`;
   scrollTo(0, y);
@@ -425,7 +425,7 @@ function renderGames() {
       const params = Object.fromEntries(pf.map(([k, i]) => [k, i.valueAsNumber]));
       err.hidden = true;
       const patch = { enabled: f.enabled.checked, sort: f.sort.valueAsNumber, threshold: f.threshold.valueAsNumber, maxAttempts: f.maxAttempts.valueAsNumber, params };
-      if ([patch.sort, patch.threshold, patch.maxAttempts, ...Object.values(params)].some(Number.isNaN)) { err.textContent = 'Completa todos los números.'; err.hidden = false; return; }
+      if ([patch.sort, patch.threshold, patch.maxAttempts, ...Object.values(params)].some(Number.isNaN)) { err.textContent = 'Completá todos los números.'; err.hidden = false; return; }
       const bad = [...Object.values(f).slice(1), ...pf.map(([, i]) => i)].find((i) => !i.checkValidity());
       if (bad) { err.textContent = `«${bad.closest('.field').querySelector('label').textContent}»: ${bad.validationMessage}`; err.hidden = false; bad.focus(); return; }
       if (await saveGame(g.id, patch)) toast(`${g.name} guardado`);
@@ -560,7 +560,7 @@ function renderMixer(winners) {
       const b = h('button', { type: 'button', className: 'mx' }, h('kbd', {}, String(i + 1)), h('strong', {}, SCENE_LABELS[scene]), h('span', {}, subs[scene]));
       b.dataset.scene = scene;
       b.onclick = async () => {
-        if (scene === 'winner' && !w) return toast('Todavía no hay ganadores: sortea primero.', true);
+        if (scene === 'winner' && !w) return toast('Todavía no hay ganadores: sorteá primero.', true);
         markOn(scene); // optimistic: the tile lights up before the round trip
         if (!(await setStage({ scene }))) markOn(ST.scene);
       };
@@ -586,7 +586,7 @@ function renderMixer(winners) {
       redo.onclick = async () => {
         if (!confirm(`¿Anular el sorteo de ${x.name}${x.prize ? ' («' + x.prize + '»)' : ''}? Queda fuera de los próximos sorteos y el premio vuelve a estar disponible.`)) return;
         if (!(await run(() => api.adminVoidRaffle(x.id)))) return;
-        toast('Sorteo anulado. Toca «Sortear ahora» para repetirlo.');
+        toast('Sorteo anulado. Tocá «Sortear ahora» para repetirlo.');
         loadRaffle(); prizeTouched = true;
         await loadStage();
         selectPrize(x.prize);
@@ -644,7 +644,7 @@ function renderSpeakers() {
       if (!f) return;
       if (f.size > 8 * 1024 * 1024) return toast('La foto supera 8 MB.', true);
       const r = await run(() => api.adminUploadImage(f));
-      if (r) { x.photo = r.path; toast('Foto subida. Toca «Guardar oradores» para publicarla.'); renderSpeakers(); }
+      if (r) { x.photo = r.path; toast('Foto subida. Tocá «Guardar oradores» para publicarla.'); renderSpeakers(); }
     };
     const pick = h('button', { type: 'button', className: 'b' }, x.photo ? 'Cambiar foto' : 'Foto');
     pick.onclick = () => file.click();
@@ -667,7 +667,7 @@ function renderRaffleMode() {
   $('raffle-mode').className = 'b' + (on ? '' : ' primary');
   $('raffle-mode-info').textContent = on
     ? 'Activo: las pantallas muestran «¡Los sorteos están por comenzar!» al terminar cada partida.'
-    : 'Desactivado: las pantallas siguen con los juegos. Actívalo antes de sortear.';
+    : 'Desactivado: las pantallas siguen con los juegos. Activalo antes de sortear.';
 }
 function initStage() {
   stReady = true;
@@ -723,7 +723,7 @@ function initStage() {
   };
   $('st-upload').onclick = async () => {
     const f = $('st-file').files[0], msg = $('st-upload-msg'), bar = $('st-progress'), b = $('st-upload');
-    if (!f) return toast('Elige primero un archivo MP4.', true);
+    if (!f) return toast('Elegí primero un archivo MP4.', true);
     if (f.size > 500 * 1024 * 1024) { msg.textContent = 'El archivo supera 500 MB.'; return toast(msg.textContent, true); }
     b.disabled = true; bar.hidden = false; bar.value = 0; msg.textContent = 'Subiendo… 0 %';
     try {
@@ -733,7 +733,7 @@ function initStage() {
     } catch (e) {
       if (e.code === 'unauthorized') { toast('Sesión vencida', true); showLogin(); }
       msg.textContent = e.code === 'unauthorized' ? '' : e.status === 413 || e.code === 'too_large' ? 'El archivo supera 500 MB.'
-        : e.code === 'invalid_mp4' ? 'El archivo no es un MP4 válido.' : e.code === 'network' ? 'Se cortó la conexión durante la subida. Inténtalo de nuevo.' : 'No se pudo subir el video.';
+        : e.code === 'invalid_mp4' ? 'El archivo no es un MP4 válido.' : e.code === 'network' ? 'Se cortó la conexión durante la subida. Intentalo de nuevo.' : 'No se pudo subir el video.';
       if (msg.textContent) toast(msg.textContent, true);
     } finally { b.disabled = false; bar.hidden = true; }
   };
@@ -767,7 +767,7 @@ async function boot() {
   $('logout').onclick = async () => { if (confirm('¿Salir del panel?')) { await run(api.adminLogout); showLogin(); } };
   $('theme').onclick = () => setTheme(!document.body.classList.contains('dark'));
   $('paused').onchange = async (ev) => {
-    if (ev.target.checked && !confirm('¿Pausar los 4 paneles de juego? Nadie podrá jugar hasta que lo reactives.')) { ev.target.checked = false; return; }
+    if (ev.target.checked && !confirm('¿Pausar los 4 paneles de juego? Nadie va a poder jugar hasta que lo reactives.')) { ev.target.checked = false; return; }
     if (!(await setting({ paused: ev.target.checked }))) renderLive(); // failed: back to the server value
   };
   $('trans').onchange = async (ev) => { if (!(await setting({ transition: ev.target.checked }))) renderLive(); };
@@ -795,7 +795,7 @@ async function boot() {
   };
   $('stock-save').onclick = async () => {
     const n = $('stock').valueAsNumber;
-    if (!Number.isInteger(n) || n < 0) return toast('Ingresa un stock válido.', true);
+    if (!Number.isInteger(n) || n < 0) return toast('Ingresá un stock válido.', true);
     if (await setting({ prizeStock: n })) { await refresh(); renderStock(); toast('Stock guardado'); }
   };
   $('rank-game').onchange = renderResults;

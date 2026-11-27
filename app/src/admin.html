@@ -38,7 +38,7 @@
         <div class="chips" id="gfilters" role="group" aria-label="Filtrar invitados"></div>
         <p class="sum" id="gsum" aria-live="polite"></p>
       </div>
-      <p class="door-closed" id="door-closed" hidden>La acreditación se habilita el lunes 30/11, el día del evento. Hasta entonces puedes buscar invitados y ver su PIN.</p>
+      <p class="door-closed" id="door-closed" hidden>La acreditación se habilita el lunes 30/11, el día del evento. Hasta entonces podés buscar invitados y ver su PIN.</p>
       <button class="b primary newbar" id="verif-new" type="button" hidden></button>
       <details class="card" id="verif-card" open hidden>
         <summary>Inscripciones para aprobar<span class="badge prize" id="verif-n"></span></summary>
@@ -60,7 +60,7 @@
       <div class="note" id="guests-empty" hidden><p id="guests-empty-t"></p><button class="b primary" id="ag-from-q" type="button" hidden></button></div>
       <div class="card" id="rejected-card" hidden>
         <h2>Rechazados</h2>
-        <p class="muted">Inscripciones rechazadas: no tienen entrada válida. Si fue un error, apruébalas desde aquí.</p>
+        <p class="muted">Inscripciones rechazadas: no tienen entrada válida. Si fue un error, aprobalas desde acá.</p>
         <div id="rejected"></div>
       </div>
       <details class="card" id="import-box">
@@ -104,7 +104,7 @@
         <input id="st-prize-other" maxlength="80" placeholder="Nombre del premio" aria-label="Nombre del premio" autocomplete="off" hidden>
         <p class="winner" id="winner" aria-live="polite"></p>
         <div class="row"><button class="b" id="hide-raffle" type="button">Limpiar</button><button class="b danger" id="reset-raffle" type="button">Borrar todos los sorteos</button></div>
-        <p class="muted">Las pantallas y el escenario muestran el suspenso y el ganador. «Limpiar» deja la placa de premios sin nombre hasta el próximo sorteo. «Mostrar» vuelve a poner un ganador anterior; si el ganador no está, usa «Anular y volver a sortear».</p>
+        <p class="muted">Las pantallas y el escenario muestran el suspenso y el ganador. «Limpiar» deja la placa de premios sin nombre hasta el próximo sorteo. «Mostrar» vuelve a poner un ganador anterior; si el ganador no está, usá «Anular y volver a sortear».</p>
         <ol class="st-winners" id="st-winners"></ol>
         <p class="muted" id="st-winners-empty" hidden>Todavía no hay ganadores.</p>
       </div>
@@ -177,7 +177,7 @@
         <h2>Frases de ambiente</h2>
         <label for="st-ambient">Frases, una por línea</label>
         <textarea id="st-ambient" rows="6" maxlength="1700"></textarea>
-        <p class="muted">Se muestran una tras otra en la escena Ambiente, con animaciones distintas. Hasta 20 frases de 80 caracteres. Usa | para partir una frase en dos líneas (ej.: Celebremos | lo logrado). Si la dejas vacía se usan las frases por defecto.</p>
+        <p class="muted">Se muestran una tras otra en la escena Ambiente, con animaciones distintas. Hasta 20 frases de 80 caracteres. Usá | para partir una frase en dos líneas (ej.: Celebremos | lo logrado). Si la dejás vacía se usan las frases por defecto.</p>
         <button class="b primary" id="st-save-amb" type="button">Guardar frases</button>
       </div>
       <div class="card">
@@ -186,7 +186,7 @@
         <textarea id="st-prize-list" rows="10"></textarea>
         <label for="st-video">Video</label>
         <input id="st-video" maxlength="300" placeholder="https://www.youtube.com/watch?v=… o media/video.mp4" autocomplete="off">
-        <p class="muted">Pega un enlace de YouTube o de un archivo MP4. YouTube necesita internet en el lugar del evento.</p>
+        <p class="muted">Pegá un enlace de YouTube o de un archivo MP4. YouTube necesita internet en el lugar del evento.</p>
         <button class="b primary" id="st-save" type="button">Guardar premios y video</button>
         <label for="st-file">Subir un MP4 (hasta 500 MB)</label>
         <div class="row"><input id="st-file" type="file" accept="video/mp4,.mp4"><button class="b" id="st-upload" type="button">Subir video</button></div>

@@ -138,6 +138,6 @@ function art(el, setStep) {
 
 export default {
   id: 'quiz',
-  howTo: { title: 'Así se juega', steps: ['Lee la pregunta', 'Toca la respuesta', 'Rápido, más puntos'], art },
+  howTo: { title: 'Así se juega', steps: ['Leé la pregunta', 'Tocá la respuesta', 'Rápido, más puntos'], art },
   play,
 };

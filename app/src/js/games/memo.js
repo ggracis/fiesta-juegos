@@ -122,6 +122,6 @@ function play(root, { params, sfx, rng, idle, signal }) {
 
 export default {
   id: 'memo',
-  howTo: { title: 'Así se juega', steps: ['Toca dos cartas', 'Encuentra los pares', 'Rápido y sin errores'], art },
+  howTo: { title: 'Así se juega', steps: ['Tocá dos cartas', 'Encontrá los pares', 'Rápido y sin errores'], art },
   play,
 };

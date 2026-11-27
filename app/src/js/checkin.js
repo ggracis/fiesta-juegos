@@ -9,9 +9,9 @@ const ERR = {
   already_checked_in: 'Esta persona ya estaba acreditada.',
   no_prize: 'Esta persona no ganó premio.',
   already_delivered: 'El premio ya fue entregado.',
-  pending_validation: 'La inscripción de esta persona está pendiente de validación. Apruébala en «Inscripciones para aprobar».',
+  pending_validation: 'La inscripción de esta persona está pendiente de validación. Aprobala en «Inscripciones para aprobar».',
   checkin_not_open: 'La acreditación se habilita el lunes 30/11, el día del evento. Esta persona ya está confirmada y tiene su entrada.',
-  unauthorized: 'Tu sesión de staff venció. Ingresa de nuevo.',
+  unauthorized: 'Tu sesión de staff venció. Ingresá de nuevo.',
 };
 
 const el = (tag, text, cls) => {
@@ -27,7 +27,7 @@ function render(d) {
   const status = $('#status'), acts = $('#acts');
   status.replaceChildren(); acts.replaceChildren();
   $('#staff').hidden = staff || isDemo;
-  if (!staff) { $('#line').textContent = 'Presenta este código en la entrada.'; return; }
+  if (!staff) { $('#line').textContent = 'Mostrá este código en la entrada.'; return; }
   $('#line').textContent = '';
 
   status.append(el('p', d.checkedInAt ? `Acreditado ${hm(d.checkedInAt)}` : 'Sin acreditar', d.checkedInAt ? 'ok' : ''));
@@ -45,7 +45,7 @@ function act(label, action) {
     try { render(await checkinAction(token, action)); }
     catch (e) {
       if (e.code === 'unauthorized' && !isDemo) $('#staff').hidden = false;
-      $('#msg').textContent = ERR[e.code] || 'No se pudo completar. Inténtalo de nuevo.';
+      $('#msg').textContent = ERR[e.code] || 'No se pudo completar. Intentalo de nuevo.';
       if (e.code === 'already_checked_in' || e.code === 'already_delivered' || e.code === 'no_prize') load(); // resync
       else b.disabled = false;
     }
@@ -58,7 +58,7 @@ async function load() {
     const d = await checkinInfo(token);
     if (!d) { $('#who').textContent = 'Ticket no encontrado'; $('#line').textContent = ''; return; }
     render(d);
-  } catch { $('#line').textContent = 'No hay conexión. Inténtalo de nuevo.'; }
+  } catch { $('#line').textContent = 'No hay conexión. Intentalo de nuevo.'; }
 }
 
 // Same-origin relative link only; admin.js validates `next` too.

@@ -20,7 +20,7 @@ function placeTargets() {
   const m = 48, W = innerWidth, H = innerHeight;
   for (const [x, y] of [[m, m], [W / 2, m], [W - m, m], [m, H / 2], [W / 2, H / 2 + 110], [W - m, H / 2], [m, H - m], [W / 2, H - m], [W - m, H - m]]) {
     const el = document.createElement('div');
-    el.className = 't'; el.style.left = x + 'px'; el.style.top = y + 'px'; el.textContent = 'toca';
+    el.className = 't'; el.style.left = x + 'px'; el.style.top = y + 'px'; el.textContent = 'tocá';
     document.body.append(el);
     targets.push({ el, x, y });
   }
@@ -72,7 +72,7 @@ document.addEventListener('touchmove', (e) => e.preventDefault(), { passive: fal
 $('#clear').addEventListener('click', () => {
   done.length = 0;
   max = active.size; $('#maxn').textContent = max;
-  for (const t of targets) { t.el.className = 't'; t.el.textContent = 'toca'; }
+  for (const t of targets) { t.el.className = 't'; t.el.textContent = 'tocá'; }
 });
 
 function path(trail) {

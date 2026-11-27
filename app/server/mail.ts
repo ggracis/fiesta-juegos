@@ -39,7 +39,7 @@ export function ticketEmail({ name, pin, ticketToken }: { name: string; pin: str
 <table role="presentation" cellpadding="0" cellspacing="0" border="0" bgcolor="#F7F1E8" style="margin:22px auto 0;background:#F7F1E8;border-radius:8px;"><tr><td style="padding:10px;line-height:0;"><img src="${qr}" width="220" height="220" alt="Tu código QR" style="display:block;width:220px;height:220px;border:0;"></td></tr></table>
 <p style="margin:22px 0 4px;font-size:12px;letter-spacing:4px;color:#D4AF6A;">TU PIN</p>
 <p style="margin:0;font-size:36px;font-weight:bold;letter-spacing:10px;color:#F3E8DA;">${esc(pin)}</p>
-<p style="margin:18px 0 26px;font-size:15px;line-height:1.5;">Muestra este QR en la acreditación. Usa tu PIN para jugar en las pantallas.</p>
+<p style="margin:18px 0 26px;font-size:15px;line-height:1.5;">Mostrá este QR en la acreditación. Usá tu PIN para jugar en las pantallas.</p>
 ${btn(ticketUrl, 'Ver mi entrada', true)}${btn(cal, 'Agregar a Google Calendar', false)}
 </td></tr>
 <tr><td class="pad" style="padding:26px 48px 0;${F}color:#F3E8DA;font-size:15px;line-height:1.6;">
@@ -49,16 +49,16 @@ ${btn(ticketUrl, 'Ver mi entrada', true)}${btn(cal, 'Agregar a Google Calendar',
 <table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%">${PROGRAM.map(([t, l]) => `<tr><td width="64" valign="top" style="padding:3px 0;${F}font-size:14px;font-weight:bold;color:#D4AF6A;">${esc(t)}</td><td style="padding:3px 0;${F}font-size:14px;color:#F3E8DA;">${esc(l)}</td></tr>`).join('')}</table>
 <p style="margin:24px 0 0;"><b style="color:#D4AF6A;">Dress code:</b> ${esc(EVENT.dress)}</p>
 </td></tr>
-<tr><td class="pad" align="center" style="padding:30px 48px 32px;${F}font-size:12px;line-height:1.6;color:#A99C8E;">Recibes este correo porque te inscribiste en Digital Power - Gala 2026.<br>¿Dudas? Escríbenos a <a href="mailto:${REPLY.email}" style="color:#A99C8E;">${REPLY.email}</a></td></tr>
+<tr><td class="pad" align="center" style="padding:30px 48px 32px;${F}font-size:12px;line-height:1.6;color:#A99C8E;">Recibís este correo porque te inscribiste en Digital Power - Gala 2026.<br>¿Dudas? Escribinos a <a href="mailto:${REPLY.email}" style="color:#A99C8E;">${REPLY.email}</a></td></tr>
 </table></td></tr></table></body></html>`;
   const text = [
     `Hola ${first}, ¡tu lugar está confirmado!`, '',
-    `Tu PIN: ${pin}`, 'Muestra tu QR en la acreditación. Usa tu PIN para jugar en las pantallas.', '',
+    `Tu PIN: ${pin}`, 'Mostrá tu QR en la acreditación. Usá tu PIN para jugar en las pantallas.', '',
     `Ver mi entrada (QR y PIN): ${ticketUrl}`, `Agregar a Google Calendar: ${cal}`, '',
     EVENT.when, `${EVENT.venue}`, `Cómo llegar: ${mapsUrl()}`, '',
     'AGENDA', ...PROGRAM.map(([t, l]) => `${t} · ${l}`), '',
     `Dress code: ${EVENT.dress}`, '',
-    'Recibes este correo porque te inscribiste en Digital Power - Gala 2026.', `¿Dudas? Escríbenos a ${REPLY.email}`,
+    'Recibís este correo porque te inscribiste en Digital Power - Gala 2026.', `¿Dudas? Escribinos a ${REPLY.email}`,
   ].join('\n');
   return { html, text };
 }

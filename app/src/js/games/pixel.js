@@ -198,6 +198,6 @@ function art(el, setStep) {
 
 export default {
   id: 'pixel',
-  howTo: { title: 'Así se juega', steps: ['Mira', 'Adivina', 'Toca'], art },
+  howTo: { title: 'Así se juega', steps: ['Mirá', 'Adiviná', 'Tocá'], art },
   play,
 };

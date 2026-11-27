@@ -58,8 +58,8 @@ async function ticketPng(d, qr) {
   x.fillText('Puerto Salguero, Costanera Rafael Obligado 1221, CABA', W / 2, 1128, W - 160);
   x.fillText(`Dress code: ${EVENT.dress}`, W / 2, 1166, W - 160);
   x.fillStyle = '#6B6460'; x.font = `400 22px ${sans}`;
-  x.fillText('Muestra este QR en la acreditación.', W / 2, 1204, W - 160);
-  x.fillText('Usa tu PIN para jugar en las pantallas.', W / 2, 1234, W - 160);
+  x.fillText('Mostrá este QR en la acreditación.', W / 2, 1204, W - 160);
+  x.fillText('Usá tu PIN para jugar en las pantallas.', W / 2, 1234, W - 160);
   return new Promise((res) => c.toBlob(res, 'image/png'));
 }
 

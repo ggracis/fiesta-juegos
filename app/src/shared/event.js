@@ -34,21 +34,21 @@ const esc = (s) => String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replac
 export function eventDetails(ticket, inv = invitationUrl()) {
   const text = [
     EVENT.intro, '',
-    ...(ticket ? ['🎟️ TU ENTRADA', `PIN para los juegos: ${ticket.pin}`, 'Presenta tu QR en la acreditación.', `Ver mi entrada (QR y PIN): ${ticket.url}`, ''] : []),
+    ...(ticket ? ['🎟️ TU ENTRADA', `PIN para los juegos: ${ticket.pin}`, 'Mostrá tu QR en la acreditación.', `Ver mi entrada (QR y PIN): ${ticket.url}`, ''] : []),
     `🕡 ${EVENT.when}`, `📍 ${EVENT.venue}`, `Cómo llegar: ${mapsUrl()}`, '',
     'AGENDA', ...PROGRAM.map(([t, l]) => `${t} · ${l}`), '',
     `Dress code: ${EVENT.dress}`,
-    ...(ticket ? [] : [`Confirma tu asistencia y obtén tu entrada: ${inv}`]),
+    ...(ticket ? [] : [`Confirmá tu asistencia y recibí tu entrada: ${inv}`]),
     `Invitación: ${inv}`,
   ].join('\n');
   const a = (href, label) => `<a href="${esc(href)}">${esc(label)}</a>`;
   const html = [
     `<i>${esc(EVENT.intro)}</i>`,
-    ...(ticket ? [`<br><b>🎟️ TU ENTRADA</b><br>PIN para los juegos: <b>${esc(ticket.pin)}</b><br>Presenta tu QR en la acreditación.<br>${a(ticket.url, 'Ver mi entrada (QR y PIN)')}`] : []),
+    ...(ticket ? [`<br><b>🎟️ TU ENTRADA</b><br>PIN para los juegos: <b>${esc(ticket.pin)}</b><br>Mostrá tu QR en la acreditación.<br>${a(ticket.url, 'Ver mi entrada (QR y PIN)')}`] : []),
     `<br>🕡 <b>${esc(EVENT.when)}</b><br>📍 ${esc(EVENT.venue)} · ${a(mapsUrl(), 'Cómo llegar')}`,
     `<br><b>AGENDA</b><ul>${PROGRAM.map(([t, l]) => `<li><b>${t}</b> · ${esc(l)}</li>`).join('')}</ul>`,
     `<b>Dress code:</b> ${esc(EVENT.dress)}`,
-    `<br>${ticket ? a(inv, 'Ver la invitación') : a(inv, 'Confirma tu asistencia y obtén tu entrada')}`,
+    `<br>${ticket ? a(inv, 'Ver la invitación') : a(inv, 'Confirmá tu asistencia y recibí tu entrada')}`,
   ].join('<br>');
   return { text, html };
 }
