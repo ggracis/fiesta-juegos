@@ -198,7 +198,14 @@ export function registerAdmin(app: FastifyInstance, db: DatabaseSync, state: Sta
       // Staff read the PIN straight off the card at the door (admin cookie only; public endpoints never carry it).
       pin: r.pin ?? null, ticketToken: r.ticket_token ?? null,
     }));
-    const summary = { total: rows.length, confirmed: rows.filter((r) => r.registered).length, accredited: rows.filter((r) => r.checked_in_at).length };
+    // Rejected = rejected guests + rejected new inscriptions that never became a guest (same rule as the CSV export).
+    const n = (sql: string) => (db.prepare(sql).get() as { n: number }).n;
+    const notGuest = "kind = 'new' AND email NOT IN (SELECT email FROM guest WHERE email IS NOT NULL)";
+    const confirmed = rows.filter((r) => r.registered && !r.on_hold).length, onHold = rows.filter((r) => r.on_hold === 1).length;
+    const pendingNew = n(`SELECT COUNT(*) AS n FROM verification_request WHERE status = 'pending' AND ${notGuest}`);
+    const summary = { total: rows.length, confirmed, onHold, pending: pendingNew, expected: confirmed + onHold + pendingNew,
+      rejected: rows.filter((r) => r.on_hold === 2).length + n(`SELECT COUNT(*) AS n FROM verification_request WHERE status = 'rejected' AND ${notGuest}`),
+      accredited: rows.filter((r) => r.checked_in_at).length };
     return { guests, counts, summary, checkinOpen: checkinOpen() }; // the door screen locks "Acreditar" before event day
   });
 

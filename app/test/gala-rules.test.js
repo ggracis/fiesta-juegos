@@ -82,11 +82,14 @@ test('rejections: a rejected revalidation stays blocked and marked, and both kin
   assert.deepEqual(pending.map((v) => v.kind).sort(), ['new', 'revalidate']);
   const list = (await app.inject({ url: '/api/admin/guests?filter=revalidate', headers: h })).json();
   assert.deepEqual([list.counts.revalidate, list.counts.newInscriptions, list.guests.map((x) => x.id)], [1, 1, [1]]);
+  const sum = () => app.inject({ url: '/api/admin/guests', headers: h }).then((r) => r.json().summary);
+  assert.deepEqual(await sum(), { total: list.summary.total, confirmed: 0, onHold: 1, pending: 1, expected: 2, rejected: 0, accredited: 0 }); // on hold is not confirmed
   for (const v of pending) assert.equal((await post(app, `/api/admin/verifications/${v.id}/reject`, undefined, h)).statusCode, 200);
 
   const me = (await app.inject({ url: '/api/admin/guests', headers: h })).json().guests.find((x) => x.id === 1);
   assert.equal(me.rejected, true);
   assert.equal(me.onHold, false);
+  assert.deepEqual([(await sum()).rejected, (await sum()).expected], [2, 0]); // the rejected guest and the rejected new inscription
   assert.equal((await post(app, '/api/login', { pin: '111222', screenId: 'screen-test-2' })).json().error, 'pending_validation');
   const rejected = (await app.inject({ url: '/api/admin/verifications?status=rejected', headers: h })).json();
   assert.equal(rejected.length, 2);

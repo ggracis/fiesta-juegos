@@ -209,7 +209,8 @@ async function loadGuests(bg) {
       : () => { gFilter = k; loadGuests(); };
     return b;
   }));
-  $('gsum').replaceChildren(`${summary.total} invitados · ${summary.confirmed} confirmados · ${summary.accredited} acreditados`,
+  $('gsum').replaceChildren(`${summary.confirmed} confirmados · ${summary.onHold} por revalidar · ${summary.pending} por aprobar · `,
+    h('b', {}, `${summary.expected} si se aprueba todo`), ` · ${summary.rejected} rechazados · ${summary.accredited} acreditados`,
     lastAct && h('span', { className: 'last' }, 'Última acción: ' + lastAct));
   $('guests').replaceChildren(...[...guests].sort((a, b) => a.rejected - b.rejected).map(guestCard)); // rejected guests go last
   $('guests-empty').hidden = guests.length > 0;
