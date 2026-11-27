@@ -131,3 +131,24 @@ test('duplicate inscriptions: sending the form twice keeps one request, approvin
   assert.equal(app.db.prepare("SELECT COUNT(*) AS n FROM guest WHERE email = 'pibanez@pcr.energy'").get().n, 1);
   await app.close();
 });
+
+test('tester guest: plays every game again and again, even on hold, and never wins a prize or ranks', async () => {
+  const { app, h } = await adminApp();
+  const g = app.db.prepare('SELECT name, email FROM guest WHERE id = 1').get();
+  const { ticketToken } = (await post(app, '/api/register', g)).json();
+  const { pin } = (await app.inject('/api/ticket/' + ticketToken)).json();
+  await post(app, '/api/admin/guests/1/revalidate', undefined, h); // on hold: a normal guest is locked out
+  app.db.prepare('UPDATE guest SET tester = 1 WHERE id = 1').run();
+  const login = await post(app, '/api/login', { pin, screenId: 'screen-tester-1' });
+  assert.equal(login.statusCode, 200);
+  const { session } = login.json();
+  for (let i = 0; i < 3; i++) {
+    const a = await post(app, '/api/attempts', { session, game: 'distinto' });
+    assert.equal(a.statusCode, 200, 'over the attempt limit');
+    app.db.prepare('UPDATE attempt SET score = 100, finished_at = ? WHERE id = ?').run(Date.now(), a.json().attemptId);
+  }
+  assert.equal(app.db.prepare('SELECT COUNT(*) n FROM attempt WHERE guest_id = 1 AND no_prize = 1').get().n, 3);
+  const live = (await app.inject(`/api/live?screenId=screen-tester-1&session=${session}`)).json();
+  assert.ok(live.games.find((x) => x.id === 'distinto').attemptsLeft > 0);
+  await app.close();
+});

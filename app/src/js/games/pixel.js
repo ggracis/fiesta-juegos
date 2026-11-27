@@ -62,6 +62,7 @@ function fitCanvas(cv, img) {
 }
 
 function mount(root, tap) {
+  root.querySelector('.px')?.remove();
   root.dataset.game = 'pixel';
   const view = document.createElement('div');
   view.className = 'px';
@@ -165,8 +166,9 @@ async function play(root, ctx) {
     ui.tw?.kill();
     ctx.idle.stop();
     ctx.signal.removeEventListener('abort', quit);
-    ui.view.remove();
-    delete root.dataset.game;
+    // Like the quiz: the last image stays under the result screen (not the shared grid of an earlier game) and goes when the panel leaves.
+    const clear = () => { ui.view.remove(); delete root.dataset.game; };
+    if (ctx.signal.aborted) clear(); else ctx.signal.addEventListener('abort', clear, { once: true });
   }
   return { score: pixelTotal(results, total), durationMs: Math.round(performance.now() - t0) };
 }

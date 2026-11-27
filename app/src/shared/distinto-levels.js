@@ -5,10 +5,13 @@ export const LEVELS = [
   { n: 5, k: 'hue', d: 30 }, { n: 5, k: 'rot', d: 15 }, { n: 6, k: 'scale', d: 0.9 }, { n: 6, k: 'rot', d: 10 }, { n: 6, k: 'rot', d: 7 },
 ];
 
+export const TINT = 10; // a turned logo is also recoloured a little (hue degrees), so the tilt is not the only clue
+
 export function makeRound(rng, lvl) {
   const base = { h: 0, rot: 0, scale: 1 }, odd = { ...base };
   const sign = rng() < 0.5 ? -1 : 1;
   if (lvl.k === 'scale') odd.scale = lvl.d;
-  else odd[lvl.k === 'hue' ? 'h' : 'rot'] = sign * lvl.d;
+  else if (lvl.k === 'hue') odd.h = sign * lvl.d;
+  else { odd.rot = sign * lvl.d; odd.h = sign * TINT; }
   return { base, odd, oddIndex: Math.floor(rng() * lvl.n * lvl.n), cells: lvl.n * lvl.n };
 }

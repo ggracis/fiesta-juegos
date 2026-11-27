@@ -158,9 +158,9 @@ export function buildApp(dbPath = DB_PATH, csvPath = CSV_PATH, opts: { adminPass
     const f = fails.get(screenId) ?? { n: 0, until: 0 };
     if (f.until > now) return reply.code(429).send({ error: 'locked', retryAfter: Math.ceil((f.until - now) / 1000) });
     const row = db.prepare(
-      'SELECT g.id, g.name, r.on_hold FROM registration r JOIN guest g ON g.id = r.guest_id WHERE r.pin = ?'
-    ).get(canonical(db, 'pin', (req.body as any).pin)) as { id: number; name: string; on_hold: number } | undefined;
-    if (row?.on_hold) return reply.code(403).send({ error: 'pending_validation' }); // right PIN, inscription back under review
+      'SELECT g.id, g.name, r.on_hold, g.tester FROM registration r JOIN guest g ON g.id = r.guest_id WHERE r.pin = ?'
+    ).get(canonical(db, 'pin', (req.body as any).pin)) as { id: number; name: string; on_hold: number; tester: number } | undefined;
+    if (row?.on_hold && !row.tester) return reply.code(403).send({ error: 'pending_validation' }); // right PIN, inscription back under review
     if (!row) {
       f.n++;
       if (f.n >= MAX_FAILS) { f.n = 0; f.until = now + LOCK_MS; }
@@ -174,6 +174,7 @@ export function buildApp(dbPath = DB_PATH, csvPath = CSV_PATH, opts: { adminPass
     return { name: row.name, session, guestId: row.id };
   });
 
+  const isTester = (guestId: number | string) => !!(db.prepare('SELECT tester FROM guest WHERE id = ?').get(guestId) as { tester: number } | undefined)?.tester;
   app.post('/api/attempts', {
     schema: { body: { type: 'object', required: ['session', 'game'], additionalProperties: false, properties: { session: { type: 'string' }, game: { type: 'string' } } } },
   }, async (req, reply) => {
@@ -186,11 +187,12 @@ export function buildApp(dbPath = DB_PATH, csvPath = CSV_PATH, opts: { adminPass
     // no await between the count and the insert below: sync sqlite makes this race-free
     // counts unfinished attempts too, so abandoning a game doesn't grant a retry
     const { n } = db.prepare('SELECT COUNT(*) AS n FROM attempt WHERE guest_id = ? AND game = ?').get(guestId, game) as { n: number };
-    if (n >= cfg.maxAttempts) return reply.code(409).send({ error: 'max_attempts' });
+    const tester = isTester(guestId); // test account: no limit, but its plays never win a prize or rank (no_prize)
+    if (n >= cfg.maxAttempts && !tester) return reply.code(409).send({ error: 'max_attempts' });
     const id = randomUUID();
     const seed = randomInt(1, 2 ** 31);
     const serverStart = Date.now();
-    db.prepare('INSERT INTO attempt(id, guest_id, game, seed, started_at) VALUES (?,?,?,?,?)').run(id, guestId, game, seed, serverStart);
+    db.prepare('INSERT INTO attempt(id, guest_id, game, seed, started_at, no_prize) VALUES (?,?,?,?,?,?)').run(id, guestId, game, seed, serverStart, tester ? 1 : 0);
     return { attemptId: id, seed, serverStart };
   });
 
@@ -293,7 +295,7 @@ export function buildApp(dbPath = DB_PATH, csvPath = CSV_PATH, opts: { adminPass
     const count = db.prepare('SELECT COUNT(*) AS n FROM attempt WHERE guest_id = ? AND game = ?');
     const games = state.allGames().filter((g) => g!.ready && g!.enabled).map((g) => ({
       id: g!.id, name: g!.name, params: g!.params,
-      ...(guestId ? { attemptsLeft: Math.max(0, g!.maxAttempts - (count.get(guestId, g!.id) as { n: number }).n) } : {}),
+      ...(guestId ? { attemptsLeft: isTester(guestId) ? g!.maxAttempts : Math.max(0, g!.maxAttempts - (count.get(guestId, g!.id) as { n: number }).n) } : {}),
     }));
     const r = db.prepare('SELECT r.id, g.name, r.drawn_at, r.prize, r.voided_at FROM raffle r JOIN guest g ON g.id = r.guest_id ORDER BY r.id DESC LIMIT 1').get() as { id: number; name: string; drawn_at: number; prize: string | null; voided_at: number | null } | undefined;
     const raffle = r && !r.voided_at && state.getSetting('raffleHidden') !== r.id
