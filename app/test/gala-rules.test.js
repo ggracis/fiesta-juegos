@@ -152,3 +152,25 @@ test('tester guest: plays every game again and again, even on hold, and never wi
   assert.ok(live.games.find((x) => x.id === 'distinto').attemptsLeft > 0);
   await app.close();
 });
+
+test('prize: only the first game a guest plays can win it; later games still rank', async () => {
+  const { app } = await adminApp();
+  const g = app.db.prepare('SELECT name, email FROM guest WHERE id = 1').get();
+  const { ticketToken } = (await post(app, '/api/register', g)).json();
+  const { pin } = (await app.inject('/api/ticket/' + ticketToken)).json();
+  const { session } = (await post(app, '/api/login', { pin, screenId: 'screen-first-1' })).json();
+  const play = async (game, score) => {
+    const a = (await post(app, '/api/attempts', { session, game })).json();
+    app.db.prepare('UPDATE attempt SET started_at = started_at - 10000 WHERE id = ?').run(a.attemptId);
+    return { a, r: (await post(app, `/api/attempts/${a.attemptId}/result`, { score, durationMs: 9000 })).json() };
+  };
+  const first = await play('distinto', 10); // below the threshold: the chance is used
+  assert.equal(first.a.prizeEligible, true);
+  assert.equal(first.r.prizeWon, false);
+  const second = await play('memo', 100);
+  assert.equal(second.a.prizeEligible, false);
+  assert.equal(second.r.prizeWon, false);
+  assert.equal(app.db.prepare('SELECT prize_won_at FROM registration WHERE guest_id = 1').get().prize_won_at, null);
+  assert.equal(app.db.prepare('SELECT no_prize FROM attempt WHERE id = ?').get(second.a.attemptId).no_prize, 0); // still ranks
+  await app.close();
+});

@@ -85,9 +85,10 @@ test('sync: prize respects stock and one per guest', async () => {
   for (const id of [1, 2, 3]) await guest(app, id);
   stock(db, 1);
   db.prepare("UPDATE game_config SET max_attempts = 3 WHERE game = 'distinto'").run();
-  const [a1, a1b, a2] = [att(1), att(1), att(2)];
-  const out = (await sync(app, [a1, res(a1.attemptId, 50), a1b, res(a1b.attemptId, 95), a2, res(a2.attemptId, 100)], h)).json().results;
-  assert.deepEqual(out.filter((x) => x.kind === 'result').map((x) => x.prizeWon), [false, true, false]); // guest 2: stock gone
+  const [a3, a1, a1b, a2] = [att(3), att(1), att(1, { startedAt: Date.now() - 10_000 }), att(2)];
+  const out = (await sync(app, [a3, res(a3.attemptId, 50), a1, res(a1.attemptId, 95), a1b, res(a1b.attemptId, 100), a2, res(a2.attemptId, 100)], h)).json().results;
+  // guest 3 below the threshold; guest 1 wins on the first game, the second can't; guest 2: stock gone
+  assert.deepEqual(out.filter((x) => x.kind === 'result').map((x) => x.prizeWon), [false, true, false, false]);
   assert.equal(prizes(db), 1);
   stock(db, 5);
   const a1c = att(1);

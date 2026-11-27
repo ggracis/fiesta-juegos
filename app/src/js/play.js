@@ -386,10 +386,14 @@ async function pick(id) {
   const myGid = gid;
   try {
     let d;
-    if (local) d = startLocalAttempt({ roster, queue, guestId: local.guestId, game: id });
+    // Only the first game can win the prize: online the server says so; offline the cached counts and queue tell.
+    const offline = (guestId) => ({ ...startLocalAttempt({ roster, queue, guestId, game: id }), prizeEligible: !hasPlayed(guestId) });
+    const hasPlayed = (guestId) => Object.values(roster?.guests.find((g) => g.id === guestId)?.a ?? {}).some((n) => n > 0)
+      || queue.items().some((i) => i.kind === 'attempt' && i.guestId === guestId);
+    if (local) d = offline(local.guestId);
     else {
       try { d = await startAttempt(session, id); bumpCount(roster, playerId, id); saveRoster(); }
-      catch (e) { if (!down(e) || !roster) throw e; d = startLocalAttempt({ roster, queue, guestId: playerId, game: id }); } // server dropped mid-session
+      catch (e) { if (!down(e) || !roster) throw e; d = offline(playerId); } // server dropped mid-session
     }
     if (myGid !== gid) return;
     attempt = d; gameId = id;
@@ -615,7 +619,8 @@ function showResult(score, answer) {
   let answered = false;
   answer.then(async (won) => { answered = true; if (won) { await counted; $('#rpending').hidden = true; reveal($('#rprize')); hold(myGid, true); } });
   // No answer in time (offline / slow): never award locally, just tell them to ask at the desk if they cleared the threshold.
-  wait(2000).then(() => { if (!answered && threshold !== undefined && score >= threshold) { reveal($('#rpending')); hold(myGid, false); } });
+  const eligible = attempt?.prizeEligible !== false; // a later game never wins, so it never says "ask at the desk"
+  wait(2000).then(() => { if (!answered && eligible && threshold !== undefined && score >= threshold) { reveal($('#rpending')); hold(myGid, false); } });
   let left = BACK_S;
   const ring = $('#backring');
   ring.style.animation = 'none'; void ring.getBoundingClientRect();

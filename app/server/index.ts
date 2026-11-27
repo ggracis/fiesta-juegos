@@ -188,12 +188,14 @@ export function buildApp(dbPath = DB_PATH, csvPath = CSV_PATH, opts: { adminPass
     // counts unfinished attempts too, so abandoning a game doesn't grant a retry
     const { n } = db.prepare('SELECT COUNT(*) AS n FROM attempt WHERE guest_id = ? AND game = ?').get(guestId, game) as { n: number };
     const tester = isTester(guestId); // test account: no limit, but its plays never win a prize or rank (no_prize)
+    // Only a guest's first game can win the prize (results.ts); the panel tells the guest before the game starts.
+    const prizeEligible = !tester && !db.prepare('SELECT 1 FROM attempt WHERE guest_id = ?').get(guestId);
     if (n >= cfg.maxAttempts && !tester) return reply.code(409).send({ error: 'max_attempts' });
     const id = randomUUID();
     const seed = randomInt(1, 2 ** 31);
     const serverStart = Date.now();
     db.prepare('INSERT INTO attempt(id, guest_id, game, seed, started_at, no_prize) VALUES (?,?,?,?,?,?)').run(id, guestId, game, seed, serverStart, tester ? 1 : 0);
-    return { attemptId: id, seed, serverStart };
+    return { attemptId: id, seed, serverStart, prizeEligible };
   });
 
   const applyResult = makeResults(db, state);

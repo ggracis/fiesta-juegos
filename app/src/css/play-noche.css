@@ -27,6 +27,7 @@ html.noche #stage { background: radial-gradient(90% 60% at 50% 125%, rgba(200, 1
 html.noche #stage[data-screen="attract"] { background: radial-gradient(60% 80% at 28% 55%, rgba(200, 16, 46, .16), transparent 70%), #080505; }
 html.noche h1, html.noche h2 { font-weight: 600; letter-spacing: 0; }
 html.noche .msg { font: 500 34px var(--nx-sans); color: var(--gold); }
+html.noche .menunote { font: 600 38px var(--nx-sans); color: var(--gold); }
 
 /* ---------- buttons (shared by confirm, how-to, menu exit) ---------- */
 html.noche button.big { font: 600 44px var(--nx-sans); letter-spacing: .06em; text-shadow: none; }

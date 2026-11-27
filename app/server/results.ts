@@ -22,7 +22,10 @@ export function makeResults(db: DatabaseSync, state: State) {
       let won = false;
       db.prepare('UPDATE attempt SET finished_at = ?, score = ?, duration_ms = ? WHERE id = ? AND finished_at IS NULL')
         .run(now, final, Math.round(durationMs), id);
-      if (!a.no_prize && final >= (state.gameConfig(a.game)?.threshold ?? Infinity)) {
+      // Only the guest's first game counts for the prize (earliest start; unfinished games count too).
+      const first = !db.prepare('SELECT 1 FROM attempt WHERE guest_id = ? AND id <> ? AND (started_at < ? OR (started_at = ? AND id < ?))')
+        .get(a.guest_id, id, a.started_at, a.started_at, id);
+      if (!a.no_prize && first && final >= (state.gameConfig(a.game)?.threshold ?? Infinity)) {
         // one statement: guest has no prize yet AND stock left, so stock can't go negative
         won = db.prepare(
           'UPDATE registration SET prize_won_at = ? WHERE guest_id = ? AND prize_won_at IS NULL AND (SELECT COUNT(*) FROM registration WHERE prize_won_at IS NOT NULL) < ?'

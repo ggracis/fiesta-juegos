@@ -106,14 +106,15 @@ test('prize: respects stock, threshold and one per guest', async () => {
   db.prepare("UPDATE setting SET value = '1' WHERE key = 'prizeStock'").run();
   db.prepare("UPDATE game_config SET max_attempts = 3 WHERE game = 'distinto'").run();
   const g1 = await guest(app, 1), g2 = await guest(app, 2);
+  const g3 = await guest(app, 3);
+  const c1 = (await start(app, g3.session)).json();
+  assert.equal((await finish(app, db, c1.attemptId, 50)).prizeWon, false); // below the threshold
   const a1 = (await start(app, g1.session)).json();
-  assert.equal((await finish(app, db, a1.attemptId, 50)).prizeWon, false);
-  const a2 = (await start(app, g1.session)).json();
-  assert.equal((await finish(app, db, a2.attemptId, 90)).prizeWon, true);
-  const replay = await post(app, `/api/attempts/${a2.attemptId}/result`, { score: 90, durationMs: 9000 });
+  assert.equal((await finish(app, db, a1.attemptId, 90)).prizeWon, true);
+  const replay = await post(app, `/api/attempts/${a1.attemptId}/result`, { score: 90, durationMs: 9000 });
   assert.equal(replay.json().prizeWon, true); // replay reports the stored outcome: a lost response must not hide the prize
-  const a3 = (await start(app, g1.session)).json();
-  assert.equal((await finish(app, db, a3.attemptId, 95)).prizeWon, false); // already has one
+  const a2 = (await start(app, g1.session)).json();
+  assert.equal((await finish(app, db, a2.attemptId, 95)).prizeWon, false); // already has one
   const b1 = (await start(app, g2.session)).json();
   assert.equal((await finish(app, db, b1.attemptId, 100)).prizeWon, false); // stock exhausted
   assert.equal(db.prepare('SELECT COUNT(*) AS n FROM registration WHERE prize_won_at IS NOT NULL').get().n, 1);
