@@ -1,25 +1,12 @@
 import gsap from 'gsap';
 import { roundScore, totalScore, ROUNDS, ROUND_TIMEOUT_MS } from '../../shared/scoring.js';
-import { $, mascot, mulberry32, wait } from '../common.js';
+import { $, mulberry32, wait } from '../common.js';
+import { LEVELS, makeRound } from '../../shared/distinto-levels.js';
+import flower from '../../assets/brand/huawei-flower.png';
 
-const ACCS = ['none', 'hat', 'bow', 'antenna'];
-const SHAPES = ['round', 'tall', 'box'];
-const LEVELS = [
-  { n: 3, k: 'hue', d: 70 }, { n: 3, k: 'acc' }, { n: 4, k: 'hue', d: 45 }, { n: 4, k: 'acc' }, { n: 4, k: 'eye', d: 5 },
-  { n: 5, k: 'hue', d: 20 }, { n: 5, k: 'eye', d: 3.5 }, { n: 6, k: 'hue', d: 12 }, { n: 6, k: 'eye', d: 3 }, { n: 6, k: 'hue', d: 8 },
-];
-
-function makeRound(rng, lvl) {
-  const h0 = Math.floor(rng() * 360);
-  const base = { h: h0 > 135 && h0 < 185 ? h0 + 60 : h0, // mint is reserved for "correct"
-    ex: 0, acc: lvl.k === 'acc' ? 'none' : ACCS[Math.floor(rng() * ACCS.length)], shape: SHAPES[Math.floor(rng() * 3)] };
-  const odd = { ...base };
-  const sign = rng() < 0.5 ? -1 : 1;
-  if (lvl.k === 'hue') { odd.h = (base.h + sign * lvl.d + 360) % 360; odd.cue = lvl.d <= 20; } // small hue gaps also get a shape cue (colour-blind players)
-  else if (lvl.k === 'eye') odd.ex = sign * lvl.d;
-  else odd.acc = ACCS[1 + Math.floor(rng() * 3)];
-  return { base, odd, oddIndex: Math.floor(rng() * lvl.n * lvl.n), cells: lvl.n * lvl.n };
-}
+// Huawei logo: the odd one is recoloured, turned or shrunk (src/shared/distinto-levels.js); the others never tilt.
+const logo = ({ h, rot, scale }) =>
+  `<img class="mz logo" src="${flower}" alt="" draggable="false" style="transform:rotate(${rot}deg) scale(${scale});filter:hue-rotate(${h}deg)">`;
 
 function countTo(el, from, to, dur) {
   const o = { v: from };
@@ -31,7 +18,7 @@ const HAND = '<svg class="hand" id="dhand" viewBox="0 0 100 130" aria-hidden="tr
 // How-to illustration: a 3x3 demo grid with a halo, a tapping hand and a "+10" float.
 function art(el, setStep) {
   const r = makeRound(mulberry32(7), { n: 3, k: 'hue', d: 70 });
-  el.innerHTML = `<div class="demo" id="demo">${Array.from({ length: 9 }, (_, i) => `<span>${mascot(i === 4 ? r.odd : r.base)}</span>`).join('')}<div class="halo" id="halo"></div>${HAND}<b class="plus" id="dplus">+10</b></div>`;
+  el.innerHTML = `<div class="demo" id="demo">${Array.from({ length: 9 }, (_, i) => `<span>${logo(i === 4 ? r.odd : r.base)}</span>`).join('')}<div class="halo" id="halo"></div>${HAND}<b class="plus" id="dplus">+10</b></div>`;
   const cell = $('#demo', el).children[4]; // odd one
   const dx = cell.offsetLeft, dy = cell.offsetTop;
   gsap.set('#halo', { x: dx - 24, y: dy - 24, opacity: 0 });
@@ -75,9 +62,8 @@ function playRound(root, { base, odd, oddIndex, cells }, lvl, idx, { sfx, signal
   const n = lvl.n, grid = $('#grid', root);
   grid.style.gridTemplateColumns = `repeat(${n}, 1fr)`;
   grid.style.gridTemplateRows = `repeat(${n}, 1fr)`;
-  const tilt = mulberry32(oddIndex * 31 + n);
   grid.innerHTML = Array.from({ length: cells }, (_, i) =>
-    `<div class="cell" data-i="${i}">${mascot({ ...(i === oddIndex ? odd : base), tilt: Math.round((tilt() - 0.5) * 10) })}</div>`).join('');
+    `<div class="cell" data-i="${i}">${logo(i === oddIndex ? odd : base)}</div>`).join('');
   const cellEls = [...grid.children];
   gsap.fromTo(cellEls, { scale: 0, opacity: 0 }, { scale: 1, opacity: 1, duration: 0.3, ease: 'back.out(1.7)', stagger: { each: 0.015, from: 'center', grid: [n, n] } });
 

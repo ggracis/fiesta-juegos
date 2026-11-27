@@ -162,6 +162,7 @@ button.press, button.big:active { transform: scale(.94); }
 #grid { position: absolute; left: 520px; top: 150px; width: 880px; height: 880px; display: grid; gap: 10px; padding: 14px; border-radius: var(--r3); background: var(--glass); border: 1px solid var(--glass-line); touch-action: none; }
 #grid .cell { position: relative; display: grid; place-items: center; padding: 6px; border-radius: 24px; background: rgba(255, 255, 255, .08); }
 #grid .cell .mz { pointer-events: none; }
+.mz.logo { object-fit: contain; user-select: none; -webkit-user-drag: none; }
 #grid .cell.wrong { background: rgba(228, 0, 43, .55); animation: shake 320ms; }
 #grid .cell.wrong::after { content: "×"; position: absolute; right: 10px; top: 2px; font: 800 44px var(--font); }
 #grid .cell .ok { position: absolute; inset: -4px; border-radius: 28px; border: 8px solid var(--mint); pointer-events: none; }
